@@ -1,5 +1,7 @@
 # HDB Neighbourhood Explorer - Team Brief
 
+![Neighboar](./images/Neighboar.png)
+
 ## What we are building
 
 An HDB neighbourhood explorer for prospective buyers. It uses historical HDB resale transactions, HDB building information, and hawker-centre locations to let a user compare towns and individual buildings by flat type, time period, floor area, past resale prices, and food-amenity access.
