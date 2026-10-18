@@ -1,0 +1,79 @@
+# Neighboar local stack. Start everything with:  docker compose up --build
+# Order: postgres + mongodb (healthy) -> migrate (exits 0) -> web on http://localhost:8000
+
+name: neighboar
+
+x-app: &app
+  build: .
+  image: neighboar-app:local
+  env_file: .env
+  depends_on:
+    postgres:
+      condition: service_healthy
+    mongodb:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:18.6-bookworm
+    env_file: .env
+    command: ["postgres", "-c", "shared_buffers=${PG_SHARED_BUFFERS:-512MB}"]
+    volumes:
+      # PostgreSQL 18 images keep data under /var/lib/postgresql/18/docker,
+      # so the volume mounts the parent directory. Do not set PGDATA.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      # -h forces TCP, so the socket-only server used during first-time init does not count as ready.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    mem_limit: 1500m
+    restart: unless-stopped
+
+  mongodb:
+    build: ./db/mongo
+    image: neighboar-mongo:local
+    env_file: .env
+    command:
+      - mongod
+      - --replSet=rs0
+      - --keyFile=/etc/mongo-keyfile
+      - --wiredTigerCacheSizeGB=${MONGO_CACHE_GB:-0.5}
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      # Ping works before the replica set is initiated; migrate initiates it.
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 40s
+    mem_limit: 1500m
+    restart: unless-stopped
+
+  migrate:
+    # Runs on every "up": idempotent roles, users, replica set and schema setup.
+    <<: *app
+    command: ["python", "-m", "db.migrate"]
+    restart: "no"
+
+  web:
+    <<: *app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  mongodata:

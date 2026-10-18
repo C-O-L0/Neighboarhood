@@ -1,0 +1,18 @@
+# Runtime and tooling dependencies. Edit this file, then regenerate the lock:
+#   uv pip compile --python-version 3.12 --python-platform linux -o requirements.lock requirements.in
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+pydantic-settings
+itsdangerous
+argon2-cffi
+psycopg[binary,pool]
+pymongo
+pandas
+pyarrow
+requests
+# dev and test
+pytest
+httpx
+ruff
