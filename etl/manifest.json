@@ -1,0 +1,37 @@
+{
+  "snapshot": "snapshot-2026-09",
+  "retrieved": "2026-09-26",
+  "note": "Pinned snapshot used for every load, test and benchmark. data.gov.sg updates the resale dataset monthly, so a fresh download will not match these checksums; use --check-live to see the drift.",
+  "files": [
+    {
+      "name": "ResaleflatpricesbasedonregistrationdatefromJan2017onwards.csv",
+      "sha256": "ca42462075724d72e3141f48b3d1647d280457e67c0940236c179e2a7ff0ef46",
+      "bytes": 23872356,
+      "rows": 241357,
+      "coverage": "2017-01 to 2026-09",
+      "publisher": "Housing & Development Board",
+      "dataset_id": "d_8b84c4ee58e3cfc0ece0d773c8ca6abc",
+      "source": "https://data.gov.sg/datasets/d_8b84c4ee58e3cfc0ece0d773c8ca6abc/view"
+    },
+    {
+      "name": "HDBPropertyInformation.csv",
+      "sha256": "a6e3105d02c4b59929371d1f7e4f8c0ed7939cdc081701d7e9197790bb78f4b1",
+      "bytes": 945969,
+      "rows": 13357,
+      "coverage": "blocks completed up to 2026",
+      "publisher": "Housing & Development Board",
+      "dataset_id": "d_17f5382f26140b1fdae0ba2ef6239d2f",
+      "source": "https://data.gov.sg/datasets/d_17f5382f26140b1fdae0ba2ef6239d2f/view"
+    },
+    {
+      "name": "HawkerCentresGEOJSON.geojson",
+      "sha256": "722ffdb3e68627c1724bc47f72889e09e790904ff23a1fa630595d76265f7451",
+      "bytes": 140561,
+      "rows": 129,
+      "coverage": "current snapshot",
+      "publisher": "National Environment Agency",
+      "dataset_id": "d_4a086da0a5553be1d89383cd90d07ecd",
+      "source": "https://data.gov.sg/datasets/d_4a086da0a5553be1d89383cd90d07ecd/view"
+    }
+  ]
+}
