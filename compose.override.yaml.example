@@ -1,0 +1,12 @@
+# Optional: copy to compose.override.yaml to reach the databases from host
+# tools (DBeaver, pgAdmin, MongoDB Compass, the benchmark script).
+# Ports stay bound to 127.0.0.1, so nothing is exposed to the network.
+# Compass / host-side PyMongo must use directConnection=true, because the
+# replica-set member is advertised as mongodb:27017 inside Docker.
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+  mongodb:
+    ports:
+      - "127.0.0.1:27017:27017"

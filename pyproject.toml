@@ -1,0 +1,22 @@
+[project]
+name = "neighboar"
+version = "0.1.0"
+description = "HDB neighbourhood explorer on PostgreSQL and MongoDB (SIT INF2003 Team 65)"
+requires-python = ">=3.12,<3.13"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F/W: pycodestyle and pyflakes. I: import order. B: bugbear. UP: pyupgrade.
+# S608: flags SQL built with string formatting (we only use parameters or psycopg.sql).
+select = ["E", "F", "W", "I", "B", "UP", "S608"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Integration tests need the Compose stack; run them with: pytest -m integration
+addopts = "-m 'not integration'"
+markers = [
+  "integration: needs the Compose stack running (docker compose up)",
+]

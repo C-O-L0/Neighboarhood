@@ -1,0 +1,21 @@
+# Secrets
+.env
+compose.override.yaml
+
+# Raw and intermediate data (snapshot is fetched by etl/download.py)
+data/raw/
+data/interim/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

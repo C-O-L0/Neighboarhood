@@ -1,0 +1,19 @@
+# Normalise line endings so scripts behave the same on Windows checkouts.
+* text=auto
+*.sh text eol=lf
+*.sql text eol=lf
+*.js text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.csv text eol=lf
+Dockerfile text eol=lf
+.env.example text eol=lf
+*.png binary
+*.gz binary
+
+# Raw snapshot files must stay byte-identical so their SHA-256 checks pass.
+data/raw/** -text
