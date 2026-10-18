@@ -20,8 +20,10 @@ ABBREVIATIONS: dict[str, str] = {
     "CTR": "CENTRE",
     "CTRL": "CENTRAL",
     "DR": "DRIVE",
+    "GDN": "GARDEN",
     "GDNS": "GARDENS",
     "HTS": "HEIGHTS",
+    "IND": "INDUSTRIAL",
     "JLN": "JALAN",
     "KG": "KAMPONG",
     "LOR": "LORONG",
@@ -64,6 +66,9 @@ def expand_street(street: str) -> str:
 
 def same_street(hdb_street: str, onemap_road: str) -> bool:
     """True when an HDB street and a OneMap road name refer to the same road."""
-    a = expand_street(hdb_street).replace("'", "").replace(".", "")
-    b = normalise_key(onemap_road).replace("'", "").replace(".", "")
-    return a == b
+    return _canonical(hdb_street) == _canonical(onemap_road)
+
+
+def _canonical(street: str) -> str:
+    """One form for both sides: abbreviations expanded, apostrophes and full stops removed."""
+    return expand_street(street).replace("'", "").replace(".", "")

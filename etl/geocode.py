@@ -59,25 +59,39 @@ class Block:
 def target_blocks(raw_dir: Path) -> list[Block]:
     """Residential blocks plus every resold block, de-duplicated and sorted."""
     targets: set[Block] = set()
-    with open(raw_dir / PROPERTY_FILE, newline="", encoding="utf-8") as f:
+    with open(raw_dir / PROPERTY_FILE, newline="", encoding="utf-8-sig") as f:
         for row in csv.DictReader(f):
             if row["residential"].strip().upper() == "Y":
-                targets.add(
-                    Block(normalise_key(row["blk_no"]), normalise_key(row["street"]))
-                )
-    with open(raw_dir / RESALE_FILE, newline="", encoding="utf-8") as f:
+                targets.add(Block(normalise_key(row["blk_no"]), normalise_key(row["street"])))
+    with open(raw_dir / RESALE_FILE, newline="", encoding="utf-8-sig") as f:
         for row in csv.DictReader(f):
-            targets.add(
-                Block(normalise_key(row["block"]), normalise_key(row["street_name"]))
-            )
+            targets.add(Block(normalise_key(row["block"]), normalise_key(row["street_name"])))
     return sorted(targets, key=lambda b: (b.street, b.block))
 
 
-def load_done(out: Path) -> set[Block]:
-    if not out.exists():
-        return set()
-    with open(out, newline="", encoding="utf-8") as f:
-        return {Block(r["block"], r["street"]) for r in csv.DictReader(f)}
+def read_cache(out: Path) -> dict[Block, dict]:
+    """Rows already geocoded, keyed by block. A torn last line from a hard kill is dropped."""
+    if not out.exists() or out.stat().st_size == 0:
+        return {}
+    text = out.read_text(encoding="utf-8-sig")
+    if not text.endswith("\n"):
+        text = text[: text.rfind("\n") + 1]  # drop the incomplete trailing row
+    rows: dict[Block, dict] = {}
+    for r in csv.DictReader(text.splitlines()):
+        if r.get("match_status") and None not in r.values():
+            rows[Block(r["block"], r["street"])] = r
+    return rows
+
+
+def write_cache(out: Path, rows: dict[Block, dict]) -> None:
+    """Rewrite the cache sorted by (street, block) so the committed file is deterministic."""
+    tmp = out.with_suffix(".tmp")
+    with open(tmp, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDS, lineterminator="\n")
+        writer.writeheader()
+        for key in sorted(rows, key=lambda b: (b.street, b.block)):
+            writer.writerow({k: rows[key].get(k, "") for k in FIELDS})
+    tmp.replace(out)
 
 
 def in_singapore(lat: float, lon: float) -> bool:
@@ -136,8 +150,7 @@ def pick(block: Block, results: list[dict]) -> tuple[dict | None, str]:
     exact = [
         r
         for r in results
-        if normalise_key(r.get("BLK_NO", "")) == block.block
-        and same_street(block.street, r.get("ROAD_NAME", ""))
+        if normalise_key(r.get("BLK_NO", "")) == block.block and same_street(block.street, r.get("ROAD_NAME", ""))
     ]
     if exact:
         exact.sort(key=lambda r: r.get("POSTAL", "NIL") in ("NIL", ""))
@@ -149,6 +162,23 @@ def pick(block: Block, results: list[dict]) -> tuple[dict | None, str]:
 
 
 def geocode_one(limiter: RateLimiter, block: Block) -> dict:
+    """Geocode one block; any failure becomes an "error" row so the run continues."""
+    try:
+        return _geocode_one(limiter, block)
+    except Exception as exc:  # noqa: BLE001 - recorded and retried on the next run
+        return {
+            "block": block.block,
+            "street": block.street,
+            "latitude": "",
+            "longitude": "",
+            "postal_code": "",
+            "onemap_address": f"{exc.__class__.__name__}: {exc}"[:200],
+            "match_status": "error",
+            "query": f"{block.block} {block.street}",
+        }
+
+
+def _geocode_one(limiter: RateLimiter, block: Block) -> dict:
     queries = [f"{block.block} {block.street}"]
     expanded = f"{block.block} {expand_street(block.street)}"
     if expanded != queries[0]:
@@ -178,9 +208,7 @@ def geocode_one(limiter: RateLimiter, block: Block) -> dict:
         row.update(
             latitude=f"{float(chosen['LATITUDE']):.6f}",
             longitude=f"{float(chosen['LONGITUDE']):.6f}",
-            postal_code=""
-            if chosen.get("POSTAL") in (None, "NIL")
-            else chosen["POSTAL"],
+            postal_code="" if chosen.get("POSTAL") in (None, "NIL") else chosen["POSTAL"],
             onemap_address=chosen.get("ADDRESS", ""),
         )
     return row
@@ -189,9 +217,7 @@ def geocode_one(limiter: RateLimiter, block: Block) -> dict:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--raw-dir", type=Path, default=Path("data/raw"))
-    ap.add_argument(
-        "--out", type=Path, default=Path("data/cache/block_coordinates.csv")
-    )
+    ap.add_argument("--out", type=Path, default=Path("data/cache/block_coordinates.csv"))
     ap.add_argument("--rate", type=float, default=4.0, help="max requests per second")
     ap.add_argument(
         "--workers",
@@ -199,39 +225,43 @@ def main(argv: list[str] | None = None) -> int:
         default=4,
         help="concurrent requests (latency is ~1 s each)",
     )
+    ap.add_argument("--limit", type=int, default=0, help="stop after N blocks (0 = all)")
     ap.add_argument(
-        "--limit", type=int, default=0, help="stop after N blocks (0 = all)"
+        "--retry",
+        default="error",
+        help="comma-separated statuses to geocode again (default: error; e.g. error,none,block_only)",
     )
     args = ap.parse_args(argv)
 
     targets = target_blocks(args.raw_dir)
-    done = load_done(args.out)
-    todo = [b for b in targets if b not in done]
+    cache = read_cache(args.out)
+    retry = {x.strip() for x in args.retry.split(",") if x.strip()}
+    todo = [b for b in targets if b not in cache or cache[b]["match_status"] in retry]
     if args.limit:
         todo = todo[: args.limit]
-    print(
-        f"targets={len(targets)} cached={len(done)} to_geocode={len(todo)}", flush=True
-    )
+    print(f"targets={len(targets)} cached={len(cache)} to_geocode={len(todo)}", flush=True)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    new_file = not args.out.exists()
+    write_cache(args.out, cache)  # repairs a torn file and normalises order before appending
     limiter = RateLimiter(args.rate)
     counts: dict[str, int] = {}
-
-    with (
-        open(args.out, "a", newline="", encoding="utf-8") as f,
-        ThreadPoolExecutor(args.workers) as pool,
-    ):
-        writer = csv.DictWriter(f, fieldnames=FIELDS, lineterminator="\n")
-        if new_file:
-            writer.writeheader()
-        # map() yields in input order; rows are written by this thread only.
-        for i, row in enumerate(pool.map(lambda b: geocode_one(limiter, b), todo), 1):
-            writer.writerow(row)
-            counts[row["match_status"]] = counts.get(row["match_status"], 0) + 1
-            if i % 200 == 0:
+    pool = ThreadPoolExecutor(args.workers)
+    try:
+        with open(args.out, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=FIELDS, lineterminator="\n")
+            # map() yields in input order; rows are written by this thread only and
+            # flushed one by one, so a kill loses at most the row in flight.
+            for i, row in enumerate(pool.map(lambda b: geocode_one(limiter, b), todo), 1):
+                writer.writerow(row)
                 f.flush()
-                print(f"{i}/{len(todo)} {counts}", flush=True)
+                cache[Block(row["block"], row["street"])] = row
+                counts[row["match_status"]] = counts.get(row["match_status"], 0) + 1
+                if i % 200 == 0:
+                    print(f"{i}/{len(todo)} {counts}", flush=True)
+    finally:
+        # Ctrl+C or a crash: drop queued blocks instead of finishing them silently.
+        pool.shutdown(wait=True, cancel_futures=True)
+        write_cache(args.out, cache)  # sorted, one row per block (retried rows replaced)
 
     print(f"done: {counts}", flush=True)
     return 0
