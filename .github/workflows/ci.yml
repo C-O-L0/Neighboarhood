@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  stack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env with throwaway secrets
+        run: |
+          python3 - <<'EOF'
+          import re, secrets
+          text = open(".env.example").read()
+          text = re.sub(r"change-me[\w-]*", lambda m: secrets.token_urlsafe(24), text)
+          open(".env", "w").write(text)
+          EOF
+
+      - name: Build and start the stack (postgres, mongodb, migrate, web)
+        run: docker compose up --build -d --wait
+
+      - name: Lint
+        run: docker compose run --rm --no-deps web ruff check .
+
+      - name: Tests (unit + integration against the running stack)
+        run: docker compose run --rm --no-deps -e NEIGHBOAR_URL=http://web:8000 web python -m pytest -q
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --no-color
