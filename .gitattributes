@@ -14,3 +14,6 @@ Dockerfile text eol=lf
 .env.example text eol=lf
 *.png binary
 *.gz binary
+
+# Raw snapshot files must stay byte-identical so their SHA-256 checks pass.
+data/raw/** -text

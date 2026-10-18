@@ -11,7 +11,12 @@ Steps, in order:
   4. MongoDB (as root): create or update custom roles and users, then apply
      collection validators from db/mongo/validators/*.json.
 
-Usage (inside Compose):  docker compose --profile tools run --rm migrate
+Runs automatically on every `docker compose up` (web waits for it to exit 0).
+Re-run by hand with:  docker compose run --rm migrate
+
+Note: POSTGRES_PASSWORD and MONGODB_INITDB_ROOT_PASSWORD only take effect when
+the volumes are first created. If you change them later, reset the volumes
+with `docker compose down -v` (this deletes local data).
 """
 
 from __future__ import annotations
@@ -59,11 +64,25 @@ def log(msg: str) -> None:
     print(f"[migrate] {msg}", flush=True)
 
 
+AUTH_HINT = (
+    "authentication failed. If you changed a superuser or root password in .env after the "
+    "volumes were created, run `docker compose down -v` to recreate them (deletes local data)."
+)
+
+
+def _is_auth_failure(exc: Exception) -> bool:
+    if isinstance(exc, OperationFailure):
+        return exc.code == 18  # AuthenticationFailed
+    return "password authentication failed" in str(exc)
+
+
 def retry(what: str, fn, attempts: int = 30, delay: float = 2.0):
     for i in range(1, attempts + 1):
         try:
             return fn()
         except (psycopg.OperationalError, PyMongoError) as exc:
+            if _is_auth_failure(exc):
+                raise SystemExit(f"[migrate] {what}: {AUTH_HINT}") from exc
             if i == attempts:
                 raise
             log(f"waiting for {what} ({exc.__class__.__name__}), retry {i}/{attempts}")
@@ -137,7 +156,7 @@ def mongo_validators(s: Settings) -> None:
         existing = set(db.list_collection_names())
         for f in files:
             name = f.stem
-            schema = json.loads(f.read_text(encoding="utf-8"))
+            schema = json.loads(f.read_text(encoding="utf-8-sig"))
             opts = {"validator": {"$jsonSchema": schema}, "validationLevel": "strict", "validationAction": "error"}
             if name in existing:
                 db.command("collMod", name, **opts)
@@ -192,9 +211,8 @@ def pg_roles(s: Settings) -> None:
             sql.SQL("ALTER DEFAULT PRIVILEGES FOR ROLE {} IN SCHEMA public GRANT SELECT ON TABLES TO {}").format(
                 owner, apps
             ),
-            sql.SQL(
-                "ALTER DEFAULT PRIVILEGES FOR ROLE {} IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC"
-            ).format(owner),
+            # EXECUTE for PUBLIC is a global default, so this must not be scoped IN SCHEMA.
+            sql.SQL("ALTER DEFAULT PRIVILEGES FOR ROLE {} REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC").format(owner),
         ):
             conn.execute(stmt)
     log("pg database and schema ownership, PUBLIC revoked, default privileges set")
@@ -203,6 +221,8 @@ def pg_roles(s: Settings) -> None:
 def pg_apply_sql(s: Settings) -> None:
     files = sorted(PG_DIR.glob("*.sql")) if PG_DIR.exists() else []
     with psycopg.connect(s.pg_dsn(s.postgres_user)) as conn:
+        # Serialise concurrent runs (e.g. `compose run migrate` while `up` is starting).
+        conn.execute("SELECT pg_advisory_lock(hashtext('neighboar_migrate'))")
         conn.execute("SET ROLE neighboar_owner")
         conn.execute(
             """CREATE TABLE IF NOT EXISTS schema_migration (
@@ -213,7 +233,7 @@ def pg_apply_sql(s: Settings) -> None:
         applied = dict(conn.execute("SELECT filename, sha256 FROM schema_migration").fetchall())
         conn.commit()
         for f in files:
-            text = f.read_text(encoding="utf-8")
+            text = f.read_text(encoding="utf-8-sig")  # tolerate a BOM from Notepad
             digest = hashlib.sha256(text.encode()).hexdigest()
             if f.name in applied:
                 if applied[f.name] != digest:

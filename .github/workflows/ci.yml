@@ -5,12 +5,18 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   stack:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      - name: Lint (fast fail before building images)
+        run: pipx run ruff==0.17.1 check .
 
       - name: Create .env with throwaway secrets
         run: |
@@ -21,14 +27,16 @@ jobs:
           open(".env", "w").write(text)
           EOF
 
-      - name: Build and start the stack (postgres, mongodb, migrate, web)
-        run: docker compose up --build -d --wait
+      - name: Build, start databases and run migrate
+        run: |
+          docker compose build
+          docker compose run --rm migrate
 
-      - name: Lint
-        run: docker compose run --rm --no-deps web ruff check .
+      - name: Start the web app
+        run: docker compose up -d --wait --wait-timeout 300 web
 
       - name: Tests (unit + integration against the running stack)
-        run: docker compose run --rm --no-deps -e NEIGHBOAR_URL=http://web:8000 web python -m pytest -q
+        run: docker compose run --rm --no-deps -e NEIGHBOAR_URL=http://web:8000 web python -m pytest -q -m "integration or not integration"
 
       - name: Logs on failure
         if: failure()

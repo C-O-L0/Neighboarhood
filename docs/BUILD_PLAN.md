@@ -35,7 +35,7 @@ DB mode is a `?db=pg|mongo` parameter with a header toggle that sets a cookie. R
 ## 3. Repository layout
 
 ```
-compose.yaml          web, postgres, mongodb, migrate, etl (migrate and etl in profile "tools")
+compose.yaml          postgres, mongodb, migrate (runs on every up), web; etl in profile "tools"
 Dockerfile            python:3.12.x-slim-bookworm (pinned), non-root user
 db/mongo/Dockerfile   thin wrapper on the Mongo image: keyfile generated at build (`head -c 756 /dev/urandom | base64`), owned by the mongod UID, mode 400; nothing secret committed
 .env.example          root and per-role passwords, SECRET_KEY, DSNs; no real values
