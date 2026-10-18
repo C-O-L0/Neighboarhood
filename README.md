@@ -33,21 +33,35 @@ Pinning the PostgreSQL and MongoDB container image versions avoids every teammat
 ## How we will build it
 
 1. **Data pipeline** - download the official resale and property CSVs plus hawker-location data, retain a dated source manifest, clean values, map HDB property town codes to resale town names, and report unmatched addresses.
-2. **PostgreSQL design** - implement `town`, `building`, `resale_transaction`, `buyer`, and `saved_building`. A building has many transactions. Buyers and buildings have a many-to-many relationship through `saved_building`.
-3. **MongoDB design** - build a `building_profiles` collection with building metadata and embedded transactions, plus buyer documents with saved-building entries. Preserve the three unmatched transactions separately so town-level analysis remains complete.
+2. **PostgreSQL design** (as committed in the progress report) - eight tables in 3NF: `town`, `building`, `flat_type`, `flat_model`, `building_flat_supply`, `resale_transaction`, `buyer` and `saved_building`. Town to building and building to transaction are 1:M, transaction to flat type and flat model are M:1, and `building_flat_supply` and `saved_building` resolve two M:N relationships.
+3. **MongoDB design** (as committed in the progress report) - `building_profiles` (block details, recent sales and price statistics embedded for single-read pages), `resale_transactions` (full history), `buyers` (saved blocks embedded) and `hawker_centres` (GeoJSON with a 2dsphere index).
 4. **Shared features** - implement equivalent search, filtering, aggregation, building detail, and saved-building operations. The UI can let reviewers select the PostgreSQL or MongoDB implementation for supported comparison queries.
 5. **Advanced work** - add indexed trend/ranking queries, explain query plans, test data constraints, measure equivalent query latency and throughput, and report tradeoffs.
 
-The resale and property datasets are the validated core for the first prototype. Hawker-centre locations are the third planned dataset for amenity features. We must still validate its coordinate fields and determine a defensible proximity method before promising a specific "nearby hawker" calculation.
+Proximity method: every residential block is geocoded once through OneMap (`etl/geocode.py`) and the result is committed in `data/cache/block_coordinates.csv`. The app never calls an external API at run time. Food access uses Haversine distance in PostgreSQL and `$geoNear` in MongoDB.
+
+The detailed build plan, schemas, equivalence rules and timeline are in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
+
+## Quick start
+
+Needs Docker Desktop (Windows or macOS) or Docker Engine with the Compose plugin (Linux).
+
+```bash
+cp .env.example .env        # then replace every change-me value (Windows: copy .env.example .env)
+docker compose up --build   # first run pulls images and builds, a few minutes
+```
+
+Open http://localhost:8000/health. Both databases should show as up, connected as `app_rw` (PostgreSQL) and `app` (MongoDB, replica set `rs0`).
 
 ## Docker Compose workflow
 
-Use Docker Compose from the start. The eventual `compose.yaml` will run three services:
+`compose.yaml` runs four services:
 
 ```text
-web       FastAPI application, exposed at http://localhost:8000
-postgres  PostgreSQL, persistent named volume
-mongodb   MongoDB, persistent named volume
+postgres  PostgreSQL 18.6, named volume pgdata
+mongodb   MongoDB 8.3.11 as a single-node replica set (needed for transactions), named volume mongodata
+migrate   one-shot: initiates the replica set, creates least-privilege roles and users, applies schema files, then exits
+web       FastAPI application at http://localhost:8000 (bound to localhost only), starts after migrate succeeds
 ```
 
 Compose gives the services a private network, lets the application use service names such as `postgres` and `mongodb`, and starts the full stack with one command:
