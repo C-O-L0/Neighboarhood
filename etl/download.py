@@ -5,7 +5,8 @@ The three source files are not committed. They come from one of:
   --from DIR        copy them from a local folder (e.g. the team's shared drive
                     or an unzipped submission), then verify
   --release [TAG]   download the GitHub Release asset set with the gh CLI
-                    (repo must be accessible to your gh login), then verify
+                    (run on the host, not in the container; the repo must be
+                    accessible to your gh login), then verify
   (no option)       verify files already in data/raw
 
   --check-live      compare row counts on data.gov.sg today with the snapshot
@@ -90,9 +91,13 @@ def check_live(manifest: dict) -> None:
         if not entry["name"].endswith(".csv"):
             print(f"skip     {entry['name']} (GeoJSON is not in the datastore API)")
             continue
-        resp = requests.get(DATASTORE, params={"resource_id": entry["dataset_id"], "limit": 1}, timeout=30)
-        resp.raise_for_status()
-        total = resp.json()["result"]["total"]
+        try:
+            resp = requests.get(DATASTORE, params={"resource_id": entry["dataset_id"], "limit": 1}, timeout=30)
+            resp.raise_for_status()
+            total = resp.json()["result"]["total"]
+        except (requests.RequestException, KeyError, ValueError) as exc:
+            print(f"live     {entry['name']}: could not reach data.gov.sg ({exc.__class__.__name__})")
+            continue
         drift = total - entry["rows"]
         print(f"live     {entry['name']}: {total:,} rows today vs {entry['rows']:,} in snapshot ({drift:+,})")
 
