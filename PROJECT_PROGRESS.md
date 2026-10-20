@@ -2,6 +2,11 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-20 Phase 0 decisions
+
+- `hawker_centre` is the ninth PostgreSQL table (needed for the Haversine food-access query). Listed as a deliberate change in docs/BUILD_PLAN.md section 15.
+- MongoDB runs as a single-node replica set with a build-time keyfile (spike passed: auth under `--replSet`, multi-document transactions, `$geoNear` inside `$lookup`). No standalone fallback. `mongo/replset-spike` is closed; the setup is already on main via db/mongo/Dockerfile and db/migrate.py.
+
 ## 2026-10-18 Gate 0 decisions
 
 - Scope follows the submitted progress report. Deviations are listed in docs/BUILD_PLAN.md section 15 and will be stated in the final report.
@@ -10,7 +15,6 @@ Decisions and next actions only (README rule). Newest first.
 - Data snapshot: the three files downloaded on 26 Sep 2026 are the pinned snapshot (SHA-256 in etl/manifest.json).
 - Image pins kept: postgres:18.6-bookworm, mongodb/mongodb-community-server:8.3.11-ubi8-slim, python:3.12.15-slim-bookworm.
 - Repository to be made private by its owner.
-- Open: `hawker_centre` as a ninth PostgreSQL table for the Haversine query (needed before Phase 1 schema work).
 
 ## Phase 0 spike results (2026-10-18)
 
