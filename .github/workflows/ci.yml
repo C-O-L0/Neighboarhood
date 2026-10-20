@@ -32,6 +32,9 @@ jobs:
           docker compose build
           docker compose run --rm migrate
 
+      - name: Load the committed sample into both databases
+        run: docker compose run --rm etl python -m etl.pipeline --sample
+
       - name: Start the web app
         run: docker compose up -d --wait --wait-timeout 300 web
 

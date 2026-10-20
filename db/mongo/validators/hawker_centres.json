@@ -1,0 +1,92 @@
+{
+  "bsonType": "object",
+  "title": "hawker_centres: GeoJSON Features as published by NEA",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "type",
+    "geometry",
+    "properties"
+  ],
+  "properties": {
+    "_id": {
+      "bsonType": [
+        "int",
+        "long"
+      ]
+    },
+    "type": {
+      "enum": [
+        "Feature"
+      ]
+    },
+    "geometry": {
+      "bsonType": "object",
+      "required": [
+        "type",
+        "coordinates"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "Point"
+          ]
+        },
+        "coordinates": {
+          "bsonType": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "bsonType": "double"
+          }
+        }
+      }
+    },
+    "properties": {
+      "bsonType": "object",
+      "required": [
+        "OBJECTID",
+        "NAME",
+        "STATUS"
+      ],
+      "properties": {
+        "OBJECTID": {
+          "bsonType": [
+            "int",
+            "long"
+          ]
+        },
+        "NAME": {
+          "bsonType": "string",
+          "maxLength": 100
+        },
+        "ADDRESS_MYENV": {
+          "bsonType": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100
+        },
+        "ADDRESSPOSTALCODE": {
+          "bsonType": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9]{6}$"
+        },
+        "STATUS": {
+          "bsonType": "string",
+          "maxLength": 30
+        },
+        "NUMBER_OF_COOKED_FOOD_STALLS": {
+          "bsonType": [
+            "int",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

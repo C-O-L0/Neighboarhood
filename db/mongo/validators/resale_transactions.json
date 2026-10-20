@@ -1,0 +1,91 @@
+{
+  "bsonType": "object",
+  "title": "resale_transactions: one document per sale",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "building_id",
+    "town",
+    "block",
+    "street",
+    "flat_type",
+    "flat_model",
+    "txn_month",
+    "storey_min",
+    "storey_max",
+    "floor_area_sqm",
+    "remaining_lease_months",
+    "resale_price"
+  ],
+  "properties": {
+    "_id": {
+      "bsonType": [
+        "int",
+        "long"
+      ]
+    },
+    "building_id": {
+      "bsonType": [
+        "int",
+        "long"
+      ]
+    },
+    "town": {
+      "bsonType": "string",
+      "maxLength": 40
+    },
+    "block": {
+      "bsonType": "string",
+      "maxLength": 5
+    },
+    "street": {
+      "bsonType": "string",
+      "maxLength": 40
+    },
+    "flat_type": {
+      "enum": [
+        "1 ROOM",
+        "2 ROOM",
+        "3 ROOM",
+        "4 ROOM",
+        "5 ROOM",
+        "EXECUTIVE",
+        "MULTI-GENERATION"
+      ]
+    },
+    "flat_model": {
+      "bsonType": "string",
+      "maxLength": 30
+    },
+    "txn_month": {
+      "bsonType": "date"
+    },
+    "storey_min": {
+      "bsonType": "int",
+      "minimum": 1,
+      "maximum": 60
+    },
+    "storey_max": {
+      "bsonType": "int",
+      "minimum": 1,
+      "maximum": 60
+    },
+    "floor_area_sqm": {
+      "bsonType": "decimal"
+    },
+    "remaining_lease_months": {
+      "bsonType": "int",
+      "minimum": 0,
+      "maximum": 1188
+    },
+    "resale_price": {
+      "bsonType": "decimal"
+    },
+    "lease_commence_year": {
+      "bsonType": [
+        "int",
+        "null"
+      ]
+    }
+  }
+}

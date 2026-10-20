@@ -1,0 +1,116 @@
+// Neighboar ERD: PostgreSQL schema (db/postgres/001_schema.sql), crow's-foot notation.
+// Hand-maintained. tests/integration/test_erd.py fails if a table or column here differs from the live catalogue.
+// Render: python -m docs.diagrams.build
+digraph neighboar_erd {
+  graph [rankdir=LR, splines=spline, nodesep=0.35, ranksep=0.9, fontname="Helvetica", fontsize=12, pad=0.3,
+         label="Neighboar relational schema (9 tables, 3NF).\nCrow's foot: | one, O zero, < many. UQ1 = composite unique (block, street).", labelloc=b];
+  node [shape=plaintext, fontname="Helvetica", fontsize=11];
+  { rank=same; town; flat_type; flat_model; }
+  { rank=same; building; buyer; hawker_centre; }
+  { rank=same; resale_transaction; building_flat_supply; saved_building; }
+  edge [fontname="Helvetica", fontsize=9, color="#444444", dir=both, arrowsize=0.9];
+
+  town [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#E8EEF7"><B>town</B></TD></TR>
+      <TR><TD PORT="town_id" ALIGN="LEFT"><U>town_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK</FONT></TD></TR>
+      <TR><TD PORT="code" ALIGN="LEFT">code</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(3)</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">UQ</FONT></TD></TR>
+      <TR><TD PORT="name" ALIGN="LEFT">name</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(40)</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">UQ</FONT></TD></TR>
+    </TABLE>>];
+  flat_type [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#E8EEF7"><B>flat_type</B></TD></TR>
+      <TR><TD PORT="flat_type_id" ALIGN="LEFT"><U>flat_type_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK</FONT></TD></TR>
+      <TR><TD PORT="name" ALIGN="LEFT">name</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(20)</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">UQ</FONT></TD></TR>
+      <TR><TD PORT="is_resale_type" ALIGN="LEFT">is_resale_type</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">BOOLEAN</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+    </TABLE>>];
+  flat_model [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#E8EEF7"><B>flat_model</B></TD></TR>
+      <TR><TD PORT="flat_model_id" ALIGN="LEFT"><U>flat_model_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK</FONT></TD></TR>
+      <TR><TD PORT="name" ALIGN="LEFT">name</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(30)</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">UQ</FONT></TD></TR>
+    </TABLE>>];
+  building [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#E6F2EA"><B>building</B></TD></TR>
+      <TR><TD PORT="building_id" ALIGN="LEFT"><U>building_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK</FONT></TD></TR>
+      <TR><TD PORT="town_id" ALIGN="LEFT">town_id</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">FK</FONT></TD></TR>
+      <TR><TD PORT="block" ALIGN="LEFT">block</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(5)</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">UQ1</FONT></TD></TR>
+      <TR><TD PORT="street" ALIGN="LEFT">street</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(40)</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">UQ1</FONT></TD></TR>
+      <TR><TD PORT="year_completed" ALIGN="LEFT">year_completed</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="lease_commence_year" ALIGN="LEFT">lease_commence_year</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="max_floor" ALIGN="LEFT">max_floor</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="residential" ALIGN="LEFT">residential</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">BOOLEAN</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="commercial" ALIGN="LEFT">commercial</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">BOOLEAN</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="market_hawker" ALIGN="LEFT">market_hawker</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">BOOLEAN</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="miscellaneous" ALIGN="LEFT">miscellaneous</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">BOOLEAN</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="multistorey_carpark" ALIGN="LEFT">multistorey_carpark</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">BOOLEAN</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="precinct_pavilion" ALIGN="LEFT">precinct_pavilion</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">BOOLEAN</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="in_property_dataset" ALIGN="LEFT">in_property_dataset</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">BOOLEAN</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="latitude" ALIGN="LEFT">latitude</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">NUMERIC(9,6)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="longitude" ALIGN="LEFT">longitude</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">NUMERIC(9,6)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+    </TABLE>>];
+  building_flat_supply [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#E6F2EA"><B>building_flat_supply</B></TD></TR>
+      <TR><TD PORT="building_id" ALIGN="LEFT"><U>building_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK, FK</FONT></TD></TR>
+      <TR><TD PORT="flat_type_id" ALIGN="LEFT"><U>flat_type_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK, FK</FONT></TD></TR>
+      <TR><TD PORT="sold_units" ALIGN="LEFT">sold_units</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="rental_units" ALIGN="LEFT">rental_units</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+    </TABLE>>];
+  resale_transaction [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#FBEFE3"><B>resale_transaction</B></TD></TR>
+      <TR><TD PORT="txn_id" ALIGN="LEFT"><U>txn_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">BIGINT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK</FONT></TD></TR>
+      <TR><TD PORT="building_id" ALIGN="LEFT">building_id</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">FK</FONT></TD></TR>
+      <TR><TD PORT="flat_type_id" ALIGN="LEFT">flat_type_id</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">FK</FONT></TD></TR>
+      <TR><TD PORT="flat_model_id" ALIGN="LEFT">flat_model_id</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">FK</FONT></TD></TR>
+      <TR><TD PORT="txn_month" ALIGN="LEFT">txn_month</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">DATE</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="storey_min" ALIGN="LEFT">storey_min</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="storey_max" ALIGN="LEFT">storey_max</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="floor_area_sqm" ALIGN="LEFT">floor_area_sqm</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">NUMERIC(5,1)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="remaining_lease_months" ALIGN="LEFT">remaining_lease_months</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="resale_price" ALIGN="LEFT">resale_price</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">NUMERIC(9,2)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+    </TABLE>>];
+  buyer [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#F1E8F5"><B>buyer</B></TD></TR>
+      <TR><TD PORT="buyer_id" ALIGN="LEFT"><U>buyer_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK</FONT></TD></TR>
+      <TR><TD PORT="email" ALIGN="LEFT">email</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(254)</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">UQ</FONT></TD></TR>
+      <TR><TD PORT="password_hash" ALIGN="LEFT">password_hash</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">TEXT</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="display_name" ALIGN="LEFT">display_name</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(60)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="is_admin" ALIGN="LEFT">is_admin</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">BOOLEAN</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="created_at" ALIGN="LEFT">created_at</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">TIMESTAMPTZ</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="last_active_at" ALIGN="LEFT">last_active_at</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">TIMESTAMPTZ</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+    </TABLE>>];
+  saved_building [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#F1E8F5"><B>saved_building</B></TD></TR>
+      <TR><TD PORT="buyer_id" ALIGN="LEFT"><U>buyer_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK, FK</FONT></TD></TR>
+      <TR><TD PORT="building_id" ALIGN="LEFT"><U>building_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK, FK</FONT></TD></TR>
+      <TR><TD PORT="note" ALIGN="LEFT">note</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(500)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="saved_at" ALIGN="LEFT">saved_at</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">TIMESTAMPTZ</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+    </TABLE>>];
+  hawker_centre [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#F5F2E4"><B>hawker_centre</B></TD></TR>
+      <TR><TD PORT="hawker_id" ALIGN="LEFT"><U>hawker_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK</FONT></TD></TR>
+      <TR><TD PORT="name" ALIGN="LEFT">name</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(100)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="address" ALIGN="LEFT">address</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(100)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="postal_code" ALIGN="LEFT">postal_code</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">CHAR(6)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="status" ALIGN="LEFT">status</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(30)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="stall_count" ALIGN="LEFT">stall_count</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="latitude" ALIGN="LEFT">latitude</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">NUMERIC(9,6)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="longitude" ALIGN="LEFT">longitude</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">NUMERIC(9,6)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+    </TABLE>>];
+
+  town -> building [arrowtail=teetee, arrowhead=crowodot, label="town_id"];
+  building -> building_flat_supply [arrowtail=teetee, arrowhead=crowodot, label="building_id"];
+  flat_type -> building_flat_supply [arrowtail=teetee, arrowhead=crowodot, label="flat_type_id"];
+  building -> resale_transaction [arrowtail=teetee, arrowhead=crowodot, label="building_id"];
+  flat_type -> resale_transaction [arrowtail=teetee, arrowhead=crowodot, label="flat_type_id"];
+  flat_model -> resale_transaction [arrowtail=teetee, arrowhead=crowodot, label="flat_model_id"];
+  buyer -> saved_building [arrowtail=teetee, arrowhead=crowodot, label="buyer_id"];
+  building -> saved_building [arrowtail=teetee, arrowhead=crowodot, label="building_id"];
+  hawker_centre -> building [style=dashed, dir=none, color="#999999", label="distance computed\n(Haversine), no FK"];
+}

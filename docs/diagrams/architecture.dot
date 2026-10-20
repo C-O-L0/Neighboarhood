@@ -1,0 +1,38 @@
+// Neighboar system architecture (docs/BUILD_PLAN.md section 2).
+// Render: python -m docs.diagrams.build
+digraph neighboar_architecture {
+  graph [rankdir=TB, nodesep=0.5, ranksep=0.6, fontname="Helvetica", fontsize=12, pad=0.3,
+         label="Neighboar architecture. Everything runs under Docker Compose on one machine.", labelloc=b];
+  node [shape=box, style="rounded,filled", fillcolor="#FFFFFF", fontname="Helvetica", fontsize=11];
+  edge [fontname="Helvetica", fontsize=9, color="#444444"];
+
+  browser [label="Browser\nJinja2 pages + vanilla JS + Chart.js", fillcolor="#F3F3F3"];
+
+  subgraph cluster_web {
+    label="web (FastAPI, localhost:8000)"; style="rounded"; color="#888888"; fontname="Helvetica";
+    routers [label="routers/\nsearch, trends, building, saved,\nfood, auth, admin"];
+    services [label="services/\nvalidation, ?db=pg|mongo dispatch,\nperf_counter_ns timing"];
+    repos_pg [label="repos/pg/\npsycopg 3 pools\napp_rw, app_admin", fillcolor="#E8EEF7"];
+    repos_mongo [label="repos/mongo/\nPyMongo\napp, app_admin", fillcolor="#E6F2EA"];
+    routers -> services;
+    services -> repos_pg;
+    services -> repos_mongo;
+  }
+
+  pg [label="PostgreSQL 18.6\n9 tables, views, MV,\ntriggers, roles", shape=cylinder, fillcolor="#E8EEF7"];
+  mongo [label="MongoDB 8.3.11\nsingle-node replica set\n$jsonSchema, custom roles", shape=cylinder, fillcolor="#E6F2EA"];
+
+  migrate [label="migrate (every up)\nroles, users, replica set,\nSQL files, validators", fillcolor="#FBEFE3"];
+  etl [label="etl (on demand)\ndownload → clean → load_pg,\nload_mongo", fillcolor="#FBEFE3"];
+  data [label="data/\nraw snapshot (pinned SHA-256),\nsample, geocode cache", shape=folder, fillcolor="#F5F2E4"];
+
+  browser -> routers [label="HTTP, signed session cookie"];
+  repos_pg -> pg;
+  repos_mongo -> mongo;
+  migrate -> pg [style=dashed];
+  migrate -> mongo [style=dashed];
+  data -> etl;
+  etl -> pg [style=dashed, label="COPY as owner"];
+  etl -> mongo [style=dashed, label="insert_many as etl"];
+  { rank=same; pg; mongo; }
+}

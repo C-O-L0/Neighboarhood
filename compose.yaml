@@ -84,6 +84,24 @@ services:
     command: ["python", "-m", "db.migrate"]
     restart: "no"
 
+  etl:
+    # One-off import, not started by "up". Run with:  docker compose run --rm etl
+    # (full snapshot in ./data/raw) or add "python -m etl.pipeline --sample".
+    <<: *app
+    profiles: ["tools"]
+    environment:
+      <<: *app-env
+      PG_OWNER_PASSWORD: ${PG_OWNER_PASSWORD}
+      MONGO_ETL_PASSWORD: ${MONGO_ETL_PASSWORD}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      # Source files, geocode cache and cleaned output live on the host.
+      - ./data:/srv/neighboar/data
+    command: ["python", "-m", "etl.pipeline"]
+    restart: "no"
+
   web:
     <<: *app
     environment:

@@ -1,0 +1,93 @@
+{
+  "bsonType": "object",
+  "title": "buyers: accounts with saved blocks embedded",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "email",
+    "password_hash",
+    "is_admin",
+    "created_at",
+    "saved"
+  ],
+  "properties": {
+    "_id": {
+      "bsonType": [
+        "int",
+        "long"
+      ]
+    },
+    "email": {
+      "bsonType": "string",
+      "maxLength": 254,
+      "pattern": "^[^A-Z]+@[^A-Z]+$"
+    },
+    "password_hash": {
+      "bsonType": "string"
+    },
+    "display_name": {
+      "bsonType": [
+        "string",
+        "null"
+      ],
+      "maxLength": 60
+    },
+    "is_admin": {
+      "bsonType": "bool"
+    },
+    "created_at": {
+      "bsonType": "date"
+    },
+    "last_active_at": {
+      "bsonType": [
+        "date",
+        "null"
+      ]
+    },
+    "saved": {
+      "bsonType": "array",
+      "maxItems": 50,
+      "items": {
+        "bsonType": "object",
+        "additionalProperties": false,
+        "required": [
+          "building_id",
+          "block",
+          "street",
+          "town",
+          "saved_at"
+        ],
+        "properties": {
+          "building_id": {
+            "bsonType": [
+              "int",
+              "long"
+            ]
+          },
+          "block": {
+            "bsonType": "string",
+            "maxLength": 5
+          },
+          "street": {
+            "bsonType": "string",
+            "maxLength": 40
+          },
+          "town": {
+            "bsonType": "string",
+            "maxLength": 40
+          },
+          "note": {
+            "bsonType": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "saved_at": {
+            "bsonType": "date"
+          }
+        }
+      }
+    }
+  }
+}

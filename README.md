@@ -62,6 +62,7 @@ postgres  PostgreSQL 18.6, named volume pgdata
 mongodb   MongoDB 8.3.11 as a single-node replica set (needed for transactions), named volume mongodata
 migrate   one-shot: initiates the replica set, creates least-privilege roles and users, applies schema files, then exits
 web       FastAPI application at http://localhost:8000 (bound to localhost only), starts after migrate succeeds
+etl       on demand only (profile "tools"): verifies the snapshot, cleans it, loads both databases
 ```
 
 Compose gives the services a private network, lets the application use service names such as `postgres` and `mongodb`, and starts the full stack with one command:
@@ -69,6 +70,21 @@ Compose gives the services a private network, lets the application use service n
 ```bash
 docker compose up --build
 ```
+
+### Loading the data
+
+The databases start empty. Load them once (and again after `docker compose down -v`):
+
+```bash
+# Full snapshot: put the three source files in data/raw first
+python -m etl.download --from <folder with the 26 Sep 2026 files>
+docker compose run --rm etl
+
+# Or the committed ~6k-sale sample (no download needed; this is what CI loads)
+docker compose run --rm etl python -m etl.pipeline --sample
+```
+
+The full load takes about a minute: PostgreSQL gets 275,471 rows, MongoDB 254,844 documents, both from the same cleaned files in `data/interim/`. Schema files are in `db/postgres/`, MongoDB validators in `db/mongo/validators/`, column definitions in `docs/data_dictionary.md`, diagrams in `docs/diagrams/`.
 
 Use named volumes so normal restarts retain local database data. `docker compose down` removes containers but retains named volumes. Only `docker compose down -v` deletes local database data.
 

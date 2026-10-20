@@ -1,0 +1,286 @@
+{
+  "bsonType": "object",
+  "title": "building_profiles: one document per HDB block",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "block",
+    "street",
+    "town",
+    "in_property_dataset",
+    "supply",
+    "stats",
+    "recent_sales"
+  ],
+  "properties": {
+    "_id": {
+      "bsonType": [
+        "int",
+        "long"
+      ]
+    },
+    "block": {
+      "bsonType": "string",
+      "maxLength": 5
+    },
+    "street": {
+      "bsonType": "string",
+      "maxLength": 40
+    },
+    "town": {
+      "bsonType": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "name"
+      ],
+      "properties": {
+        "code": {
+          "bsonType": "string",
+          "maxLength": 3
+        },
+        "name": {
+          "bsonType": "string",
+          "maxLength": 40
+        }
+      }
+    },
+    "year_completed": {
+      "bsonType": [
+        "int",
+        "null"
+      ]
+    },
+    "lease_commence_year": {
+      "bsonType": [
+        "int",
+        "null"
+      ]
+    },
+    "max_floor": {
+      "bsonType": [
+        "int",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 60
+    },
+    "residential": {
+      "bsonType": [
+        "bool",
+        "null"
+      ]
+    },
+    "commercial": {
+      "bsonType": [
+        "bool",
+        "null"
+      ]
+    },
+    "market_hawker": {
+      "bsonType": [
+        "bool",
+        "null"
+      ]
+    },
+    "miscellaneous": {
+      "bsonType": [
+        "bool",
+        "null"
+      ]
+    },
+    "multistorey_carpark": {
+      "bsonType": [
+        "bool",
+        "null"
+      ]
+    },
+    "precinct_pavilion": {
+      "bsonType": [
+        "bool",
+        "null"
+      ]
+    },
+    "in_property_dataset": {
+      "bsonType": "bool"
+    },
+    "location": {
+      "bsonType": "object",
+      "required": [
+        "type",
+        "coordinates"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "Point"
+          ]
+        },
+        "coordinates": {
+          "bsonType": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "bsonType": "double"
+          }
+        }
+      }
+    },
+    "supply": {
+      "bsonType": "array",
+      "items": {
+        "bsonType": "object",
+        "additionalProperties": false,
+        "required": [
+          "flat_type",
+          "sold",
+          "rental"
+        ],
+        "properties": {
+          "flat_type": {
+            "bsonType": "string",
+            "maxLength": 20
+          },
+          "sold": {
+            "bsonType": [
+              "int",
+              "long"
+            ],
+            "minimum": 0
+          },
+          "rental": {
+            "bsonType": [
+              "int",
+              "long"
+            ],
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "stats": {
+      "bsonType": "object",
+      "additionalProperties": false,
+      "required": [
+        "txn_count",
+        "median_price",
+        "avg_psm",
+        "by_flat_type",
+        "last_txn_month"
+      ],
+      "properties": {
+        "txn_count": {
+          "bsonType": [
+            "int",
+            "long"
+          ],
+          "minimum": 0
+        },
+        "median_price": {
+          "bsonType": [
+            "decimal",
+            "null"
+          ]
+        },
+        "avg_psm": {
+          "bsonType": [
+            "decimal",
+            "null"
+          ]
+        },
+        "by_flat_type": {
+          "bsonType": "array",
+          "items": {
+            "bsonType": "object",
+            "additionalProperties": false,
+            "required": [
+              "flat_type",
+              "txn_count",
+              "median_price",
+              "avg_psm"
+            ],
+            "properties": {
+              "flat_type": {
+                "bsonType": "string",
+                "maxLength": 20
+              },
+              "txn_count": {
+                "bsonType": [
+                  "int",
+                  "long"
+                ],
+                "minimum": 1
+              },
+              "median_price": {
+                "bsonType": "decimal"
+              },
+              "avg_psm": {
+                "bsonType": "decimal"
+              }
+            }
+          }
+        },
+        "last_txn_month": {
+          "bsonType": [
+            "date",
+            "null"
+          ]
+        }
+      }
+    },
+    "recent_sales": {
+      "bsonType": "array",
+      "maxItems": 10,
+      "items": {
+        "bsonType": "object",
+        "additionalProperties": false,
+        "required": [
+          "txn_id",
+          "txn_month",
+          "flat_type",
+          "flat_model",
+          "storey_min",
+          "storey_max",
+          "floor_area_sqm",
+          "resale_price"
+        ],
+        "properties": {
+          "txn_id": {
+            "bsonType": [
+              "int",
+              "long"
+            ]
+          },
+          "txn_month": {
+            "bsonType": "date"
+          },
+          "flat_type": {
+            "bsonType": "string",
+            "maxLength": 20
+          },
+          "flat_model": {
+            "bsonType": "string",
+            "maxLength": 30
+          },
+          "storey_min": {
+            "bsonType": "int",
+            "minimum": 1,
+            "maximum": 60
+          },
+          "storey_max": {
+            "bsonType": "int",
+            "minimum": 1,
+            "maximum": 60
+          },
+          "floor_area_sqm": {
+            "bsonType": "decimal"
+          },
+          "resale_price": {
+            "bsonType": "decimal"
+          }
+        }
+      }
+    }
+  }
+}
