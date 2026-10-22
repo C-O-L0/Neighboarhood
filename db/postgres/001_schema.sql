@@ -56,7 +56,9 @@ CREATE TABLE building (
             AND residential IS NOT NULL AND commercial IS NOT NULL AND market_hawker IS NOT NULL
             AND miscellaneous IS NOT NULL AND multistorey_carpark IS NOT NULL AND precinct_pavilion IS NOT NULL
         ELSE
-            year_completed IS NULL AND max_floor IS NULL AND residential IS NULL
+            year_completed IS NULL AND max_floor IS NULL
+            AND residential IS NULL AND commercial IS NULL AND market_hawker IS NULL
+            AND miscellaneous IS NULL AND multistorey_carpark IS NULL AND precinct_pavilion IS NULL
         END
     )
 );
@@ -85,9 +87,11 @@ CREATE TABLE resale_transaction (
     floor_area_sqm          NUMERIC(5,1) NOT NULL CHECK (floor_area_sqm > 0 AND floor_area_sqm < 400),
     remaining_lease_months  SMALLINT     NOT NULL CHECK (remaining_lease_months BETWEEN 0 AND 1188),
     resale_price            NUMERIC(9,2) NOT NULL CHECK (resale_price > 0),
+    source                  VARCHAR(8)   NOT NULL CHECK (source IN ('snapshot', 'admin')),
     CONSTRAINT storey_band CHECK (1 <= storey_min AND storey_min <= storey_max AND storey_max <= 60)
 );
 COMMENT ON TABLE resale_transaction IS 'One row per resale. Identical rows are distinct sales (no unit number in the source).';
+COMMENT ON COLUMN resale_transaction.source IS 'Provenance: snapshot (loaded by the ETL) or admin (recorded through the app). No default, so every insert must say which. Admin rows can be removed before a benchmark; snapshot rows an admin deleted come back only with a reload.';
 
 -- ------------------------------------------------------------------ accounts
 

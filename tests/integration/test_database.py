@@ -10,7 +10,7 @@ from decimal import Decimal
 import psycopg
 import pytest
 from bson.decimal128 import Decimal128
-from psycopg import errors
+from psycopg import errors, sql
 from pymongo.errors import OperationFailure, WriteError
 
 pytestmark = pytest.mark.integration
@@ -41,12 +41,12 @@ def test_both_databases_hold_the_same_snapshot(pg_rw, mongo_app):
 
 def test_block_stats_agree(pg_rw, mongo_app):
     """Embedded Mongo stats equal the SQL aggregates (median exact, avg_psm within 0.01)."""
-    sql = """
+    query = """
         SELECT building_id, count(*), percentile_disc(0.5) WITHIN GROUP (ORDER BY resale_price),
                round(avg(resale_price / floor_area_sqm), 2), max(txn_month),
                (array_agg(txn_id ORDER BY txn_month DESC, txn_id DESC))[1:10]
         FROM resale_transaction GROUP BY building_id"""
-    expected = {r[0]: r[1:] for r in pg_rw.execute(sql)}
+    expected = {r[0]: r[1:] for r in pg_rw.execute(query)}
     docs = list(
         mongo_app.building_profiles.find({"stats.txn_count": {"$gt": 0}}, {"stats": 1, "recent_sales.txn_id": 1})
     )
@@ -63,9 +63,34 @@ def test_block_stats_agree(pg_rw, mongo_app):
 
 def test_derived_units_view(pg_rw):
     row = pg_rw.execute(
-        "SELECT count(*), count(*) FILTER (WHERE total_units = sold_units + rental_units) FROM v_building_units"
+        """SELECT count(*), count(*) FILTER (WHERE total_units IS NOT DISTINCT FROM sold_units + rental_units)
+           FROM v_building_units"""
     ).fetchone()
     assert row[0] == row[1] > 0
+
+
+def test_stub_units_are_unknown_not_zero(pg_rw, mongo_app):
+    """A stub has no supply data: NULL units in PostgreSQL, no supply field in MongoDB.
+    A real block without supply rows has 0 units and an empty supply array."""
+    rows = pg_rw.execute(
+        """SELECT b.in_property_dataset, u.sold_units, u.rental_units, u.total_units
+           FROM building b JOIN v_building_units u USING (building_id)
+           WHERE b.block = '82' AND b.street = 'MACPHERSON LANE'"""
+    ).fetchall()
+    assert rows == [(False, None, None, None)]
+    stub = mongo_app.building_profiles.find_one({"block": "82", "street": "MACPHERSON LANE"})
+    assert stub["in_property_dataset"] is False
+    assert "supply" not in stub
+
+    units = dict(pg_rw.execute("SELECT building_id, total_units FROM v_building_units").fetchall())
+    for d in mongo_app.building_profiles.find({}, {"supply": 1}):
+        mongo_total = sum(s["sold"] + s["rental"] for s in d["supply"]) if "supply" in d else None
+        assert mongo_total == units[d["_id"]], d["_id"]
+
+
+def test_loaded_sales_are_all_snapshot(pg_rw, mongo_app):
+    assert pg_rw.execute("SELECT DISTINCT source FROM resale_transaction").fetchall() == [("snapshot",)]
+    assert mongo_app.resale_transactions.distinct("source") == ["snapshot"]
 
 
 # ---------------------------------------------------------------------- PostgreSQL rules
@@ -86,12 +111,15 @@ def _insert_sale(conn, building_id, flat_type_id, flat_model_id, **over):
         "floor_area_sqm": Decimal("90.0"),
         "remaining_lease_months": 800,
         "resale_price": Decimal("500000.00"),
+        "source": "admin",
         **over,
     }
+    cols = ["building_id", "flat_type_id", "flat_model_id", *v]
     conn.execute(
-        """INSERT INTO resale_transaction (building_id, flat_type_id, flat_model_id, txn_month, storey_min,
-               storey_max, floor_area_sqm, remaining_lease_months, resale_price)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+        sql.SQL("INSERT INTO resale_transaction ({}) VALUES ({})").format(
+            sql.SQL(", ").join(map(sql.Identifier, cols)),
+            sql.SQL(", ").join(sql.Placeholder() * len(cols)),
+        ),
         (building_id, flat_type_id, flat_model_id, *v.values()),
     )
 
@@ -105,6 +133,7 @@ def _insert_sale(conn, building_id, flat_type_id, flat_model_id, **over):
         {"storey_max": 61},
         {"floor_area_sqm": Decimal("400.0")},
         {"remaining_lease_months": 1189},
+        {"source": "other"},
     ],
 )
 def test_check_constraints_reject_bad_sales(pg_admin, bad):
@@ -115,6 +144,18 @@ def test_check_constraints_reject_bad_sales(pg_admin, bad):
 
 def test_valid_sale_is_accepted_by_admin(pg_admin):
     _insert_sale(pg_admin, *_any_sale(pg_admin))  # rolled back by the fixture
+
+
+def test_sale_without_source_is_rejected(pg_admin):
+    """source has no default: an insert that forgets it fails instead of reading as snapshot."""
+    b, ft, fm = _any_sale(pg_admin)
+    with pytest.raises(errors.NotNullViolation):
+        pg_admin.execute(
+            """INSERT INTO resale_transaction (building_id, flat_type_id, flat_model_id, txn_month, storey_min,
+                   storey_max, floor_area_sqm, remaining_lease_months, resale_price)
+               VALUES (%s, %s, %s, '2025-01-01', 1, 3, 90.0, 800, 500000.00)""",
+            (b, ft, fm),
+        )
 
 
 def test_trigger_rejects_sale_before_completion(pg_admin):
@@ -212,6 +253,7 @@ def test_mongo_app_user_cannot_write_sales(mongo_app):
         {"storey_max": 61},
         {"remaining_lease_months": -1},
         {"unexpected_field": 1},
+        {"source": "other"},
     ],
 )
 def test_mongo_validator_rejects_bad_sales(mongo_app, mongo_admin, bad):
@@ -222,6 +264,19 @@ def test_mongo_validator_rejects_bad_sales(mongo_app, mongo_admin, bad):
         assert exc.value.code == VALIDATION_FAILED
     finally:
         mongo_admin.resale_transactions.delete_one({"_id": -2})
+
+
+@pytest.mark.parametrize("change", [{"supply": []}, {"in_property_dataset": True}])
+def test_mongo_profile_validator_keeps_stub_supply_unknown(mongo_app, mongo_admin, change):
+    """A stub may not carry a supply array, and a real block must have one."""
+    stub = mongo_app.building_profiles.find_one({"in_property_dataset": False})
+    doc = {**stub, "_id": -5, "block": "ZZ1", **change}
+    try:
+        with pytest.raises(WriteError) as exc:
+            mongo_admin.building_profiles.insert_one(doc)
+        assert exc.value.code == VALIDATION_FAILED
+    finally:
+        mongo_admin.building_profiles.delete_one({"_id": -5})
 
 
 @pytest.mark.parametrize(

@@ -17,7 +17,7 @@ digraph neighboar_mongo {
       <TR><TD ALIGN="LEFT">year_completed,<BR ALIGN="LEFT"/>lease_commence_year, max_floor<BR ALIGN="LEFT"/></TD><TD ALIGN="LEFT">int | null</TD></TR>
       <TR><TD ALIGN="LEFT">6 land-use flags,<BR ALIGN="LEFT"/>in_property_dataset<BR ALIGN="LEFT"/></TD><TD ALIGN="LEFT">bool</TD></TR>
       <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">location</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">GeoJSON Point, 2dsphere<BR ALIGN="LEFT"/>(omitted if not geocoded)<BR ALIGN="LEFT"/></TD></TR>
-      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">supply [ ]</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">{flat_type, sold, rental}<BR ALIGN="LEFT"/>one-to-few, embedded<BR ALIGN="LEFT"/></TD></TR>
+      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">supply [ ]</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">{flat_type, sold, rental}<BR ALIGN="LEFT"/>one-to-few, embedded<BR ALIGN="LEFT"/>(omitted for stubs: unknown)<BR ALIGN="LEFT"/></TD></TR>
       <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">stats</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">{txn_count, median_price, avg_psm,<BR ALIGN="LEFT"/>by_flat_type [ ], last_txn_month}<BR ALIGN="LEFT"/>computed pattern ($merge)<BR ALIGN="LEFT"/></TD></TR>
       <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">recent_sales [ ≤10 ]</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">latest sales: subset pattern</TD></TR>
     </TABLE>>];
@@ -32,6 +32,7 @@ digraph neighboar_mongo {
       <TR><TD ALIGN="LEFT">storey_min, storey_max,<BR ALIGN="LEFT"/>remaining_lease_months<BR ALIGN="LEFT"/></TD><TD ALIGN="LEFT">int</TD></TR>
       <TR><TD ALIGN="LEFT">floor_area_sqm, resale_price</TD><TD ALIGN="LEFT">Decimal128</TD></TR>
       <TR><TD ALIGN="LEFT">lease_commence_year</TD><TD ALIGN="LEFT">int | null</TD></TR>
+      <TR><TD ALIGN="LEFT">source</TD><TD ALIGN="LEFT">"snapshot" | "admin"</TD></TR>
     </TABLE>>];
 
   buyers [label=<

@@ -15,7 +15,8 @@
     "storey_max",
     "floor_area_sqm",
     "remaining_lease_months",
-    "resale_price"
+    "resale_price",
+    "source"
   ],
   "properties": {
     "_id": {
@@ -85,6 +86,12 @@
       "bsonType": [
         "int",
         "null"
+      ]
+    },
+    "source": {
+      "enum": [
+        "snapshot",
+        "admin"
       ]
     }
   }

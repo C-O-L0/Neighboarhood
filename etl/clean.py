@@ -129,6 +129,13 @@ LAND_USE = ["residential", "commercial", "market_hawker", "miscellaneous", "mult
 STOREY_MAX = 60
 AREA_MAX = Decimal("400")
 LEASE_MONTHS_MAX = 1188
+
+# HDB leases run 99 years. A sale's remaining lease should match a lease starting in
+# its block's commencement year. The start month is unknown (up to 11 months) and
+# HDB's own figures drift by a few more months, the largest honest gap in the
+# snapshot being 18 months, so anything within two years counts as consistent.
+LEASE_YEARS = 99
+LEASE_TOLERANCE_MONTHS = 24
 LAT_RANGE = (Decimal("1.15"), Decimal("1.48"))
 LON_RANGE = (Decimal("103.59"), Decimal("104.10"))
 
@@ -202,6 +209,39 @@ def parse_coord(value, rng: tuple[Decimal, Decimal]) -> Decimal | None:
     if not rng[0] <= d <= rng[1]:
         raise ValueError(f"coordinate {value!r} outside Singapore")
     return d
+
+
+# ---------------------------------------------------------------------- lease year
+
+
+def lease_deviation(lease_year: int, sale_month: pd.Timestamp, remaining_months: int) -> int:
+    """Months between a sale's reported remaining lease and a 99-year lease from January of lease_year."""
+    implied = (lease_year + LEASE_YEARS - sale_month.year) * 12 - (sale_month.month - 1)
+    return abs(implied - remaining_months)
+
+
+def choose_lease_year(values: dict[int, int], sales: list[tuple[pd.Timestamp, int]]) -> tuple[int, str, dict]:
+    """Pick a block's lease commencement year when its sales disagree.
+
+    `values` counts each reported year; `sales` is (month, remaining lease months)
+    for every sale on the block. The year consistent with the most sales' remaining
+    lease wins; ties go to the smaller mean deviation, then the more common value,
+    then the earlier year. If no year fits any sale, the majority value is kept.
+    Returns (year, method, evidence per candidate).
+    """
+    evidence, mean_dev = {}, {}
+    for year in values:
+        devs = [lease_deviation(year, month, months) for month, months in sales]
+        mean_dev[year] = sum(devs) / len(devs) if devs else float("inf")
+        evidence[year] = {
+            "consistent_sales": sum(d <= LEASE_TOLERANCE_MONTHS for d in devs),
+            "max_deviation_months": max(devs, default=None),
+        }
+    if not any(e["consistent_sales"] for e in evidence.values()):
+        majority = sorted(values.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+        return majority, "majority_fallback", evidence
+    chosen = min(values, key=lambda y: (-evidence[y]["consistent_sales"], mean_dev[y], -values[y], y))
+    return chosen, "remaining_lease", evidence
 
 
 # ---------------------------------------------------------------------- tables
@@ -341,17 +381,43 @@ def clean(raw_dir: Path, cache_dir: Path) -> tuple[dict[str, pd.DataFrame], dict
     ]
     bid = {(b, s): i for i, b, s in zip(building.building_id, building.block, building.street, strict=True)}
 
-    # Lease commencement is a block attribute: majority value over the block's sales
-    # (ties -> earliest year). Disagreements are logged.
+    # Lease commencement is a block attribute. When a block's sales disagree on it,
+    # each sale's remaining lease is the evidence: the year it fits is kept (see
+    # choose_lease_year). Disagreements are logged with that evidence.
+    sale_lease: list[tuple[pd.Timestamp, int] | None] = []
+    for month, remaining in zip(resale["month"], resale["remaining_lease"], strict=True):
+        try:
+            sale_lease.append((parse_month(month), parse_remaining_lease(remaining)[0]))
+        except ValueError:
+            sale_lease.append(None)  # rejected below, with its reason
+    report["lease_remaining_tolerance_months"] = LEASE_TOLERANCE_MONTHS
+    report["lease_remaining_inconsistent"] = sum(
+        sl is not None and lease_deviation(int(year), *sl) > LEASE_TOLERANCE_MONTHS
+        for year, sl in zip(resale["lease_commence_date"], sale_lease, strict=True)
+    )
+
     lease_counts = resale.groupby(["block", "street_key"])["lease_commence_date"].value_counts()
+    block_rows = resale.groupby(["block", "street_key"]).indices
     lease_choice: dict[tuple[str, str], int] = {}
     anomalies = []
     for key, counts in lease_counts.groupby(level=[0, 1]):
         values = {int(v): int(n) for (_, _, v), n in counts.items()}
-        chosen = sorted(values.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+        if len(values) == 1:
+            lease_choice[key] = next(iter(values))
+            continue
+        sales = [sale_lease[i] for i in block_rows[key] if sale_lease[i] is not None]
+        chosen, method, evidence = choose_lease_year(values, sales)
         lease_choice[key] = chosen
-        if len(values) > 1:
-            anomalies.append({"block": key[0], "street": key[1], "values": values, "chosen": chosen})
+        anomalies.append(
+            {
+                "block": key[0],
+                "street": key[1],
+                "values": values,
+                "chosen": chosen,
+                "method": method,
+                "evidence": evidence,
+            }
+        )
     report["lease_year_anomalies"] = anomalies
     building["lease_commence_year"] = [
         lease_choice.get((b, s)) for b, s in zip(building.block, building.street, strict=True)
@@ -601,7 +667,8 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"rejected {report['rejected']}, duplicates kept {report['duplicates_kept']}, "
         f"fractional prices {report['fractional_prices']}, stubs {len(report['stub_buildings'])}, "
-        f"lease anomalies {len(report['lease_year_anomalies'])}"
+        f"lease anomalies {len(report['lease_year_anomalies'])}, "
+        f"remaining lease inconsistent {report['lease_remaining_inconsistent']}"
     )
     if c["cache_present"]:
         print(f"coordinates: {c['target_buildings_geocoded']:,} of {c['target_buildings']:,} target blocks")

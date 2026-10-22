@@ -5,9 +5,12 @@ parquet files PostgreSQL loads, so both databases hold the same data:
 
   building_profiles    one per block: town and supply embedded, location as a
                        GeoJSON Point (omitted when not geocoded), stats and the
-                       latest 10 sales computed by $merge after the sales load
+                       latest 10 sales computed by $merge after the sales load.
+                       A stub block (in_property_dataset false) has no supply
+                       field: its units are unknown, not zero
   resale_transactions  one per sale, referencing building_id, with town, block,
-                       street, flat type and model denormalised for search
+                       street, flat type and model denormalised for search, and
+                       source "snapshot" (admin-recorded sales use "admin")
   hawker_centres       GeoJSON Features with NEA's property names
   counters             buyer and txn sequences seeded past the loaded ids
 
@@ -66,6 +69,55 @@ def point(lat: Decimal | None, lon: Decimal | None) -> dict | None:
     return {"type": "Point", "coordinates": [float(lon), float(lat)]}
 
 
+def profile_document(b: dict, town: dict, supply: list[dict]) -> dict:
+    """building_profiles document for one building row, before stats are merged in.
+
+    For a block in the property dataset an empty supply list means no dwelling
+    units. A stub has no property data, so supply is left out (unknown), matching
+    the NULL counts of v_building_units in PostgreSQL.
+    """
+    doc = {
+        "_id": b["building_id"],
+        "block": b["block"],
+        "street": b["street"],
+        "town": {"code": town["code"], "name": town["name"]},
+        "year_completed": b["year_completed"],
+        "lease_commence_year": b["lease_commence_year"],
+        "max_floor": b["max_floor"],
+        **{k: b[k] for k in LAND_USE},
+        "in_property_dataset": b["in_property_dataset"],
+    }
+    if b["in_property_dataset"]:
+        doc["supply"] = sorted(supply, key=lambda s: s["flat_type"])
+    doc["stats"] = EMPTY_STATS
+    doc["recent_sales"] = []
+    loc = point(b["latitude"], b["longitude"])
+    if loc:
+        doc["location"] = loc
+    return doc
+
+
+def sale_document(r: dict, b: dict, town_name: str, flat_type: str, flat_model: str) -> dict:
+    """resale_transactions document for one loaded sale (source is always "snapshot")."""
+    return {
+        "_id": r["txn_id"],
+        "building_id": r["building_id"],
+        "town": town_name,
+        "block": b["block"],
+        "street": b["street"],
+        "flat_type": flat_type,
+        "flat_model": flat_model,
+        "txn_month": month(r["txn_month"]),
+        "storey_min": r["storey_min"],
+        "storey_max": r["storey_max"],
+        "floor_area_sqm": dec(r["floor_area_sqm"]),
+        "remaining_lease_months": r["remaining_lease_months"],
+        "resale_price": dec(r["resale_price"]),
+        "lease_commence_year": b["lease_commence_year"],
+        "source": "snapshot",
+    }
+
+
 def build_documents(interim: Path) -> dict[str, list[dict]]:
     towns = {t["town_id"]: t for t in rows(interim, "town")}
     flat_types = {f["flat_type_id"]: f["name"] for f in rows(interim, "flat_type")}
@@ -79,48 +131,15 @@ def build_documents(interim: Path) -> dict[str, list[dict]]:
 
     buildings = rows(interim, "building")
     by_id = {b["building_id"]: b for b in buildings}
-    profiles = []
-    for b in buildings:
-        t = towns[b["town_id"]]
-        doc = {
-            "_id": b["building_id"],
-            "block": b["block"],
-            "street": b["street"],
-            "town": {"code": t["code"], "name": t["name"]},
-            "year_completed": b["year_completed"],
-            "lease_commence_year": b["lease_commence_year"],
-            "max_floor": b["max_floor"],
-            **{k: b[k] for k in LAND_USE},
-            "in_property_dataset": b["in_property_dataset"],
-            "supply": sorted(supply[b["building_id"]], key=lambda s: s["flat_type"]),
-            "stats": EMPTY_STATS,
-            "recent_sales": [],
-        }
-        loc = point(b["latitude"], b["longitude"])
-        if loc:
-            doc["location"] = loc
-        profiles.append(doc)
+    profiles = [profile_document(b, towns[b["town_id"]], supply[b["building_id"]]) for b in buildings]
 
     sales = []
     for r in rows(interim, "resale_transaction"):
         b = by_id[r["building_id"]]
         sales.append(
-            {
-                "_id": r["txn_id"],
-                "building_id": r["building_id"],
-                "town": towns[b["town_id"]]["name"],
-                "block": b["block"],
-                "street": b["street"],
-                "flat_type": flat_types[r["flat_type_id"]],
-                "flat_model": flat_models[r["flat_model_id"]],
-                "txn_month": month(r["txn_month"]),
-                "storey_min": r["storey_min"],
-                "storey_max": r["storey_max"],
-                "floor_area_sqm": dec(r["floor_area_sqm"]),
-                "remaining_lease_months": r["remaining_lease_months"],
-                "resale_price": dec(r["resale_price"]),
-                "lease_commence_year": b["lease_commence_year"],
-            }
+            sale_document(
+                r, b, towns[b["town_id"]]["name"], flat_types[r["flat_type_id"]], flat_models[r["flat_model_id"]]
+            )
         )
 
     hawkers = [

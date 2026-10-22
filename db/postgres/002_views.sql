@@ -21,7 +21,8 @@ SELECT
     b.lease_commence_year,
     t.remaining_lease_months,
     t.resale_price,
-    round(t.resale_price / t.floor_area_sqm, 2)          AS price_psm
+    round(t.resale_price / t.floor_area_sqm, 2)          AS price_psm,
+    t.source
 FROM resale_transaction t
 JOIN building   b  ON b.building_id = t.building_id
 JOIN town       tw ON tw.town_id = b.town_id
@@ -29,12 +30,15 @@ JOIN flat_type  ft ON ft.flat_type_id = t.flat_type_id
 JOIN flat_model fm ON fm.flat_model_id = t.flat_model_id;
 
 -- Dwelling units per block, derived from supply (replaces the source total_dwelling_units).
+-- For a block in the property dataset a missing supply row means no units of that type,
+-- so the sums are coalesced to 0. A stub (in_property_dataset = false) has no supply
+-- data at all, so its counts are NULL (unknown), not 0.
 CREATE VIEW v_building_units AS
 SELECT
     b.building_id,
-    coalesce(sum(s.sold_units), 0)::int                     AS sold_units,
-    coalesce(sum(s.rental_units), 0)::int                   AS rental_units,
-    coalesce(sum(s.sold_units + s.rental_units), 0)::int    AS total_units
+    CASE WHEN b.in_property_dataset THEN coalesce(sum(s.sold_units), 0)::int END                   AS sold_units,
+    CASE WHEN b.in_property_dataset THEN coalesce(sum(s.rental_units), 0)::int END                 AS rental_units,
+    CASE WHEN b.in_property_dataset THEN coalesce(sum(s.sold_units + s.rental_units), 0)::int END  AS total_units
 FROM building b
 LEFT JOIN building_flat_supply s ON s.building_id = b.building_id
 GROUP BY b.building_id;
@@ -62,6 +66,7 @@ SELECT
     t.flat_type_id,
     t.txn_month                                                          AS month,
     count(*)::int                                                        AS n,
+    -- Lower median: an observed price (element floor((n-1)/2)), the same rule as db/mongo/stats.py.
     percentile_disc(0.5) WITHIN GROUP (ORDER BY t.resale_price)          AS median_price,
     round(avg(t.resale_price / t.floor_area_sqm), 2)                     AS avg_psm
 FROM resale_transaction t

@@ -8,9 +8,62 @@
     "street",
     "town",
     "in_property_dataset",
-    "supply",
     "stats",
     "recent_sales"
+  ],
+  "anyOf": [
+    {
+      "description": "in the property dataset: supply is present (an empty array means no units)",
+      "properties": {
+        "in_property_dataset": {
+          "enum": [
+            true
+          ]
+        }
+      },
+      "required": [
+        "supply"
+      ]
+    },
+    {
+      "description": "stub: no property data, so supply is absent (unknown, not zero) and property attributes are null",
+      "properties": {
+        "in_property_dataset": {
+          "enum": [
+            false
+          ]
+        },
+        "year_completed": {
+          "bsonType": "null"
+        },
+        "max_floor": {
+          "bsonType": "null"
+        },
+        "residential": {
+          "bsonType": "null"
+        },
+        "commercial": {
+          "bsonType": "null"
+        },
+        "market_hawker": {
+          "bsonType": "null"
+        },
+        "miscellaneous": {
+          "bsonType": "null"
+        },
+        "multistorey_carpark": {
+          "bsonType": "null"
+        },
+        "precinct_pavilion": {
+          "bsonType": "null"
+        }
+      },
+      "not": {
+        "required": [
+          "supply"
+        ]
+      }
+    }
   ],
   "properties": {
     "_id": {

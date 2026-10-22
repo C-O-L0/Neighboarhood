@@ -71,6 +71,7 @@ digraph neighboar_erd {
       <TR><TD PORT="floor_area_sqm" ALIGN="LEFT">floor_area_sqm</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">NUMERIC(5,1)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
       <TR><TD PORT="remaining_lease_months" ALIGN="LEFT">remaining_lease_months</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
       <TR><TD PORT="resale_price" ALIGN="LEFT">resale_price</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">NUMERIC(9,2)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="source" ALIGN="LEFT">source</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(8)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
     </TABLE>>];
   buyer [label=<
     <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">

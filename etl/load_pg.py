@@ -38,6 +38,10 @@ TABLES = [
     "hawker_centre",
 ]
 
+# Constant columns the parquet files do not carry, appended to every COPY row.
+# source has no default, so the ETL states that these sales are the snapshot.
+EXTRA_COLUMNS: dict[str, dict[str, object]] = {"resale_transaction": {"source": "snapshot"}}
+
 # Tables whose ids come from an identity sequence that must move past the loaded ids.
 IDENTITY = {"building": "building_id", "resale_transaction": "txn_id", "buyer": "buyer_id"}
 
@@ -46,9 +50,11 @@ def log(msg: str) -> None:
     print(f"[load_pg] {msg}", flush=True)
 
 
-def copy_table(cur: psycopg.Cursor, name: str, path: Path) -> int:
+def copy_table(cur: psycopg.Cursor, name: str, path: Path, extra: dict[str, object] | None = None) -> int:
+    """COPY one parquet file into `name`; `extra` adds constant columns to every row."""
     table = pq.read_table(path)
-    cols = table.column_names
+    extra = extra or {}
+    cols = [*table.column_names, *extra]
     stmt = sql.SQL("COPY {} ({}) FROM STDIN").format(
         sql.Identifier(name), sql.SQL(", ").join(sql.Identifier(c) for c in cols)
     )
@@ -57,7 +63,7 @@ def copy_table(cur: psycopg.Cursor, name: str, path: Path) -> int:
         for batch in table.to_batches(max_chunksize=20_000):
             columns = [batch.column(i).to_pylist() for i in range(batch.num_columns)]
             for row in zip(*columns, strict=True):
-                copy.write_row(row)
+                copy.write_row((*row, *extra.values()))
                 n += 1
     return n
 
@@ -74,9 +80,11 @@ def load(conn: psycopg.Connection, interim: Path) -> dict[str, int]:
         cur.execute(
             sql.SQL("TRUNCATE {}, saved_building").format(sql.SQL(", ").join(sql.Identifier(t) for t in TABLES))
         )
+        # resale_transaction.source is not in the parquet and has no default, so
+        # EXTRA_COLUMNS sets it to 'snapshot' on every loaded sale.
         for name in TABLES:
             started = time.perf_counter()
-            counts[name] = copy_table(cur, name, interim / f"{name}.parquet")
+            counts[name] = copy_table(cur, name, interim / f"{name}.parquet", EXTRA_COLUMNS.get(name))
             log(f"{name:22} {counts[name]:>8,} rows  {time.perf_counter() - started:5.1f} s")
 
         for table, col in IDENTITY.items():
