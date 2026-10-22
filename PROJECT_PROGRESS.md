@@ -2,6 +2,26 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## Review decisions (conflicts raised in a teammate's review)
+
+- Lease year stays on `building`, derived from the sales: when a block's sales disagree, the year consistent with their remaining lease wins (24-month tolerance), majority only as a fallback. 37 TEBAN GDNS RD keeps 1966; its one 1981 sale is a source typo.
+- Building + month + price is not a key for a sale (318 identical rows). Edits and deletes target a `txn_id`, CRUD tests map runtime ids through an id map kept by the test, and dataset comparisons are multisets.
+- After an admin write, MongoDB updates the block's `stats` and `recent_sales` in the same transaction; PostgreSQL refreshes `mv_town_month_stats` right after commit (a failed refresh leaves town figures stale until the next one). Tests and benchmarks settle both DBs first.
+- Median stays the lower median (always an observed price), labelled "median (lower of the two middle prices when n is even)" in the UI and report.
+- 82 MACPHERSON LANE stays a stub building in every feature; its unknown attributes show as "Unknown", `v_building_units` returns NULL and the Mongo profile has no `supply`.
+- Sales carry `source` (`snapshot` or `admin`, no default) in both DBs; admin rows are deleted and both DBs settled before a benchmark.
+
+## 2026-10-20 Phase 1 decisions
+
+- Phase 1 schemas, loaders and ERD were built on `data/clean-etl` together with the cleaning step. The PostgreSQL and MongoDB owners review them and must be able to walk through both designs (README rule).
+- Migration files are `001_schema`, `002_views`, `003_triggers`, `004_indexes`, `005_grants`. Lookup rows (town, flat_type, flat_model) are loaded by the ETL from the fixed lists in `etl/clean.py`, not seeded by a migration, so both databases use one definition. This replaces `002_lookups.sql` in BUILD_PLAN section 3.
+- `hawker_centre.name` and `address` are `VARCHAR(100)` (longest values 80 and 75).
+- Trigger (a) also rejects a sale with a non-resale flat type. `building` has a CHECK that property blocks carry all attributes and stubs carry none.
+- MongoDB block stats come from one pipeline (`db/mongo/stats.py`): `$merge` for the bulk rebuild, a plain aggregate for one block inside a transaction. Medians match `percentile_disc(0.5)` exactly; `avg_psm` agrees within 0.01 (Mongo rounds half to even).
+- MongoDB stores buyer emails lowercased; the validator rejects upper case.
+- The ERD is 36 cm wide at natural size: put it on a landscape page in the report.
+- Next: PostgreSQL and MongoDB owners review `data/clean-etl`; Phase 2 query work can start on the loaded sample.
+
 ## 2026-10-20 Phase 0 decisions
 
 - `hawker_centre` is the ninth PostgreSQL table (needed for the Haversine food-access query). Listed as a deliberate change in docs/BUILD_PLAN.md section 15.

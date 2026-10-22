@@ -1,0 +1,24 @@
+{
+  "bsonType": "object",
+  "title": "counters: id sequences for runtime-created documents",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "seq"
+  ],
+  "properties": {
+    "_id": {
+      "enum": [
+        "buyer",
+        "txn"
+      ]
+    },
+    "seq": {
+      "bsonType": [
+        "int",
+        "long"
+      ],
+      "minimum": 0
+    }
+  }
+}

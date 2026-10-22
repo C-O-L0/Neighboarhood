@@ -1,0 +1,69 @@
+// Neighboar MongoDB document model (docs/BUILD_PLAN.md section 5, db/mongo/validators/).
+// Solid boxes are collections; shaded rows are embedded documents or arrays.
+// Dashed arrows are references by id (no join at read time unless noted).
+// Render: python -m docs.diagrams.build
+digraph neighboar_mongo {
+  graph [rankdir=TB, splines=spline, nodesep=0.4, ranksep=0.7, fontname="Helvetica", fontsize=12, pad=0.3,
+         label="Neighboar MongoDB model: 5 collections.\nShaded = embedded. Dashed = reference by _id.", labelloc=b];
+  node [shape=plaintext, fontname="Helvetica", fontsize=11];
+  edge [fontname="Helvetica", fontsize=9, color="#444444", style=dashed, arrowhead=vee];
+
+  building_profiles [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="2" BGCOLOR="#E6F2EA"><B>building_profiles</B> (13,358)</TD></TR>
+      <TR><TD ALIGN="LEFT"><U>_id</U></TD><TD ALIGN="LEFT">int (= building_id)</TD></TR>
+      <TR><TD ALIGN="LEFT">block, street</TD><TD ALIGN="LEFT">string (unique pair)</TD></TR>
+      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">town</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">{code, name}</TD></TR>
+      <TR><TD ALIGN="LEFT">year_completed,<BR ALIGN="LEFT"/>lease_commence_year, max_floor<BR ALIGN="LEFT"/></TD><TD ALIGN="LEFT">int | null</TD></TR>
+      <TR><TD ALIGN="LEFT">6 land-use flags,<BR ALIGN="LEFT"/>in_property_dataset<BR ALIGN="LEFT"/></TD><TD ALIGN="LEFT">bool</TD></TR>
+      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">location</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">GeoJSON Point, 2dsphere<BR ALIGN="LEFT"/>(omitted if not geocoded)<BR ALIGN="LEFT"/></TD></TR>
+      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">supply [ ]</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">{flat_type, sold, rental}<BR ALIGN="LEFT"/>one-to-few, embedded<BR ALIGN="LEFT"/>(omitted for stubs: unknown)<BR ALIGN="LEFT"/></TD></TR>
+      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">stats</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">{txn_count, median_price, avg_psm,<BR ALIGN="LEFT"/>by_flat_type [ ], last_txn_month}<BR ALIGN="LEFT"/>computed pattern ($merge)<BR ALIGN="LEFT"/></TD></TR>
+      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">recent_sales [ ≤10 ]</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">latest sales: subset pattern</TD></TR>
+    </TABLE>>];
+
+  resale_transactions [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="2" BGCOLOR="#FBEFE3"><B>resale_transactions</B> (241,357)</TD></TR>
+      <TR><TD ALIGN="LEFT"><U>_id</U></TD><TD ALIGN="LEFT">int (= txn_id)</TD></TR>
+      <TR><TD ALIGN="LEFT">building_id</TD><TD ALIGN="LEFT">int: reference<BR ALIGN="LEFT"/>(1:M is unbounded)<BR ALIGN="LEFT"/></TD></TR>
+      <TR><TD ALIGN="LEFT">town, block, street,<BR ALIGN="LEFT"/>flat_type, flat_model<BR ALIGN="LEFT"/></TD><TD ALIGN="LEFT">string, denormalised<BR ALIGN="LEFT"/>for search<BR ALIGN="LEFT"/></TD></TR>
+      <TR><TD ALIGN="LEFT">txn_month</TD><TD ALIGN="LEFT">date (midnight UTC)</TD></TR>
+      <TR><TD ALIGN="LEFT">storey_min, storey_max,<BR ALIGN="LEFT"/>remaining_lease_months<BR ALIGN="LEFT"/></TD><TD ALIGN="LEFT">int</TD></TR>
+      <TR><TD ALIGN="LEFT">floor_area_sqm, resale_price</TD><TD ALIGN="LEFT">Decimal128</TD></TR>
+      <TR><TD ALIGN="LEFT">lease_commence_year</TD><TD ALIGN="LEFT">int | null</TD></TR>
+      <TR><TD ALIGN="LEFT">source</TD><TD ALIGN="LEFT">"snapshot" | "admin"</TD></TR>
+    </TABLE>>];
+
+  buyers [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="2" BGCOLOR="#F1E8F5"><B>buyers</B></TD></TR>
+      <TR><TD ALIGN="LEFT"><U>_id</U></TD><TD ALIGN="LEFT">int (counters.buyer)</TD></TR>
+      <TR><TD ALIGN="LEFT">email</TD><TD ALIGN="LEFT">string, lowercase, unique</TD></TR>
+      <TR><TD ALIGN="LEFT">password_hash, display_name,<BR ALIGN="LEFT"/>is_admin, created_at,<BR ALIGN="LEFT"/>last_active_at<BR ALIGN="LEFT"/></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">saved [ ≤50 ]</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">{building_id, block, street,<BR ALIGN="LEFT"/>town, note, saved_at}<BR ALIGN="LEFT"/>extended reference<BR ALIGN="LEFT"/></TD></TR>
+    </TABLE>>];
+
+  hawker_centres [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="2" BGCOLOR="#F5F2E4"><B>hawker_centres</B> (129)</TD></TR>
+      <TR><TD ALIGN="LEFT"><U>_id</U></TD><TD ALIGN="LEFT">int (= OBJECTID)</TD></TR>
+      <TR><TD ALIGN="LEFT">type</TD><TD ALIGN="LEFT">"Feature"</TD></TR>
+      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">geometry</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">GeoJSON Point (2dsphere)</TD></TR>
+      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">properties</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">{NAME, ADDRESS_MYENV,<BR ALIGN="LEFT"/>STATUS, ...} as NEA publishes<BR ALIGN="LEFT"/></TD></TR>
+    </TABLE>>];
+
+  counters [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="2" BGCOLOR="#EEEEEE"><B>counters</B></TD></TR>
+      <TR><TD ALIGN="LEFT"><U>_id</U></TD><TD ALIGN="LEFT">"buyer" | "txn"</TD></TR>
+      <TR><TD ALIGN="LEFT">seq</TD><TD ALIGN="LEFT">int ($inc for new ids)</TD></TR>
+    </TABLE>>];
+
+  resale_transactions -> building_profiles [label="building_id"];
+  buyers -> building_profiles [label="saved.building_id"];
+  hawker_centres -> building_profiles [style=dotted, dir=none, color="#999999", label="$geoNear\n(computed)"];
+  { rank=same; resale_transactions; buyers; }
+  { rank=same; hawker_centres; counters; }
+  building_profiles -> hawker_centres [style=invis];
+}

@@ -117,12 +117,58 @@ def test_stub_building_for_block_without_property_row(sample_run):
     assert report["stub_buildings"] == [{"block": "82", "street": "MACPHERSON LANE", "town": "GEYLANG", "sales": 3}]
 
 
-def test_lease_year_majority_rule(sample_run):
+def test_lease_year_chosen_by_remaining_lease(sample_run):
     tables, report, _ = sample_run
     b = tables["building"]
     teban = b[(b.block == "37") & (b.street == "TEBAN GDNS RD")].iloc[0]
     assert teban.lease_commence_year == 1966
-    assert report["lease_year_anomalies"][0]["values"] == {1966: 11, 1981: 1}
+    a = report["lease_year_anomalies"][0]
+    assert a["values"] == {1966: 11, 1981: 1}
+    assert a["chosen"] == 1966 and a["method"] == "remaining_lease"
+    assert a["evidence"][1966]["consistent_sales"] == 12  # the 1981 sale's remaining lease fits 1966 too
+    assert a["evidence"][1981]["consistent_sales"] == 0
+    assert report["lease_remaining_inconsistent"] >= 1
+
+
+def _sale(month: str, remaining: str) -> tuple[pd.Timestamp, int]:
+    return clean.parse_month(month), clean.parse_remaining_lease(remaining)[0]
+
+
+def test_lease_deviation_formula():
+    # 99 years from 1966 ends in 2065: 40 years left in January 2025, 39 years 06 months in July.
+    assert clean.lease_deviation(1966, *_sale("2025-01", "40 years")) == 0
+    assert clean.lease_deviation(1966, *_sale("2025-07", "39 years 06 months")) == 0
+    assert clean.lease_deviation(1981, *_sale("2025-01", "40 years 01 month")) == 179
+
+
+def test_lease_year_minority_value_wins_on_evidence():
+    # Two sales say 1990, one says 1985, but every remaining lease fits a 1985 lease.
+    sales = [
+        _sale("2020-03", "63 years 10 months"),
+        _sale("2021-06", "62 years 07 months"),
+        _sale("2022-01", "62 years"),
+    ]
+    chosen, method, evidence = clean.choose_lease_year({1990: 2, 1985: 1}, sales)
+    assert (chosen, method) == (1985, "remaining_lease")
+    assert evidence[1985]["consistent_sales"] == 3 and evidence[1990]["consistent_sales"] == 0
+    assert evidence[1990]["max_deviation_months"] == 60
+
+
+def test_lease_year_evidence_agrees_with_majority():
+    sales = [
+        _sale("2020-03", "63 years 10 months"),
+        _sale("2021-06", "62 years 07 months"),
+        _sale("2022-01", "62 years"),
+    ]
+    chosen, method, _ = clean.choose_lease_year({1985: 2, 2000: 1}, sales)
+    assert (chosen, method) == (1985, "remaining_lease")
+
+
+def test_lease_year_falls_back_to_majority_without_evidence():
+    sales = [_sale("2020-01", "10 years")]  # fits neither 1985 nor 1990
+    chosen, method, evidence = clean.choose_lease_year({1990: 2, 1985: 2}, sales)
+    assert (chosen, method) == (1985, "majority_fallback")  # tie -> earlier year
+    assert all(e["consistent_sales"] == 0 for e in evidence.values())
 
 
 def test_coordinates_from_cache_with_overrides(sample_run):

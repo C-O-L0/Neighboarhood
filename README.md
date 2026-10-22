@@ -33,7 +33,7 @@ Pinning the PostgreSQL and MongoDB container image versions avoids every teammat
 ## How we will build it
 
 1. **Data pipeline** - download the official resale and property CSVs plus hawker-location data, retain a dated source manifest, clean values, map HDB property town codes to resale town names, and report unmatched addresses.
-2. **PostgreSQL design** (as committed in the progress report) - eight tables in 3NF: `town`, `building`, `flat_type`, `flat_model`, `building_flat_supply`, `resale_transaction`, `buyer` and `saved_building`. Town to building and building to transaction are 1:M, transaction to flat type and flat model are M:1, and `building_flat_supply` and `saved_building` resolve two M:N relationships.
+2. **PostgreSQL design** - the progress report committed eight tables in 3NF: `town`, `building`, `flat_type`, `flat_model`, `building_flat_supply`, `resale_transaction`, `buyer` and `saved_building`. The implementation has nine: it adds `hawker_centre`, needed for the Haversine food-access query. Town to building and building to transaction are 1:M, transaction to flat type and flat model are M:1, and `building_flat_supply` and `saved_building` resolve two M:N relationships.
 3. **MongoDB design** (as committed in the progress report) - `building_profiles` (block details, recent sales and price statistics embedded for single-read pages), `resale_transactions` (full history), `buyers` (saved blocks embedded) and `hawker_centres` (GeoJSON with a 2dsphere index).
 4. **Shared features** - implement equivalent search, filtering, aggregation, building detail, and saved-building operations. The UI can let reviewers select the PostgreSQL or MongoDB implementation for supported comparison queries.
 5. **Advanced work** - add indexed trend/ranking queries, explain query plans, test data constraints, measure equivalent query latency and throughput, and report tradeoffs.
@@ -62,6 +62,7 @@ postgres  PostgreSQL 18.6, named volume pgdata
 mongodb   MongoDB 8.3.11 as a single-node replica set (needed for transactions), named volume mongodata
 migrate   one-shot: initiates the replica set, creates least-privilege roles and users, applies schema files, then exits
 web       FastAPI application at http://localhost:8000 (bound to localhost only), starts after migrate succeeds
+etl       on demand only (profile "tools"): verifies the snapshot, cleans it, loads both databases
 ```
 
 Compose gives the services a private network, lets the application use service names such as `postgres` and `mongodb`, and starts the full stack with one command:
@@ -69,6 +70,21 @@ Compose gives the services a private network, lets the application use service n
 ```bash
 docker compose up --build
 ```
+
+### Loading the data
+
+The databases start empty. Load them once (and again after `docker compose down -v`):
+
+```bash
+# Full snapshot: put the three source files in data/raw first
+python -m etl.download --from <folder with the 26 Sep 2026 files>
+docker compose run --rm etl
+
+# Or the committed ~6k-sale sample (no download needed; this is what CI loads)
+docker compose run --rm etl python -m etl.pipeline --sample
+```
+
+The full load takes about a minute: PostgreSQL gets 275,471 rows, MongoDB 254,844 documents, both from the same cleaned files in `data/interim/`. These database counts come from the loaders; `docs/import_report.md` reports cleaning output only (rows accepted by cleaning). Schema files are in `db/postgres/`, MongoDB validators in `db/mongo/validators/`, column definitions in `docs/data_dictionary.md`, diagrams in `docs/diagrams/`.
 
 Use named volumes so normal restarts retain local database data. `docker compose down` removes containers but retains named volumes. Only `docker compose down -v` deletes local database data.
 
