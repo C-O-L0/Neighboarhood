@@ -91,7 +91,7 @@ CREATE TABLE resale_transaction (
     CONSTRAINT storey_band CHECK (1 <= storey_min AND storey_min <= storey_max AND storey_max <= 60)
 );
 COMMENT ON TABLE resale_transaction IS 'One row per resale. Identical rows are distinct sales (no unit number in the source).';
-COMMENT ON COLUMN resale_transaction.source IS 'Provenance: snapshot (loaded by the ETL) or admin (recorded through the app). No default, so every insert must say which. Admin rows can be removed before a benchmark; snapshot rows an admin deleted come back only with a reload.';
+COMMENT ON COLUMN resale_transaction.source IS 'Provenance: snapshot (loaded by the ETL) or admin (recorded through the app). No default, so every insert must say which. Formal benchmarks require a full snapshot reload; deleting admin rows alone cannot restore deleted or modified snapshot rows.';
 
 -- ------------------------------------------------------------------ accounts
 

@@ -133,6 +133,9 @@ def _insert_sale(conn, building_id, flat_type_id, flat_model_id, **over):
         {"storey_max": 61},
         {"floor_area_sqm": Decimal("400.0")},
         {"remaining_lease_months": 1189},
+        {"resale_price": Decimal("-1")},
+        {"floor_area_sqm": Decimal("0")},
+        {"floor_area_sqm": Decimal("-1")},
         {"source": "other"},
     ],
 )
@@ -249,6 +252,15 @@ def test_mongo_app_user_cannot_write_sales(mongo_app):
     "bad",
     [
         {"resale_price": 500000.0},  # double, not Decimal128
+        {"resale_price": Decimal128("0")},
+        {"resale_price": Decimal128("-1")},
+        {"floor_area_sqm": Decimal128("0")},
+        {"floor_area_sqm": Decimal128("-1")},
+        {"floor_area_sqm": Decimal128("400")},
+        {"storey_min": 5, "storey_max": 3},
+        {"txn_month": datetime(2025, 1, 2, tzinfo=UTC)},
+        {"txn_month": datetime(2025, 1, 1, 12, tzinfo=UTC)},
+        {"txn_month": "2025-01-01"},
         {"flat_type": "STUDIO APARTMENT"},
         {"storey_max": 61},
         {"remaining_lease_months": -1},
@@ -323,3 +335,15 @@ def test_mongo_transaction_rolls_back(mongo_app, mongo_admin, mongo_admin_client
                 assert mongo_admin.resale_transactions.count_documents({"_id": -4}, session=session) == 1
                 raise Boom
     assert mongo_admin.resale_transactions.count_documents({"_id": -4}) == 0
+
+
+@pytest.mark.parametrize("month", [datetime(2024, 2, 1, tzinfo=UTC), datetime(2025, 12, 1, tzinfo=UTC)])
+def test_mongo_valid_sale_is_accepted(mongo_app, mongo_admin, month):
+    doc = {**_valid_sale(mongo_app, -6), "source": "admin", "txn_month": month,
+           "storey_min": 1, "storey_max": 1, "floor_area_sqm": Decimal128("399.9"),
+           "resale_price": Decimal128("0.01")}
+    try:
+        mongo_admin.resale_transactions.insert_one(doc)
+        assert mongo_admin.resale_transactions.find_one({"_id": -6}) is not None
+    finally:
+        mongo_admin.resale_transactions.delete_one({"_id": -6})

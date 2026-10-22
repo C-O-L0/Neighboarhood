@@ -88,7 +88,7 @@ def test_sale_document_is_marked_snapshot():
 
 def test_documents_use_only_validator_fields():
     """Every field the loader writes is declared, and every required field is written."""
-    sale_schema = json.loads((VALIDATORS / "resale_transactions.json").read_text(encoding="utf-8"))
+    sale_schema = json.loads((VALIDATORS / "resale_transactions.json").read_text(encoding="utf-8"))["$jsonSchema"]
     assert sale_schema["properties"]["source"] == {"enum": ["snapshot", "admin"]}
     assert "source" in sale_schema["required"]
 

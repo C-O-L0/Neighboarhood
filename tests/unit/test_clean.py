@@ -164,11 +164,21 @@ def test_lease_year_evidence_agrees_with_majority():
     assert (chosen, method) == (1985, "remaining_lease")
 
 
-def test_lease_year_falls_back_to_majority_without_evidence():
+def test_lease_year_requires_review_without_evidence():
     sales = [_sale("2020-01", "10 years")]  # fits neither 1985 nor 1990
-    chosen, method, evidence = clean.choose_lease_year({1990: 2, 1985: 2}, sales)
-    assert (chosen, method) == (1985, "majority_fallback")  # tie -> earlier year
-    assert all(e["consistent_sales"] == 0 for e in evidence.values())
+    with pytest.raises(ValueError, match="manual review"):
+        clean.choose_lease_year({1990: 2, 1985: 2}, sales)
+
+
+def test_lease_year_requires_review_when_different_sales_support_different_years():
+    sales = [_sale("2020-01", "64 years"), _sale("2020-01", "49 years")]
+    with pytest.raises(ValueError, match="manual review"):
+        clean.choose_lease_year({1985: 1, 1970: 1}, sales)
+
+
+def test_lease_year_requires_review_without_valid_sales():
+    with pytest.raises(ValueError, match="manual review"):
+        clean.choose_lease_year({1985: 1, 1970: 1}, [])
 
 
 def test_coordinates_from_cache_with_overrides(sample_run):
@@ -209,3 +219,8 @@ def test_parquet_keeps_exact_money(sample_run):
         p != p.to_integral_value() for p in tables["resale_transaction"].resale_price
     )
     assert pq.read_table(out / "building.parquet").num_rows == len(tables["building"])
+
+
+def test_lease_year_requires_review_when_multiple_candidates_fit():
+    with pytest.raises(ValueError, match="manual review"):
+        clean.choose_lease_year({1985: 2, 1986: 1}, [_sale("2020-01", "64 years")])

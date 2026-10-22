@@ -224,24 +224,22 @@ def choose_lease_year(values: dict[int, int], sales: list[tuple[pd.Timestamp, in
     """Pick a block's lease commencement year when its sales disagree.
 
     `values` counts each reported year; `sales` is (month, remaining lease months)
-    for every sale on the block. The year consistent with the most sales' remaining
-    lease wins; ties go to the smaller mean deviation, then the more common value,
-    then the earlier year. If no year fits any sale, the majority value is kept.
+    for every sale on the block. Exactly one candidate must fit every sale's
+    remaining lease within the tolerance; otherwise stop for
+    manual review instead of silently collapsing potentially different leases.
     Returns (year, method, evidence per candidate).
     """
-    evidence, mean_dev = {}, {}
+    evidence = {}
     for year in values:
         devs = [lease_deviation(year, month, months) for month, months in sales]
-        mean_dev[year] = sum(devs) / len(devs) if devs else float("inf")
         evidence[year] = {
             "consistent_sales": sum(d <= LEASE_TOLERANCE_MONTHS for d in devs),
             "max_deviation_months": max(devs, default=None),
         }
-    if not any(e["consistent_sales"] for e in evidence.values()):
-        majority = sorted(values.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
-        return majority, "majority_fallback", evidence
-    chosen = min(values, key=lambda y: (-evidence[y]["consistent_sales"], mean_dev[y], -values[y], y))
-    return chosen, "remaining_lease", evidence
+    candidates = [year for year, e in evidence.items() if e["consistent_sales"] == len(sales)]
+    if not sales or len(candidates) != 1:
+        raise ValueError(f"lease years require manual review: candidates={values}, evidence={evidence}")
+    return candidates[0], "remaining_lease", evidence
 
 
 # ---------------------------------------------------------------------- tables
@@ -406,7 +404,10 @@ def clean(raw_dir: Path, cache_dir: Path) -> tuple[dict[str, pd.DataFrame], dict
             lease_choice[key] = next(iter(values))
             continue
         sales = [sale_lease[i] for i in block_rows[key] if sale_lease[i] is not None]
-        chosen, method, evidence = choose_lease_year(values, sales)
+        try:
+            chosen, method, evidence = choose_lease_year(values, sales)
+        except ValueError as exc:
+            raise ValueError(f"{key[0]} {key[1]}: {exc}") from exc
         lease_choice[key] = chosen
         anomalies.append(
             {

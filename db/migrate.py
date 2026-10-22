@@ -157,7 +157,9 @@ def mongo_validators(s: Settings) -> None:
         for f in files:
             name = f.stem
             schema = json.loads(f.read_text(encoding="utf-8-sig"))
-            opts = {"validator": {"$jsonSchema": schema}, "validationLevel": "strict", "validationAction": "error"}
+            # Files may contain a bare JSON schema or a complete validator with $expr rules.
+            validator = schema if "$jsonSchema" in schema else {"$jsonSchema": schema}
+            opts = {"validator": validator, "validationLevel": "strict", "validationAction": "error"}
             if name in existing:
                 db.command("collMod", name, **opts)
                 log(f"mongo validator {name}: updated")
