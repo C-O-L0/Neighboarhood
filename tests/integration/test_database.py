@@ -347,3 +347,275 @@ def test_mongo_valid_sale_is_accepted(mongo_app, mongo_admin, month):
         assert mongo_admin.resale_transactions.find_one({"_id": -6}) is not None
     finally:
         mongo_admin.resale_transactions.delete_one({"_id": -6})
+
+
+# ---------------------------------------------------------------------- validator parity: helpers
+
+
+def _expect_rejected(coll, doc):
+    try:
+        with pytest.raises(WriteError) as exc:
+            coll.insert_one(doc)
+        assert exc.value.code == VALIDATION_FAILED
+    finally:
+        coll.delete_one({"_id": doc["_id"]})
+
+
+def _expect_accepted(coll, doc):
+    try:
+        coll.insert_one(doc)
+        assert coll.count_documents({"_id": doc["_id"]}) == 1
+    finally:
+        coll.delete_one({"_id": doc["_id"]})
+
+
+def _last_sale_value(conn, column):
+    return conn.execute(
+        sql.SQL("SELECT {} FROM resale_transaction ORDER BY txn_id DESC LIMIT 1").format(sql.Identifier(column))
+    ).fetchone()[0]
+
+
+# ---------------------------------------------------------------------- validator parity: sales
+
+
+def test_mongo_rejects_price_with_more_than_2dp_pg_would_round(pg_admin, mongo_app, mongo_admin):
+    """MongoDB rejects 500000.005; PostgreSQL does not reject it, it stores 500000.01."""
+    doc = {**_valid_sale(mongo_app, -7), "source": "admin", "resale_price": Decimal128("500000.005")}
+    _expect_rejected(mongo_admin.resale_transactions, doc)
+    _insert_sale(pg_admin, *_any_sale(pg_admin), resale_price=Decimal("500000.005"))
+    assert _last_sale_value(pg_admin, "resale_price") == Decimal("500000.01")
+
+
+def test_price_at_numeric_maximum_rejected_by_both(pg_admin, mongo_app, mongo_admin):
+    """NUMERIC(9,2) tops out at 9999999.99; 10000000.00 overflows in PostgreSQL and fails the Mongo bound."""
+    with pytest.raises(errors.NumericValueOutOfRange):
+        _insert_sale(pg_admin, *_any_sale(pg_admin), resale_price=Decimal("10000000.00"))
+    pg_admin.rollback()
+    doc = {**_valid_sale(mongo_app, -8), "source": "admin", "resale_price": Decimal128("10000000.00")}
+    _expect_rejected(mongo_admin.resale_transactions, doc)
+
+
+def test_area_399_95_rejected_by_both(pg_admin, mongo_app, mongo_admin):
+    """PostgreSQL rounds 399.95 to 400.0 and then the < 400 CHECK fails; MongoDB rejects the scale."""
+    with pytest.raises(errors.CheckViolation):
+        _insert_sale(pg_admin, *_any_sale(pg_admin), floor_area_sqm=Decimal("399.95"))
+    pg_admin.rollback()
+    doc = {**_valid_sale(mongo_app, -9), "source": "admin", "floor_area_sqm": Decimal128("399.95")}
+    _expect_rejected(mongo_admin.resale_transactions, doc)
+
+
+def test_mongo_rejects_area_with_more_than_1dp_pg_would_round(pg_admin, mongo_app, mongo_admin):
+    """MongoDB rejects 85.25; PostgreSQL does not reject it, it stores 85.3."""
+    doc = {**_valid_sale(mongo_app, -10), "source": "admin", "floor_area_sqm": Decimal128("85.25")}
+    _expect_rejected(mongo_admin.resale_transactions, doc)
+    _insert_sale(pg_admin, *_any_sale(pg_admin), floor_area_sqm=Decimal("85.25"))
+    assert _last_sale_value(pg_admin, "floor_area_sqm") == Decimal("85.3")
+
+
+def test_sale_at_price_and_area_limits_accepted_by_both(pg_admin, mongo_app, mongo_admin):
+    _insert_sale(pg_admin, *_any_sale(pg_admin), resale_price=Decimal("9999999.99"), floor_area_sqm=Decimal("399.9"))
+    doc = {
+        **_valid_sale(mongo_app, -11),
+        "source": "admin",
+        "resale_price": Decimal128("9999999.99"),
+        "floor_area_sqm": Decimal128("399.9"),
+    }
+    _expect_accepted(mongo_admin.resale_transactions, doc)
+
+
+# ---------------------------------------------------------------------- validator parity: buildings and hawkers
+
+PROPERTY_ATTRS = {
+    "year_completed": 2000,
+    "max_floor": 10,
+    "residential": True,
+    "commercial": False,
+    "market_hawker": False,
+    "miscellaneous": False,
+    "multistorey_carpark": False,
+    "precinct_pavilion": False,
+}
+NO_ATTRS = dict.fromkeys(PROPERTY_ATTRS)
+OUTSIDE_BOX = [
+    {"lon": 103.58, "lat": 1.30},
+    {"lon": 104.11, "lat": 1.30},
+    {"lon": 103.80, "lat": 1.14},
+    {"lon": 103.80, "lat": 1.49},
+]
+
+
+def _pg_building(conn, **over):
+    """Insert a block as the owner (rolled back by the fixture); defaults to a full property block."""
+    town_id = conn.execute("SELECT town_id FROM town ORDER BY town_id LIMIT 1").fetchone()[0]
+    v = {
+        "town_id": town_id,
+        "block": "ZZ9",
+        "street": "TEST STREET",
+        "in_property_dataset": True,
+        "lease_commence_year": 2000,
+        **PROPERTY_ATTRS,
+        **over,
+    }
+    conn.execute(
+        sql.SQL("INSERT INTO building ({}) VALUES ({})").format(
+            sql.SQL(", ").join(map(sql.Identifier, v)), sql.SQL(", ").join(sql.Placeholder() * len(v))
+        ),
+        list(v.values()),
+    )
+
+
+def _pg_stub(conn):
+    _pg_building(conn, **{**NO_ATTRS, "in_property_dataset": False, "lease_commence_year": None})
+
+
+def _profile(_id, *, stub=False, location=None, **over):
+    doc = {
+        "_id": _id,
+        "block": "ZZ9",
+        "street": "TEST STREET",
+        "town": {"code": "ABC", "name": "TEST TOWN"},
+        "in_property_dataset": not stub,
+        "lease_commence_year": None if stub else 2000,
+        **(NO_ATTRS if stub else PROPERTY_ATTRS),
+        "stats": {"txn_count": 0, "median_price": None, "avg_psm": None, "by_flat_type": [], "last_txn_month": None},
+        "recent_sales": [],
+    }
+    if not stub:
+        doc["supply"] = []
+    if location:
+        doc["location"] = {"type": "Point", "coordinates": [location["lon"], location["lat"]]}
+    return {**doc, **over}
+
+
+def _pg_hawker(conn, lon, lat):
+    conn.execute(
+        """INSERT INTO hawker_centre (hawker_id, name, status, latitude, longitude)
+           VALUES (999999, 'TEST HAWKER', 'Existing', %s, %s)""",
+        (Decimal(str(lat)), Decimal(str(lon))),
+    )
+
+
+def _hawker(_id, lon, lat):
+    return {
+        "_id": _id,
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [lon, lat]},
+        "properties": {"OBJECTID": _id, "NAME": "TEST HAWKER", "STATUS": "Existing"},
+    }
+
+
+@pytest.mark.parametrize("attr", list(PROPERTY_ATTRS))
+def test_property_block_with_null_attribute_rejected_by_both(pg_owner, mongo_etl, attr):
+    """PostgreSQL building_property_attrs and the Mongo property branch both need every attribute."""
+    with pytest.raises(errors.CheckViolation):
+        _pg_building(pg_owner, **{attr: None})
+    _expect_rejected(mongo_etl.building_profiles, _profile(-30, **{attr: None}))
+
+
+def test_stub_with_year_completed_rejected_by_both(pg_owner, mongo_etl):
+    with pytest.raises(errors.CheckViolation):
+        _pg_building(pg_owner, **{**NO_ATTRS, "in_property_dataset": False, "year_completed": 1999})
+    _expect_rejected(mongo_etl.building_profiles, _profile(-31, stub=True, year_completed=1999))
+
+
+@pytest.mark.parametrize("field", ["year_completed", "lease_commence_year"])
+@pytest.mark.parametrize("year", [1899, 2101])
+def test_year_out_of_bounds_rejected_by_both(pg_owner, mongo_etl, field, year):
+    with pytest.raises(errors.CheckViolation):
+        _pg_building(pg_owner, **{field: year})
+    _expect_rejected(mongo_etl.building_profiles, _profile(-32, **{field: year}))
+
+
+@pytest.mark.parametrize("pt", OUTSIDE_BOX)
+def test_building_coordinates_outside_box_rejected_by_both(pg_owner, mongo_etl, pt):
+    with pytest.raises(errors.CheckViolation):
+        _pg_building(pg_owner, latitude=Decimal(str(pt["lat"])), longitude=Decimal(str(pt["lon"])))
+    _expect_rejected(mongo_etl.building_profiles, _profile(-33, location=pt))
+
+
+@pytest.mark.parametrize("pt", OUTSIDE_BOX)
+def test_hawker_coordinates_outside_box_rejected_by_both(pg_owner, mongo_etl, pt):
+    with pytest.raises(errors.CheckViolation):
+        _pg_hawker(pg_owner, pt["lon"], pt["lat"])
+    _expect_rejected(mongo_etl.hawker_centres, _hawker(-34, pt["lon"], pt["lat"]))
+
+
+@pytest.mark.parametrize(
+    "case",
+    [{"year": 1900, "lon": 103.59, "lat": 1.15}, {"year": 2100, "lon": 104.10, "lat": 1.48}],
+    ids=["lower-bounds", "upper-bounds"],
+)
+def test_values_exactly_on_bounds_accepted_by_both(pg_owner, mongo_etl, case):
+    """BETWEEN is inclusive in PostgreSQL, so the Mongo bounds are inclusive too."""
+    pt = {"lon": case["lon"], "lat": case["lat"]}
+    _pg_building(
+        pg_owner,
+        year_completed=case["year"],
+        lease_commence_year=case["year"],
+        latitude=Decimal(str(pt["lat"])),
+        longitude=Decimal(str(pt["lon"])),
+    )
+    pg_owner.rollback()
+    _pg_hawker(pg_owner, pt["lon"], pt["lat"])
+    doc = _profile(-35, location=pt, year_completed=case["year"], lease_commence_year=case["year"])
+    _expect_accepted(mongo_etl.building_profiles, doc)
+    _expect_accepted(mongo_etl.hawker_centres, _hawker(-36, pt["lon"], pt["lat"]))
+
+
+def test_valid_property_profile_accepted_by_both(pg_owner, mongo_etl):
+    _pg_building(pg_owner, latitude=Decimal("1.35"), longitude=Decimal("103.80"))
+    _expect_accepted(mongo_etl.building_profiles, _profile(-37, location={"lon": 103.80, "lat": 1.35}))
+
+
+def test_valid_stub_accepted_by_both(pg_owner, mongo_etl):
+    _pg_stub(pg_owner)
+    _expect_accepted(mongo_etl.building_profiles, _profile(-38, stub=True))
+
+
+def test_valid_non_geocoded_profile_accepted_by_both(pg_owner, mongo_etl):
+    """No location is allowed: the coordinate bounds must not reject a block that was never geocoded."""
+    _pg_building(pg_owner)  # latitude and longitude both NULL
+    _expect_accepted(mongo_etl.building_profiles, _profile(-39))
+
+
+def test_valid_hawker_accepted_by_both(pg_owner, mongo_etl):
+    _pg_hawker(pg_owner, 103.85, 1.30)
+    _expect_accepted(mongo_etl.hawker_centres, _hawker(-40, 103.85, 1.30))
+
+
+# ---------------------------------------------------------------------- least privilege: read-only roles
+
+
+def test_app_ro_cannot_write_any_table(pg_ro):
+    tables = pg_ro.execute(
+        """SELECT c.relname, (SELECT a.attname FROM pg_attribute a
+                              WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+                              ORDER BY a.attnum LIMIT 1)
+           FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+           WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') ORDER BY c.relname"""
+    ).fetchall()
+    assert len(tables) >= 9
+    for table, col in tables:
+        t, c = sql.Identifier(table), sql.Identifier(col)
+        for stmt in (
+            sql.SQL("INSERT INTO {} DEFAULT VALUES").format(t),
+            sql.SQL("UPDATE {} SET {} = {}").format(t, c, c),
+            sql.SQL("DELETE FROM {}").format(t),
+        ):
+            with pytest.raises(errors.InsufficientPrivilege):
+                pg_ro.execute(stmt)
+            pg_ro.rollback()
+
+
+def test_app_ro_cannot_refresh_town_stats(pg_ro):
+    with pytest.raises(errors.InsufficientPrivilege):
+        pg_ro.execute("SELECT refresh_town_stats()")
+
+
+def test_mongo_app_user_cannot_insert_buildings_or_hawkers(mongo_app):
+    with pytest.raises(OperationFailure) as exc:
+        mongo_app.building_profiles.insert_one(_profile(-41))
+    assert exc.value.code == UNAUTHORIZED
+    with pytest.raises(OperationFailure) as exc:
+        mongo_app.hawker_centres.insert_one(_hawker(-42, 103.85, 1.30))
+    assert exc.value.code == UNAUTHORIZED

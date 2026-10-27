@@ -189,7 +189,7 @@ Presenters per video segment are named at the start of Phase 5. The final report
 
 | Risk | Mitigation |
 |---|---|
-| Docker Hub, MongoDB downloads, OneMap and data.gov.sg blocked from Claude's sandboxes **[Q5]** | allowlist the hosts, otherwise those steps run on a team member's Windows machine from ready-made commands; CI covers Mongo tests |
+| Docker Hub, MongoDB downloads, OneMap and data.gov.sg blocked from the build sandbox **[Q5]** | allowlist the hosts, otherwise those steps run on a team member's Windows machine from ready-made commands; CI covers Mongo tests |
 | Replica set with auth needs a keyfile, awkward on Windows | keyfile baked in the image; verified on every teammate's Windows machine before Phase 1 closes |
 | Geocoding misses | returned address stored, match flag, overrides, match rate in report |
 | Parallel teammate work | owners per branch, small PRs |
