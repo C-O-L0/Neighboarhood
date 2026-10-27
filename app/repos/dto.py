@@ -125,3 +125,15 @@ class TrendPoint:
         if self.prev_year_median is None:
             return None
         return (self.yoy_change / self.prev_year_median * 100).quantize(Decimal("0.1"), ROUND_HALF_UP)
+
+
+@dataclass(frozen=True)
+class TownRank:
+    flat_type: str
+    rank: int
+    town: str
+    n: int
+    median_price: Decimal
+    avg_psm: Decimal = field(metadata={"tol": AVG_TOL})
+    island_median: Decimal
+    beats_island: bool

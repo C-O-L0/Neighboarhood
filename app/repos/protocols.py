@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.repos.dto import BuildingDetail, SearchResult, TrendPoint
+from app.repos.dto import BuildingDetail, SearchResult, TownRank, TrendPoint
+from app.services.rankings import RankingQuery
 from app.services.search import SearchQuery
 from app.services.trends import TrendQuery
 
@@ -28,4 +29,10 @@ class SearchRepo(Protocol):
 class TrendRepo(Protocol):
     def trend(self, query: TrendQuery) -> list[TrendPoint]:
         """The monthly series for one town and flat type, month ascending (months without sales are absent)."""
+        ...
+
+
+class RankingRepo(Protocol):
+    def rank(self, query: RankingQuery) -> list[TownRank]:
+        """Towns ranked by median price within each flat type for one year: flat type, rank, town order."""
         ...

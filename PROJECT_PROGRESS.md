@@ -2,6 +2,12 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-27 Task 2.4 rankings
+
+- Towns are ranked within each flat type by median price only (`RANK()` in PG, `$rank` in MongoDB), so equal medians share a rank and the next rank skips; the town name is only the final tie-break for display order. "Above island median" means strictly greater.
+- The approved spec expected three towns for 2017 `3 ROOM` on the sample; the sample has five (GEYLANG and JURONG EAST each have one building). The test asserts all five (BUKIT TIMAH 1, MARINE PARADE 1, BISHAN 3, GEYLANG 4, JURONG EAST 5), which still shows the shared first rank and the skip to 3.
+- Report notes: the PG correlated subquery for the island median runs once per (flat type, town) row while `$facet` computes it once per flat type; with no flat type selected, neither database has an index starting with `txn_month`, so both scan.
+
 ## 2026-10-27 Task 2.3 trends
 
 - Monthly figures and the previous-year median come from `mv_town_month_stats` (self-join on `month - interval '12 months'`); rolling 12-month figures from a `LATERAL` `percentile_disc(0.5)` over calendar months. MongoDB uses `$setWindowFields` month ranges `[-12, -12]` and `[-11, 0]` over months grouped first, with the lower median from `$sortArray`. A month with no sales 12 months earlier shows "No sales" for the previous-year median.
@@ -29,8 +35,8 @@ Decisions and next actions only (README rule). Newest first.
 - Task list:
   - 2.1 DB-mode switch, timing, repo pattern, equivalence harness and building page: merged (PR #12, `app/db-mode-switch`).
   - 2.2 Search and filter: merged (PR #13, `app/search`).
-  - 2.3 Trends: merged (`app/trends`).
-  - 2.4 Rankings: spec approved, not started.
+  - 2.3 Trends: merged (PR #14, `app/trends`).
+  - 2.4 Rankings: merged (`app/rankings`).
   - 2.5 Interface (Chart.js, styling): spec approved, not started.
   - Phase 2 gate: not started.
 

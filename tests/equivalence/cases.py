@@ -16,12 +16,15 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.repos.mongo.building import MongoBuildingRepo
+from app.repos.mongo.rankings import MongoRankingRepo
 from app.repos.mongo.search import MongoSearchRepo
 from app.repos.mongo.trends import MongoTrendRepo
 from app.repos.pg.building import PgBuildingRepo
+from app.repos.pg.rankings import PgRankingRepo
 from app.repos.pg.search import PgSearchRepo
 from app.repos.pg.trends import PgTrendRepo
-from app.services.search import SearchQuery
+from app.services.rankings import RankingQuery
+from app.services.search import RESALE_TYPES, SearchQuery
 from app.services.trends import TrendQuery
 
 SAMPLE_MAX = 1000
@@ -60,7 +63,8 @@ def building_params(conn) -> list[dict]:
 
 
 # Search parameter sets are raw query strings, as a browser sends them. Each returns rows on the
-# sample (towns BISHAN, MARINE PARADE, BUKIT TIMAH) and on full data.
+# sample (mainly BISHAN, MARINE PARADE and BUKIT TIMAH, plus one building each in GEYLANG and
+# JURONG EAST) and on full data.
 DUPLICATE_PAIR = {
     "block": "18",
     "street": "MARINE TER",
@@ -208,6 +212,31 @@ def _mongo_trend(db, p):
     return MongoTrendRepo(db).trend(TrendQuery.model_validate(p))
 
 
+# Rankings: every year present in the loaded data, with the flat type absent and with each resale
+# flat type (types with no sales that year return an empty list in both databases).
+def ranking_years(conn) -> list[int]:
+    rows = conn.execute(
+        "SELECT DISTINCT EXTRACT(YEAR FROM txn_month)::int FROM resale_transaction ORDER BY 1"
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+def ranking_params(conn) -> list[dict]:
+    return [
+        {"year": str(y), **({"flat_type": t} if t else {})}
+        for y in ranking_years(conn)
+        for t in (None, *RESALE_TYPES)
+    ]
+
+
+def _pg_rank(conn, p):
+    return PgRankingRepo(conn).rank(RankingQuery.model_validate(p))
+
+
+def _mongo_rank(db, p):
+    return MongoRankingRepo(db).rank(RankingQuery.model_validate(p))
+
+
 CASES: list[Case] = [
     Case(
         name="building",
@@ -218,4 +247,5 @@ CASES: list[Case] = [
     Case(name="search", pg_call=_pg_search, mongo_call=_mongo_search, params=search_params),
     Case(name="search_edges", pg_call=_pg_search, mongo_call=_mongo_search, params=search_edge_params),
     Case(name="trends", pg_call=_pg_trend, mongo_call=_mongo_trend, params=trend_params),
+    Case(name="rankings", pg_call=_pg_rank, mongo_call=_mongo_rank, params=ranking_params),
 ]

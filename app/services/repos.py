@@ -8,9 +8,11 @@ from typing import Any
 from fastapi import Request
 
 from app.repos.mongo.building import MongoBuildingRepo
+from app.repos.mongo.rankings import MongoRankingRepo
 from app.repos.mongo.search import MongoSearchRepo
 from app.repos.mongo.trends import MongoTrendRepo
 from app.repos.pg.building import PgBuildingRepo
+from app.repos.pg.rankings import PgRankingRepo
 from app.repos.pg.search import PgSearchRepo
 from app.repos.pg.trends import PgTrendRepo
 from app.services.dbmode import Timing
@@ -20,6 +22,7 @@ REPOS = {
     "building": (PgBuildingRepo, MongoBuildingRepo),
     "search": (PgSearchRepo, MongoSearchRepo),
     "trends": (PgTrendRepo, MongoTrendRepo),
+    "rankings": (PgRankingRepo, MongoRankingRepo),
 }
 
 
