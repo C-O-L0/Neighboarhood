@@ -6,6 +6,8 @@ import re
 import httpx
 import pytest
 
+from tests.equivalence.cases import is_sample
+
 BASE = os.environ.get("NEIGHBOAR_URL", "http://127.0.0.1:8000")
 pytestmark = pytest.mark.integration
 
@@ -92,6 +94,8 @@ def test_single_flat_type_has_one_table(db):
 
 
 @pytest.mark.parametrize("db", ["pg", "mongo"])
-def test_flat_type_without_sales_says_so(db):
+def test_flat_type_without_sales_says_so(db, pg_rw):
+    if not is_sample(pg_rw):
+        pytest.skip("every resale flat type has sales in every year on the full data")
     page = main_of(get(f"/rankings?year=2022&flat_type=1+ROOM&db={db}"))
     assert "No sales match." in page and "<table" not in page
