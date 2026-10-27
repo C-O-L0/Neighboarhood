@@ -10,7 +10,9 @@ permissions:
 
 jobs:
   stack:
-    runs-on: ubuntu-24.04
+    # MongoDB 8.3.11 refuses to start on Linux 6.19 or newer (SERVER-121912),
+    # which ubuntu-24.04 runners now use. Keep this pin until the image is fixed.
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
