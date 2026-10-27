@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Town rankings · Neighboar{% endblock %}
+{% block content %}
+<h1>Town rankings</h1>
+{% if errors %}
+<div class="bad" role="alert">
+  <p>Please correct the following.</p>
+  <ul>
+    {% for e in errors %}<li>{{ e }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+<form method="get" action="/rankings" class="searchform">
+  <input type="hidden" name="db" value="{{ db_mode }}">
+  <label>Year
+    <select name="year">
+      <option value="">Choose a year</option>
+      {% for y in years %}<option value="{{ y }}"{% if f.year == y|string %} selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Flat type
+    <select name="flat_type">
+      <option value="">All</option>
+      {% for t in flat_types %}<option value="{{ t }}"{% if f.flat_type == t %} selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit">Show rankings</button>
+</form>
+
+{% if groups is not none %}
+{% for flat_type, rows in groups %}
+<h2>{{ flat_type }} in {{ f.year }}</h2>
+<table class="rankings">
+  <thead><tr><th>Rank</th><th>Town</th><th>Sales</th><th>Median* price</th><th>Average price per sqm</th><th>Island median*</th><th>Above island median</th></tr></thead>
+  <tbody>
+    {% for r in rows %}
+    <tr><td>{{ r.rank }}</td><td>{{ r.town }}</td><td>{{ r.n }}</td><td>{{ r.median_price|money }}</td><td>{{ r.avg_psm|money }}</td><td>{{ r.island_median|money }}</td><td>{{ 'Yes' if r.beats_island else 'No' }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endfor %}
+{% if groups %}
+<p class="footnote">* median: the lower of the two middle prices when n is even</p>
+{% else %}
+<p>No sales match.</p>
+{% endif %}
+{% endif %}
+{% endblock %}
