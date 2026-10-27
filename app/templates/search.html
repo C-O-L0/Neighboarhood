@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Search sales · Neighboar{% endblock %}
+{% block content %}
+<h1>Search resale sales</h1>
+{% if errors %}
+<div class="bad" role="alert">
+  <p>Please correct the following.</p>
+  <ul>
+    {% for e in errors %}<li>{{ e }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+<form method="get" action="/search" class="searchform">
+  <input type="hidden" name="db" value="{{ db_mode }}">
+  <label>Town
+    <select name="town">
+      <option value="">Any</option>
+      {% for t in towns %}<option value="{{ t }}"{% if f.town == t %} selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Flat type
+    <select name="flat_type">
+      <option value="">Any</option>
+      {% for t in flat_types %}<option value="{{ t }}"{% if f.flat_type == t %} selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Flat model
+    <select name="flat_model">
+      <option value="">Any</option>
+      {% for m in flat_models %}<option value="{{ m }}"{% if f.flat_model == m %} selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>From month <input name="month_from" value="{{ f.month_from }}" placeholder="2024-01" maxlength="7"></label>
+  <label>To month <input name="month_to" value="{{ f.month_to }}" placeholder="2024-12" maxlength="7"></label>
+  <label>Minimum price <input name="price_min" value="{{ f.price_min }}" inputmode="decimal" maxlength="20"></label>
+  <label>Maximum price <input name="price_max" value="{{ f.price_max }}" inputmode="decimal" maxlength="20"></label>
+  <label>Minimum area (sqm) <input name="area_min" value="{{ f.area_min }}" inputmode="decimal" maxlength="20"></label>
+  <label>Maximum area (sqm) <input name="area_max" value="{{ f.area_max }}" inputmode="decimal" maxlength="20"></label>
+  <label>Street contains <input name="street" value="{{ f.street }}" maxlength="40"></label>
+  <label>Block <input name="block" value="{{ f.block }}" maxlength="5"></label>
+  <label>Sort by
+    <select name="sort">
+      {% for s in sorts %}<option value="{{ s }}"{% if (f.sort or 'month') == s %} selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Order
+    <select name="order">
+      {% for o in orders %}<option value="{{ o }}"{% if (f.order or 'desc') == o %} selected{% endif %}>{{ o }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit">Search</button>
+</form>
+
+{% if result %}
+<p class="count">{{ result.total }} sale{{ '' if result.total == 1 else 's' }}, page {{ result.page }} of {{ result.pages }}</p>
+{% if result.rows %}
+<table class="sales">
+  <thead><tr><th>Month</th><th>Town</th><th>Block</th><th>Street</th><th>Flat type</th><th>Model</th><th>Storey</th><th>Area (sqm)</th><th>Lease start</th><th>Remaining lease</th><th>Price</th><th>Price per sqm</th></tr></thead>
+  <tbody>
+    {% for r in result.rows %}
+    <tr><td>{{ r.txn_month|month }}</td><td>{{ r.town }}</td><td>{{ r.block }}</td><td><a href="/building/{{ r.building_id }}">{{ r.street }}</a></td><td>{{ r.flat_type }}</td><td>{{ r.flat_model }}</td><td>{{ r.storey_min|storey(r.storey_max) }}</td><td>{{ r.floor_area_sqm }}</td><td>{{ r.lease_commence_year|unknown }}</td><td>{{ r.remaining_lease_months|lease }}</td><td>{{ r.resale_price|money }}</td><td>{{ r.price_psm|money }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No sales match.</p>
+{% endif %}
+<nav class="pager" aria-label="Pages">
+  {% if prev_link %}<a rel="prev" href="{{ prev_link }}">Previous</a>{% endif %}
+  {% if next_link %}<a rel="next" href="{{ next_link }}">Next</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

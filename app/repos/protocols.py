@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.repos.dto import BuildingDetail
+from app.repos.dto import BuildingDetail, SearchResult
+from app.services.search import SearchQuery
 
 
 class BuildingRepo(Protocol):
@@ -14,4 +15,10 @@ class BuildingRepo(Protocol):
 
     def find_id(self, block: str, street: str) -> int | None:
         """Id of the block with this normalised (block, street), or None."""
+        ...
+
+
+class SearchRepo(Protocol):
+    def search(self, query: SearchQuery) -> SearchResult:
+        """One page of matching sales and the exact total, in the order the query asks for."""
         ...

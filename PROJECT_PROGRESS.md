@@ -2,17 +2,27 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-27 Task 2.2 search and filter
+
+- `etl/clean.py` now defines `TOWN_IDS`, `FLAT_TYPE_IDS` and `FLAT_MODEL_IDS` (name to id, the 1-based list positions) and asserts each has one entry per list item. `lookups()`, the cleaning step and the search repos all use them, so the app maps form values to the same ids the ETL loads. Re-running the sample pipeline left `docs/import_report.md` and every count unchanged.
+- PG search filters on the id columns of `v_transaction_detail` so it can use the same index shapes as MongoDB. Street search is a `LIKE` with `%`, `_` and `\` escaped in PG and an escaped, case-sensitive regex in MongoDB.
+- Sample timings (6,275 sales, unfiltered, median of 14 warm runs): count PG 1.36 ms, MongoDB 0.98 ms; first page PG 3.47 ms, MongoDB 3.30 ms. These are indicative only; the Phase 4 benchmark gives the formal figures.
+
+## Blocked, needs Ahsanul
+
+- (none yet)
+
 ## 2026-10-27 Phase 2 plan
 
 - Phase 2 is split by feature instead of BUILD_PLAN section 13's per-database branches, so each PR carries both database sides and its own equivalence tests. The PostgreSQL and MongoDB owners review their side of each feature PR (README rule).
 - The conventions every feature follows (repo layout, DTO types, DB-mode switch, timing, equivalence harness, formatting filters) are in `docs/conventions.md`.
 - The header's DB-mode links reuse the request path only when it fully matches a strict path allowlist (no empty segments, no backslash or control characters), otherwise they point at `/`. Two review rounds found `//host` and `/\host` paths turning the links into off-site URLs; the allowlist closes the whole class.
 - Task list:
-  - 2.1 DB-mode switch, timing, repo pattern, equivalence harness and building page: merged in this PR (`app/db-mode-switch`).
-  - 2.2 Search and filter: not started.
-  - 2.3 Trends: not started.
-  - 2.4 Rankings: not started.
-  - 2.5 Interface (Chart.js, styling): not started.
+  - 2.1 DB-mode switch, timing, repo pattern, equivalence harness and building page: merged (PR #12, `app/db-mode-switch`).
+  - 2.2 Search and filter: merged (`app/search`).
+  - 2.3 Trends: spec approved, not started.
+  - 2.4 Rankings: spec approved, not started.
+  - 2.5 Interface (Chart.js, styling): spec approved, not started.
   - Phase 2 gate: not started.
 
 ## 2026-10-27 Phase 1 gate passed
