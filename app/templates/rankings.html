@@ -13,27 +13,33 @@
 {% endif %}
 <form method="get" action="/rankings" class="searchform">
   <input type="hidden" name="db" value="{{ db_mode }}">
-  <label>Year
-    <select name="year">
+  <div class="field">
+    <label for="year">Year</label>
+    <select id="year" name="year">
       <option value="">Choose a year</option>
       {% for y in years %}<option value="{{ y }}"{% if f.year == y|string %} selected{% endif %}>{{ y }}</option>
       {% endfor %}
     </select>
-  </label>
-  <label>Flat type
-    <select name="flat_type">
+  </div>
+  <div class="field">
+    <label for="flat_type">Flat type</label>
+    <select id="flat_type" name="flat_type">
       <option value="">All</option>
       {% for t in flat_types %}<option value="{{ t }}"{% if f.flat_type == t %} selected{% endif %}>{{ t }}</option>
       {% endfor %}
     </select>
-  </label>
+  </div>
   <button type="submit">Show rankings</button>
 </form>
 
 {% if groups is not none %}
 {% for flat_type, rows in groups %}
 <h2>{{ flat_type }} in {{ f.year }}</h2>
+<figure class="chart">
+  <div class="chartbox tall" data-towns="{{ rows|length }}"><canvas id="rankings-chart-{{ loop.index0 }}" data-chart="rankings" data-source="rankings-data" data-index="{{ loop.index0 }}" aria-label="Bar chart of the median* price of each town for {{ flat_type }} in {{ f.year }}, with the island median* as a line. The same figures are in the table below."></canvas></div>
+</figure>
 <table class="rankings">
+  <caption>Town median* prices for {{ flat_type }} in {{ f.year }}, in rank order</caption>
   <thead><tr><th>Rank</th><th>Town</th><th>Sales</th><th>Median* price</th><th>Average price per sqm</th><th>Island median*</th><th>Above island median</th></tr></thead>
   <tbody>
     {% for r in rows %}
@@ -43,9 +49,16 @@
 </table>
 {% endfor %}
 {% if groups %}
+<script type="application/json" id="rankings-data">{{ chart|tojson }}</script>
 <p class="footnote">* median: the lower of the two middle prices when n is even</p>
 {% else %}
 <p>No sales match.</p>
 {% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if groups %}
+<script src="{{ url_for('static', path='vendor/chart.umd.js') }}"></script>
+<script src="{{ url_for('static', path='charts.js') }}"></script>
 {% endif %}
 {% endblock %}

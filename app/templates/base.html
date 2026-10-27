@@ -9,6 +9,13 @@
 <body>
   <header class="topbar">
     <a class="brand" href="/">Neighboar</a>
+    <nav class="menu" aria-label="Main">
+      <a href="/">Home</a>
+      <a href="/search">Search</a>
+      <a href="/trends">Trends</a>
+      <a href="/rankings">Rankings</a>
+      <a href="/health">Health</a>
+    </nav>
     <nav class="mode" aria-label="Database">
       <span>Database: <strong id="db-mode">{{ db_mode_name }}</strong></span>
       <a href="{{ mode_links['pg'] }}"{% if db_mode == 'pg' %} aria-current="true"{% endif %}>PostgreSQL</a>
@@ -27,5 +34,6 @@
     </ul>
   </footer>
   {% endif %}
+  {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -13,47 +13,52 @@
 {% endif %}
 <form method="get" action="/search" class="searchform">
   <input type="hidden" name="db" value="{{ db_mode }}">
-  <label>Town
-    <select name="town">
+  <div class="field">
+    <label for="town">Town</label>
+    <select id="town" name="town">
       <option value="">Any</option>
       {% for t in towns %}<option value="{{ t }}"{% if f.town == t %} selected{% endif %}>{{ t }}</option>
       {% endfor %}
     </select>
-  </label>
-  <label>Flat type
-    <select name="flat_type">
+  </div>
+  <div class="field">
+    <label for="flat_type">Flat type</label>
+    <select id="flat_type" name="flat_type">
       <option value="">Any</option>
       {% for t in flat_types %}<option value="{{ t }}"{% if f.flat_type == t %} selected{% endif %}>{{ t }}</option>
       {% endfor %}
     </select>
-  </label>
-  <label>Flat model
-    <select name="flat_model">
+  </div>
+  <div class="field">
+    <label for="flat_model">Flat model</label>
+    <select id="flat_model" name="flat_model">
       <option value="">Any</option>
       {% for m in flat_models %}<option value="{{ m }}"{% if f.flat_model == m %} selected{% endif %}>{{ m }}</option>
       {% endfor %}
     </select>
-  </label>
-  <label>From month <input name="month_from" value="{{ f.month_from }}" placeholder="2024-01" maxlength="7"></label>
-  <label>To month <input name="month_to" value="{{ f.month_to }}" placeholder="2024-12" maxlength="7"></label>
-  <label>Minimum price <input name="price_min" value="{{ f.price_min }}" inputmode="decimal" maxlength="20"></label>
-  <label>Maximum price <input name="price_max" value="{{ f.price_max }}" inputmode="decimal" maxlength="20"></label>
-  <label>Minimum area (sqm) <input name="area_min" value="{{ f.area_min }}" inputmode="decimal" maxlength="20"></label>
-  <label>Maximum area (sqm) <input name="area_max" value="{{ f.area_max }}" inputmode="decimal" maxlength="20"></label>
-  <label>Street contains <input name="street" value="{{ f.street }}" maxlength="40"></label>
-  <label>Block <input name="block" value="{{ f.block }}" maxlength="5"></label>
-  <label>Sort by
-    <select name="sort">
+  </div>
+  <div class="field"><label for="month_from">From month</label><input id="month_from" name="month_from" value="{{ f.month_from }}" placeholder="2024-01" maxlength="7"></div>
+  <div class="field"><label for="month_to">To month</label><input id="month_to" name="month_to" value="{{ f.month_to }}" placeholder="2024-12" maxlength="7"></div>
+  <div class="field"><label for="price_min">Minimum price</label><input id="price_min" name="price_min" value="{{ f.price_min }}" inputmode="decimal" maxlength="20"></div>
+  <div class="field"><label for="price_max">Maximum price</label><input id="price_max" name="price_max" value="{{ f.price_max }}" inputmode="decimal" maxlength="20"></div>
+  <div class="field"><label for="area_min">Minimum area (sqm)</label><input id="area_min" name="area_min" value="{{ f.area_min }}" inputmode="decimal" maxlength="20"></div>
+  <div class="field"><label for="area_max">Maximum area (sqm)</label><input id="area_max" name="area_max" value="{{ f.area_max }}" inputmode="decimal" maxlength="20"></div>
+  <div class="field"><label for="street">Street contains</label><input id="street" name="street" value="{{ f.street }}" maxlength="40"></div>
+  <div class="field"><label for="block">Block</label><input id="block" name="block" value="{{ f.block }}" maxlength="5"></div>
+  <div class="field">
+    <label for="sort">Sort by</label>
+    <select id="sort" name="sort">
       {% for s in sorts %}<option value="{{ s }}"{% if (f.sort or 'month') == s %} selected{% endif %}>{{ s }}</option>
       {% endfor %}
     </select>
-  </label>
-  <label>Order
-    <select name="order">
+  </div>
+  <div class="field">
+    <label for="order">Order</label>
+    <select id="order" name="order">
       {% for o in orders %}<option value="{{ o }}"{% if (f.order or 'desc') == o %} selected{% endif %}>{{ o }}</option>
       {% endfor %}
     </select>
-  </label>
+  </div>
   <button type="submit">Search</button>
 </form>
 
@@ -61,6 +66,7 @@
 <p class="count">{{ result.total }} sale{{ '' if result.total == 1 else 's' }}, page {{ result.page }} of {{ result.pages }}</p>
 {% if result.rows %}
 <table class="sales">
+  <caption>Resale sales matching the search</caption>
   <thead><tr><th>Month</th><th>Town</th><th>Block</th><th>Street</th><th>Flat type</th><th>Model</th><th>Storey</th><th>Area (sqm)</th><th>Lease start</th><th>Remaining lease</th><th>Price</th><th>Price per sqm</th></tr></thead>
   <tbody>
     {% for r in result.rows %}

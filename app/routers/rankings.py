@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
+from app.services.charts import rankings_chart
 from app.services.rankings import FIELDS, YEARS, RankingQuery, error_messages
 from app.services.repos import call_repo
 from app.services.search import RESALE_TYPES
@@ -38,4 +39,5 @@ def rankings(request: Request):
         return templates.TemplateResponse(request, "rankings.html", context, status_code=422)
     rows = call_repo(request, "rankings", "rank", query, label="rankings")
     context["groups"] = [(name, list(items)) for name, items in groupby(rows, key=lambda r: r.flat_type)]
+    context["chart"] = rankings_chart(context["groups"])
     return templates.TemplateResponse(request, "rankings.html", context)

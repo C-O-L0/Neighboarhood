@@ -2,6 +2,14 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## Run state (paused 2026-10-27)
+
+- Phase 2, task 2.5 (interface, Chart.js charts, navigation), branch `app/ui-search`, last commit: the "WIP: 2.5 interface (paused)" commit on that branch. `main` is at 4a1e031 (PR #15, task 2.4, merged).
+- Open PRs: none.
+- Task 2.5 state: implemented; 454 tests passed and ruff was clean before the review fixes. The diff review asked for two fixes, which were being applied when paused and may be partial: (1) `app/static/vendor/README.md` must name `tests/unit/test_static_assets.py` as the hash check; (2) `app/static/app.css` must drop `table { display: block; overflow-x: auto; }` and the wide tables (search, trends, rankings, building sales) go inside `<div class="table-wrap">`.
+- Specs approved and kept locally outside version control: 2.5 (revision 3, vendors `dist/chart.umd.js`; copy in `.claude/tmp/spec-2.5.md`); 3.1a, 3.1b, 3.2, 3.3, 3.4, 3.5a, 3.5b; Phase 4 (4.1a, 4.1b, 4.2, 4.3, 4.4, revision 4).
+- Next action: on `app/ui-search`, check and finish the two review fixes, rebuild, run the full suite and ruff, re-run the diff review, then squash the WIP commit into a proper commit, open the PR, wait for CI and merge. Then the Phase 2 gate (full-data load, equivalence on full data, sample reload).
+
 ## 2026-10-27 Task 2.4 rankings
 
 - Towns are ranked within each flat type by median price only (`RANK()` in PG, `$rank` in MongoDB), so equal medians share a rank and the next rank skips; the town name is only the final tie-break for display order. "Above island median" means strictly greater.
@@ -36,8 +44,8 @@ Decisions and next actions only (README rule). Newest first.
   - 2.1 DB-mode switch, timing, repo pattern, equivalence harness and building page: merged (PR #12, `app/db-mode-switch`).
   - 2.2 Search and filter: merged (PR #13, `app/search`).
   - 2.3 Trends: merged (PR #14, `app/trends`).
-  - 2.4 Rankings: merged (`app/rankings`).
-  - 2.5 Interface (Chart.js, styling): spec approved, not started.
+  - 2.4 Rankings: merged (PR #15, `app/rankings`).
+  - 2.5 Interface (Chart.js, styling): in progress on `app/ui-search`, paused (see "Run state").
   - Phase 2 gate: not started.
 
 ## 2026-10-27 Phase 1 gate passed

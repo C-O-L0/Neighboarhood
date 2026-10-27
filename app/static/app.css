@@ -33,3 +33,25 @@ th { color: var(--muted); font-weight: 600; }
 .sales { font-size: 0.9rem; }
 .pager { margin-top: 1rem; }
 .pager a { margin-right: 1rem; }
+
+/* Navigation, forms, tables and charts */
+.topbar { flex-wrap: wrap; gap: 0.5rem 1.5rem; }
+.menu { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin-right: auto; }
+.menu a, .mode a { color: var(--accent); }
+.mode { display: flex; flex-wrap: wrap; align-items: center; }
+.mode a[aria-current="true"] { background: var(--accent); color: #fff; padding: 0.1rem 0.5rem; border-radius: 3px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+caption { text-align: left; font-weight: 600; padding: 0.5rem 0; caption-side: top; }
+.field { display: flex; flex-direction: column; font-size: 0.9rem; }
+.field label { color: var(--muted); }
+.field input, .field select { margin-top: 0.2rem; padding: 0.35rem; font: inherit; color: var(--fg); }
+#block, #street { padding: 0.35rem; font: inherit; margin-right: 0.75rem; }
+.chart { margin: 1rem 0; padding: 0.75rem; background: #fff; border: 1px solid var(--line); }
+.chartbox { position: relative; width: 100%; height: 360px; }
+.table-wrap { overflow-x: auto; }
+table { display: block; overflow-x: auto; }
+@media (max-width: 640px) {
+  .page { padding: 1rem 0.75rem; }
+  .chartbox { height: 300px; }
+  .topbar { padding: 0.5rem 0.75rem; }
+}

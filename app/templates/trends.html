@@ -13,29 +13,36 @@
 {% endif %}
 <form method="get" action="/trends" class="searchform">
   <input type="hidden" name="db" value="{{ db_mode }}">
-  <label>Town
-    <select name="town">
+  <div class="field">
+    <label for="town">Town</label>
+    <select id="town" name="town">
       <option value="">Choose a town</option>
       {% for t in towns %}<option value="{{ t }}"{% if f.town == t %} selected{% endif %}>{{ t }}</option>
       {% endfor %}
     </select>
-  </label>
-  <label>Flat type
-    <select name="flat_type">
+  </div>
+  <div class="field">
+    <label for="flat_type">Flat type</label>
+    <select id="flat_type" name="flat_type">
       <option value="">Choose a flat type</option>
       {% for t in flat_types %}<option value="{{ t }}"{% if f.flat_type == t %} selected{% endif %}>{{ t }}</option>
       {% endfor %}
     </select>
-  </label>
-  <label>From month <input name="month_from" value="{{ f.month_from }}" placeholder="2022-01" maxlength="7"></label>
-  <label>To month <input name="month_to" value="{{ f.month_to }}" placeholder="2024-12" maxlength="7"></label>
+  </div>
+  <div class="field"><label for="month_from">From month</label><input id="month_from" name="month_from" value="{{ f.month_from }}" placeholder="2022-01" maxlength="7"></div>
+  <div class="field"><label for="month_to">To month</label><input id="month_to" name="month_to" value="{{ f.month_to }}" placeholder="2024-12" maxlength="7"></div>
   <button type="submit">Show trend</button>
 </form>
 
 {% if points is not none %}
 <h2>{{ f.flat_type }} in {{ f.town }}</h2>
 {% if points %}
+<figure class="chart">
+  <div class="chartbox"><canvas id="trends-chart" data-chart="trends" data-source="trends-data" aria-label="Line chart of the monthly median* price and the 12-month rolling median* price, with the number of sales as bars. The same figures are in the table below."></canvas></div>
+</figure>
+<script type="application/json" id="trends-data">{{ chart|tojson }}</script>
 <table class="trends">
+  <caption>Monthly sales and median* price, {{ f.flat_type }} in {{ f.town }}</caption>
   <thead><tr><th>Month</th><th>Sales</th><th>Median* price</th><th>Average price per sqm</th><th>Previous year median*</th><th>YoY change</th><th>YoY %</th><th>12-month sales</th><th>12-month median*</th></tr></thead>
   <tbody>
     {% for p in points %}
@@ -47,5 +54,11 @@
 {% else %}
 <p>No sales match.</p>
 {% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if points %}
+<script src="{{ url_for('static', path='vendor/chart.umd.js') }}"></script>
+<script src="{{ url_for('static', path='charts.js') }}"></script>
 {% endif %}
 {% endblock %}
