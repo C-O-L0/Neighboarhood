@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.repos.dto import BuildingDetail, SearchResult, TownRank, TrendPoint
+from app.repos.dto import Account, BuildingDetail, SavedBlock, SearchResult, TownRank, TrendPoint
 from app.services.rankings import RankingQuery
 from app.services.search import SearchQuery
 from app.services.trends import TrendQuery
@@ -35,4 +35,16 @@ class TrendRepo(Protocol):
 class RankingRepo(Protocol):
     def rank(self, query: RankingQuery) -> list[TownRank]:
         """Towns ranked by median price within each flat type for one year: flat type, rank, town order."""
+        ...
+
+
+class AccountRepo(Protocol):
+    def by_id(self, buyer_id: int) -> Account | None:
+        """The account with this id, or None."""
+        ...
+
+
+class SavedRepo(Protocol):
+    def list(self, buyer_id: int) -> list[SavedBlock]:
+        """The buyer's saved blocks ordered by building id (empty if none or no such buyer)."""
         ...

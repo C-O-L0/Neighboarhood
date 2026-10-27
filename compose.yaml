@@ -93,6 +93,8 @@ services:
       <<: *app-env
       PG_OWNER_PASSWORD: ${PG_OWNER_PASSWORD}
       MONGO_ETL_PASSWORD: ${MONGO_ETL_PASSWORD}
+      DEMO_BUYER_PASSWORD: ${DEMO_BUYER_PASSWORD}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD}
     depends_on:
       migrate:
         condition: service_completed_successfully
