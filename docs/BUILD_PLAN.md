@@ -135,7 +135,7 @@ Derived statistics after an admin write:
 5. `synth_buyers.py`: fixed seed, 200 buyers, about 1,000 saves, argon2 hashes, one documented demo account.
 6. `load_pg.py`: `COPY` in one transaction as owner, `setval`, `ANALYZE`, first MV refresh.
 7. `load_mongo.py`: `insert_many(ordered=False)` in 10k batches, indexes after load, counters seeded.
-8. `report.py`: `docs/import_report.md` with rows in, rejected and why, unmatched, duplicates kept. These are cleaning counts (rows accepted by cleaning); database counts come from the loaders.
+8. `report.py`: `docs/import_report.md` with rows in, rejected and why, unmatched, duplicates kept. The report also shows the PostgreSQL and MongoDB counts after load next to the cleaning output, taken by `etl/db_counts.py` at the end of the pipeline (the Phase 1 gate compares them).
 
 ## 8. Diagrams (instructor's ERD note)
 

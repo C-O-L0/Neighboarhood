@@ -5,8 +5,10 @@ Full snapshot (needs data/raw, see etl/download.py):
 Committed sample (no download needed; what CI loads):
     docker compose run --rm etl python -m etl.pipeline --sample
 
-The import report (docs/import_report.md) is regenerated separately with
-`python -m etl.report`, because it is a committed file.
+When both loads run, the pipeline ends by counting rows and documents in both
+databases (etl/db_counts.py) and exits 1 if they disagree. The import report
+(docs/import_report.md) is regenerated separately with `python -m etl.report`,
+because it is a committed file; it shows those database counts when present.
 """
 
 from __future__ import annotations
@@ -17,7 +19,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from etl import clean, download, load_mongo, load_pg
+from etl import clean, db_counts, download, load_mongo, load_pg
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -49,8 +51,12 @@ def main(argv: list[str] | None = None) -> int:
     if not args.skip_mongo:
         print("== load MongoDB", flush=True)
         load_mongo.main(["--interim", str(interim)])
+    status = 0
+    if not args.skip_pg and not args.skip_mongo:
+        print("== database counts", flush=True)
+        status = db_counts.main(["--interim", str(interim)])
     print(f"== done in {time.perf_counter() - started:.0f} s", flush=True)
-    return 0
+    return status
 
 
 if __name__ == "__main__":
