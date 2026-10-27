@@ -72,3 +72,33 @@ class BuildingDetail:
     total_units: int | None
     stats: BuildingStats
     recent_sales: list[RecentSale]
+
+
+@dataclass(frozen=True)
+class SaleRow:
+    txn_id: int
+    txn_month: date
+    town: str
+    block: str
+    street: str
+    building_id: int
+    flat_type: str
+    flat_model: str
+    storey_min: int
+    storey_max: int
+    floor_area_sqm: Decimal
+    lease_commence_year: int | None
+    remaining_lease_months: int | None
+    resale_price: Decimal
+
+    @property
+    def price_psm(self) -> Decimal:
+        return (self.resale_price / self.floor_area_sqm).quantize(Decimal("0.01"), ROUND_HALF_UP)
+
+
+@dataclass(frozen=True)
+class SearchResult:
+    rows: list[SaleRow]
+    total: int
+    page: int
+    pages: int

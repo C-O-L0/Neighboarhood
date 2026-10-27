@@ -242,18 +242,24 @@ def choose_lease_year(values: dict[int, int], sales: list[tuple[pd.Timestamp, in
     return candidates[0], "remaining_lease", evidence
 
 
+# Name -> id, the 1-based positions the lookup tables are loaded with. The web app maps
+# form values to ids with these, so the ETL and the app share one definition.
+TOWN_IDS: dict[str, int] = {name: i for i, (_, name) in enumerate(TOWNS, 1)}
+FLAT_TYPE_IDS: dict[str, int] = {name: i for i, (name, _) in enumerate(FLAT_TYPES, 1)}
+FLAT_MODEL_IDS: dict[str, int] = {name: i for i, name in enumerate(FLAT_MODELS, 1)}
+# A duplicate name would silently collapse two ids into one.
+assert (len(TOWN_IDS), len(FLAT_TYPE_IDS), len(FLAT_MODEL_IDS)) == (len(TOWNS), len(FLAT_TYPES), len(FLAT_MODELS))
+
 # ---------------------------------------------------------------------- tables
 
 
 def lookups() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    town = pd.DataFrame(
-        [(i, code, name) for i, (code, name) in enumerate(TOWNS, 1)], columns=["town_id", "code", "name"]
-    )
+    town = pd.DataFrame([(TOWN_IDS[name], code, name) for code, name in TOWNS], columns=["town_id", "code", "name"])
     flat_type = pd.DataFrame(
-        [(i, name, resale) for i, (name, resale) in enumerate(FLAT_TYPES, 1)],
+        [(FLAT_TYPE_IDS[name], name, resale) for name, resale in FLAT_TYPES],
         columns=["flat_type_id", "name", "is_resale_type"],
     )
-    flat_model = pd.DataFrame([(i, name) for i, name in enumerate(FLAT_MODELS, 1)], columns=["flat_model_id", "name"])
+    flat_model = pd.DataFrame([(FLAT_MODEL_IDS[name], name) for name in FLAT_MODELS], columns=["flat_model_id", "name"])
     return town, flat_type, flat_model
 
 
@@ -292,9 +298,6 @@ def clean(raw_dir: Path, cache_dir: Path) -> tuple[dict[str, pd.DataFrame], dict
     report: dict = {"raw_dir": str(raw_dir)}
     town, flat_type, flat_model = lookups()
     town_by_code = dict(zip(town.code, town.town_id, strict=True))
-    town_by_name = dict(zip(town.name, town.town_id, strict=True))
-    ft_by_name = dict(zip(flat_type.name, flat_type.flat_type_id, strict=True))
-    fm_by_name = dict(zip(flat_model.name, flat_model.flat_model_id, strict=True))
 
     resale, prop, hawker_geo = read_raw(raw_dir)
     report["rows_in"] = {"resale": len(resale), "property": len(prop), "hawker": len(hawker_geo["features"])}
@@ -317,7 +320,7 @@ def clean(raw_dir: Path, cache_dir: Path) -> tuple[dict[str, pd.DataFrame], dict
 
     # Town names in the resale file must all be known, and each property town code
     # must map to the resale town of its blocks.
-    unknown_towns = sorted(set(resale["town_key"]) - set(town_by_name))
+    unknown_towns = sorted(set(resale["town_key"]) - set(TOWN_IDS))
     if unknown_towns:
         raise ValueError(f"unknown resale towns: {unknown_towns}")
     joined = resale[["block", "street_key", "town_key"]].merge(
@@ -355,7 +358,7 @@ def clean(raw_dir: Path, cache_dir: Path) -> tuple[dict[str, pd.DataFrame], dict
             {
                 "block": r.block,
                 "street": r.street_key,
-                "town_id": town_by_name[r.town_key],
+                "town_id": TOWN_IDS[r.town_key],
                 "year_completed": None,
                 "max_floor": None,
                 **dict.fromkeys(LAND_USE),
@@ -455,7 +458,7 @@ def clean(raw_dir: Path, cache_dir: Path) -> tuple[dict[str, pd.DataFrame], dict
             if v["sold"] + v["rental"] == 0:
                 skipped_zero += 1
                 continue
-            supply_rows.append((b, ft_by_name[ft], v["sold"], v["rental"]))
+            supply_rows.append((b, FLAT_TYPE_IDS[ft], v["sold"], v["rental"]))
         if total != int(r["total_dwelling_units"]):
             raise ValueError(
                 f"supply for {r['block']} {r['street_key']} sums to {total}, not {r['total_dwelling_units']}"
@@ -482,9 +485,9 @@ def clean(raw_dir: Path, cache_dir: Path) -> tuple[dict[str, pd.DataFrame], dict
             if price <= 0:
                 raise ValueError(f"resale_price {price}")
             ft = normalise_key(r.flat_type)
-            if ft not in ft_by_name or not FLAT_TYPES[ft_by_name[ft] - 1][1]:
+            if ft not in FLAT_TYPE_IDS or not FLAT_TYPES[FLAT_TYPE_IDS[ft] - 1][1]:
                 raise ValueError(f"flat_type {r.flat_type!r}")
-            if r.flat_model.strip() not in fm_by_name:
+            if r.flat_model.strip() not in FLAT_MODEL_IDS:
                 raise ValueError(f"flat_model {r.flat_model!r}")
         except ValueError as exc:
             rejected.append({"source_row": i, "reason": str(exc)})
@@ -495,8 +498,8 @@ def clean(raw_dir: Path, cache_dir: Path) -> tuple[dict[str, pd.DataFrame], dict
             (
                 i,
                 bid[(r.block, r.street_key)],
-                ft_by_name[ft],
-                fm_by_name[r.flat_model.strip()],
+                FLAT_TYPE_IDS[ft],
+                FLAT_MODEL_IDS[r.flat_model.strip()],
                 month,
                 lo,
                 hi,

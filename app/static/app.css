@@ -25,3 +25,11 @@ th { color: var(--muted); font-weight: 600; }
 .timings { margin-top: 2rem; padding-top: 0.5rem; border-top: 1px solid #ccc; font-size: 0.9rem; color: #555; }
 .timings ul { list-style: none; padding: 0; margin: 0; }
 .footnote { font-size: 0.9rem; color: #555; }
+
+.searchform { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 0.75rem 1rem; margin-bottom: 1.5rem; }
+.searchform label { display: flex; flex-direction: column; font-size: 0.9rem; color: var(--muted); }
+.searchform input, .searchform select { margin-top: 0.2rem; padding: 0.35rem; font: inherit; color: var(--fg); }
+.searchform button { align-self: end; padding: 0.45rem 1rem; font: inherit; }
+.sales { font-size: 0.9rem; }
+.pager { margin-top: 1rem; }
+.pager a { margin-right: 1rem; }
