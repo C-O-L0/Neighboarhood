@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
 from app.db import Databases
-from app.routers import building, health, search
+from app.routers import building, health, search, trends
 from app.services.dbmode import COOKIE, COOKIE_MAX_AGE, MODES, requested_mode, resolve_mode
 from app.templating import templates
 
@@ -66,4 +66,5 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(building.router)
     app.include_router(search.router)
+    app.include_router(trends.router)
     return app

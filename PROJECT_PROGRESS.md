@@ -2,6 +2,13 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-27 Task 2.3 trends
+
+- Monthly figures and the previous-year median come from `mv_town_month_stats` (self-join on `month - interval '12 months'`); rolling 12-month figures from a `LATERAL` `percentile_disc(0.5)` over calendar months. MongoDB uses `$setWindowFields` month ranges `[-12, -12]` and `[-11, 0]` over months grouped first, with the lower median from `$sortArray`. A month with no sales 12 months earlier shows "No sales" for the previous-year median.
+- Both bounds still see earlier sales: the previous-year median and the rolling figures of the first month in range include sales before `month_from`.
+- PG resolves town and flat type to ids through `TOWN_IDS` and `FLAT_TYPE_IDS` (as search does) instead of joining the lookup tables.
+- On full data the equivalence list is a fixed rule (the first three series with missing months, then every nth series, ten in all), not a hand-picked list.
+
 ## 2026-10-27 Task 2.2 search and filter
 
 - `etl/clean.py` now defines `TOWN_IDS`, `FLAT_TYPE_IDS` and `FLAT_MODEL_IDS` (name to id, the 1-based list positions) and asserts each has one entry per list item. `lookups()`, the cleaning step and the search repos all use them, so the app maps form values to the same ids the ETL loads. Re-running the sample pipeline left `docs/import_report.md` and every count unchanged.
@@ -10,7 +17,9 @@ Decisions and next actions only (README rule). Newest first.
 
 ## Blocked, needs Ahsanul
 
-- (none yet)
+- No GitHub Release `snapshot-2026-09` exists, so `python -m etl.download --release` (the manifest's default tag) cannot fetch the snapshot; only `--from DIR` works. Publishing the three source files as a release would put them on the repository, which is still public (next point). Decide whether to create the release; until then the user manual and the fresh-clone test use `--from` with the files from the submission zip.
+- The repository is still public, although Gate 0 decided it would be made private by its owner. Changing visibility is a repository setting, so it is left to you.
+- The Phase 4 fresh-clone test can only run on the development machine; the clean Windows machine BUILD_PLAN section 13 asks for needs a teammate.
 
 ## 2026-10-27 Phase 2 plan
 
@@ -19,8 +28,8 @@ Decisions and next actions only (README rule). Newest first.
 - The header's DB-mode links reuse the request path only when it fully matches a strict path allowlist (no empty segments, no backslash or control characters), otherwise they point at `/`. Two review rounds found `//host` and `/\host` paths turning the links into off-site URLs; the allowlist closes the whole class.
 - Task list:
   - 2.1 DB-mode switch, timing, repo pattern, equivalence harness and building page: merged (PR #12, `app/db-mode-switch`).
-  - 2.2 Search and filter: merged (`app/search`).
-  - 2.3 Trends: spec approved, not started.
+  - 2.2 Search and filter: merged (PR #13, `app/search`).
+  - 2.3 Trends: merged (`app/trends`).
   - 2.4 Rankings: spec approved, not started.
   - 2.5 Interface (Chart.js, styling): spec approved, not started.
   - Phase 2 gate: not started.
