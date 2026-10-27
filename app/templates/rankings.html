@@ -38,6 +38,7 @@
 <figure class="chart">
   <div class="chartbox tall" data-towns="{{ rows|length }}"><canvas id="rankings-chart-{{ loop.index0 }}" data-chart="rankings" data-source="rankings-data" data-index="{{ loop.index0 }}" aria-label="Bar chart of the median* price of each town for {{ flat_type }} in {{ f.year }}, with the island median* as a line. The same figures are in the table below."></canvas></div>
 </figure>
+<div class="table-wrap">
 <table class="rankings">
   <caption>Town median* prices for {{ flat_type }} in {{ f.year }}, in rank order</caption>
   <thead><tr><th>Rank</th><th>Town</th><th>Sales</th><th>Median* price</th><th>Average price per sqm</th><th>Island median*</th><th>Above island median</th></tr></thead>
@@ -47,6 +48,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endfor %}
 {% if groups %}
 <script type="application/json" id="rankings-data">{{ chart|tojson }}</script>

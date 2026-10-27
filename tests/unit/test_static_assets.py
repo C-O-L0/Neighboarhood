@@ -49,6 +49,12 @@ def test_templates_have_no_inline_scripts_or_event_attributes_or_offsite_assets(
         assert scan.problems == [], (path.name, scan.problems)
 
 
+def test_css_scrolls_wrappers_not_tables():
+    css = (STATIC / "app.css").read_text(encoding="utf-8")
+    assert ".table-wrap { overflow-x: auto; }" in css
+    assert not re.search(r"(?m)^\s*table\s*\{[^}]*display\s*:\s*block", css)
+
+
 def test_the_checker_catches_what_it_should():
     scan = Scan()
     scan.feed('<script>x()</script><a onclick="x()">a</a><script src="https://cdn.example/x.js"></script>'

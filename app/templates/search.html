@@ -65,6 +65,7 @@
 {% if result %}
 <p class="count">{{ result.total }} sale{{ '' if result.total == 1 else 's' }}, page {{ result.page }} of {{ result.pages }}</p>
 {% if result.rows %}
+<div class="table-wrap">
 <table class="sales">
   <caption>Resale sales matching the search</caption>
   <thead><tr><th>Month</th><th>Town</th><th>Block</th><th>Street</th><th>Flat type</th><th>Model</th><th>Storey</th><th>Area (sqm)</th><th>Lease start</th><th>Remaining lease</th><th>Price</th><th>Price per sqm</th></tr></thead>
@@ -74,6 +75,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% else %}
 <p>No sales match.</p>
 {% endif %}

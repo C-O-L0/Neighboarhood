@@ -160,6 +160,19 @@ def test_accessibility_labels_captions_and_canvas(db, building_path, gap_query):
 
 
 @pytest.mark.parametrize("db", ["pg", "mongo"])
+def test_wide_tables_are_wrapped_for_scrolling(db, building_path, gap_query):
+    for path, css in (
+        ("/search?town=BISHAN", "sales"),
+        (gap_query, "trends"),
+        ("/rankings?year=2022", "rankings"),
+        (building_path, "sales"),
+    ):
+        text = get(f"{path}{'&' if '?' in path else '?'}db={db}").text
+        wrapped = re.findall(rf'<div class="table-wrap">\s*<table class="{css}">.*?</table>\s*</div>', text, re.S)
+        assert len(wrapped) == text.count(f'<table class="{css}">') >= 1, path
+
+
+@pytest.mark.parametrize("db", ["pg", "mongo"])
 def test_pages_with_a_median_show_the_footnote(db, building_path, gap_query):
     for path in (gap_query, "/rankings?year=2022", building_path):
         text = get(f"{path}{'&' if '?' in path else '?'}db={db}").text

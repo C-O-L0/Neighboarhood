@@ -41,6 +41,7 @@
   <div class="chartbox"><canvas id="trends-chart" data-chart="trends" data-source="trends-data" aria-label="Line chart of the monthly median* price and the 12-month rolling median* price, with the number of sales as bars. The same figures are in the table below."></canvas></div>
 </figure>
 <script type="application/json" id="trends-data">{{ chart|tojson }}</script>
+<div class="table-wrap">
 <table class="trends">
   <caption>Monthly sales and median* price, {{ f.flat_type }} in {{ f.town }}</caption>
   <thead><tr><th>Month</th><th>Sales</th><th>Median* price</th><th>Average price per sqm</th><th>Previous year median*</th><th>YoY change</th><th>YoY %</th><th>12-month sales</th><th>12-month median*</th></tr></thead>
@@ -50,6 +51,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 <p class="footnote">* median: the lower of the two middle prices when n is even</p>
 {% else %}
 <p>No sales match.</p>
