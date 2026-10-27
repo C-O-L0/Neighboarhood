@@ -2,6 +2,20 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## Run state (paused 2026-10-28)
+
+- Phase 3. Tasks 3.1a (PR #18), 3.1b (PR #19) and 3.2 (PR #20) are merged; `main` is at 4192ee4 (PR #20) before this note. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
+- No feature branch is in progress, and there are no open PRs.
+- Approved specs are kept locally outside version control in `.claude/specs/`:
+  - 3.3 admin sales: `p3_3_spec.md`, plus `phase3_notes.md`. That note says to quantize the admin sale price to 0.01 and the area to 0.1 before writing Decimal128.
+  - 3.4 food access: `p3_4_spec.md`;
+  - 3.5a integrity matrix and 3.5b privilege audit: `p3_5_spec.md`;
+  - Phase 4 (4.1a, 4.1b, 4.2, 4.3, 4.4, revision 4): `p4_spec.md`.
+
+  They are approved; do not re-plan or re-review them.
+- The local `.env` has `DEMO_BUYER_PASSWORD` and `DEMO_ADMIN_PASSWORD` set; the databases hold the sample plus the synthetic buyers.
+- Next action: create `app/admin-sales` from `main` and send `.claude/specs/p3_3_spec.md` to the implementer. Then run 3.4, 3.5a and 3.5b the same way, then the Phase 3 gate. The gate includes a full-data load that regenerates `docs/import_report.md` with buyer and saved-block counts. Then run Phase 4 and stop after its gate.
+
 ## 2026-10-28 Task 3.2 saved blocks
 
 - Saving, editing a note and removing return a typed outcome, never an exception: `ok`, `already_saved`, `not_saved`, `no_such_building`, `cap_reached`. A save checks them in that order in both databases, so a buyer at 50 saves gets the same answer from each. PG checks the building and the existing row inside the transaction before the INSERT; trigger (b) stays the real cap guard. MongoDB reports a validator rejection (code 121) as `cap_reached` only when the buyer really holds 50 saves.
