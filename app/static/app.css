@@ -61,3 +61,12 @@ caption { text-align: left; font-weight: 600; padding: 0.5rem 0; caption-side: t
 form.inline { display: inline; margin: 0; }
 .authform { display: grid; gap: 0.75rem; max-width: 24rem; margin-bottom: 1rem; }
 .authform button { justify-self: start; padding: 0.45rem 1rem; font: inherit; }
+
+/* Saved blocks */
+.notice { margin: 1rem 0; padding: 0.6rem 0.9rem; border: 1px solid currentColor; border-radius: 3px; background: #fff; }
+.noteform { display: flex; gap: 0.5rem; }
+.noteform input[type="text"] { flex: 1; min-width: 12rem; padding: 0.35rem; font: inherit; }
+.saveform { display: grid; gap: 0.5rem; max-width: 34rem; margin: 0.5rem 0 1.5rem; }
+.saveform textarea { padding: 0.35rem; font: inherit; width: 100%; }
+.saveform .demo { font-size: 0.9rem; color: var(--muted); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

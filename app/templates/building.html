@@ -7,6 +7,47 @@
   'precinct_pavilion': 'Precinct pavilion'} %}
 <h1>Block {{ b.block }} {{ b.street }}</h1>
 <p class="town">{{ b.town }} ({{ b.town_code }})</p>
+{% include "_notice.html" %}
+{% if account %}
+<section aria-labelledby="save-heading">
+  <h2 id="save-heading">Your saved list</h2>
+  {% if saved %}
+  <p>You saved this block on {{ saved.saved_at|stamp }}. <a href="/saved?db={{ db_mode }}">See all saved blocks</a>.</p>
+  <form method="post" action="/saved/note?db={{ db_mode }}" class="saveform">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="building_id" value="{{ b.building_id }}">
+    <input type="hidden" name="back" value="building">
+    <label for="note">Note</label>
+    <textarea id="note" name="note" rows="3" maxlength="500">{{ saved.note or '' }}</textarea>
+    <button type="submit">Update note</button>
+  </form>
+  <form method="post" action="/saved/remove?db={{ db_mode }}" class="saveform">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="building_id" value="{{ b.building_id }}">
+    <input type="hidden" name="back" value="building">
+    <button type="submit">Remove from saved</button>
+  </form>
+  {% else %}
+  <form method="post" action="/saved?db={{ db_mode }}" class="saveform">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="building_id" value="{{ b.building_id }}">
+    <input type="hidden" name="back" value="building">
+    <label for="note">Note (optional, at most 500 characters)</label>
+    <textarea id="note" name="note" rows="3" maxlength="500"></textarea>
+    <label class="demo"><input type="checkbox" name="simulate_failure" value="1"> Simulate failure (rollback demonstration)</label>
+    <p class="demo">
+      {% if db_mode == 'pg' %}With this ticked, PostgreSQL inserts the saved block and updates your last active time inside one transaction, then fails on purpose before commit, so both changes are rolled back.
+      {% else %}MongoDB normally saves with one atomic update. With this ticked it runs the same update inside a multi-document transaction, then fails on purpose, so the transaction is aborted. The transaction is used only for this demonstration.
+      {% endif %}
+    </p>
+    <button type="submit">Save this block</button>
+  </form>
+  {% endif %}
+</section>
+{% else %}
+<p>Sign in (top right) to save this block.</p>
+{% endif %}
+
 
 <h2>Details</h2>
 <dl class="facts">

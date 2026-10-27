@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
+from enum import StrEnum
 
 AVG_TOL = Decimal("0.01")
 
@@ -165,3 +166,26 @@ class SavedBlock:
 @dataclass(frozen=True)
 class Duplicate:
     """Returned by AccountRepo.create when the email is already registered (ignoring case)."""
+
+
+class Outcome(StrEnum):
+    """Result of a saved-block write. Both repos return the same value for the same situation."""
+
+    OK = "ok"
+    ALREADY_SAVED = "already_saved"
+    NOT_SAVED = "not_saved"
+    NO_SUCH_BUILDING = "no_such_building"
+    CAP_REACHED = "cap_reached"
+
+
+@dataclass(frozen=True)
+class RolledBack:
+    """The forced-failure demo: the writes ran inside a transaction and were then undone.
+
+    PostgreSQL fills `insert` and `update` (rows affected by each statement); MongoDB fills `matched`
+    (documents matched by the single update). The fields a database does not use stay None.
+    """
+
+    insert: int | None = None
+    update: int | None = None
+    matched: int | None = None

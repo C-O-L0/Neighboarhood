@@ -4,7 +4,17 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.repos.dto import Account, BuildingDetail, Duplicate, SavedBlock, SearchResult, TownRank, TrendPoint
+from app.repos.dto import (
+    Account,
+    BuildingDetail,
+    Duplicate,
+    Outcome,
+    RolledBack,
+    SavedBlock,
+    SearchResult,
+    TownRank,
+    TrendPoint,
+)
 from app.services.rankings import RankingQuery
 from app.services.search import SearchQuery
 from app.services.trends import TrendQuery
@@ -59,4 +69,22 @@ class AccountRepo(Protocol):
 class SavedRepo(Protocol):
     def list(self, buyer_id: int) -> list[SavedBlock]:
         """The buyer's saved blocks ordered by building id (empty if none or no such buyer)."""
+        ...
+
+    def save(
+        self, buyer_id: int, building_id: int, note: str | None, simulate_failure: bool = False
+    ) -> Outcome | RolledBack:
+        """Save a block and touch last_active_at atomically.
+
+        Outcome order: no_such_building, already_saved, cap_reached, ok. With simulate_failure the writes run in a
+        transaction that is aborted on purpose and RolledBack reports what each write did before the abort.
+        """
+        ...
+
+    def edit_note(self, buyer_id: int, building_id: int, note: str | None) -> Outcome:
+        """Replace the note of a saved block (ok or not_saved); a not_saved call changes nothing."""
+        ...
+
+    def remove(self, buyer_id: int, building_id: int) -> Outcome:
+        """Unsave a block (ok or not_saved); a not_saved call changes nothing."""
         ...
