@@ -9,9 +9,23 @@
 <body>
   <header class="topbar">
     <a class="brand" href="/">Neighboar</a>
+    <nav class="mode" aria-label="Database">
+      <span>Database: <strong id="db-mode">{{ db_mode_name }}</strong></span>
+      <a href="{{ mode_links['pg'] }}"{% if db_mode == 'pg' %} aria-current="true"{% endif %}>PostgreSQL</a>
+      <a href="{{ mode_links['mongo'] }}"{% if db_mode == 'mongo' %} aria-current="true"{% endif %}>MongoDB</a>
+    </nav>
   </header>
   <main class="page">
     {% block content %}{% endblock %}
   </main>
+  {% if timings %}
+  <footer class="timings">
+    <ul>
+      {% for t in timings %}
+      <li>{{ t.label }}: {{ '%.1f'|format(t.ms) }} ms on {{ t.db_name }} (query and fetch)</li>
+      {% endfor %}
+    </ul>
+  </footer>
+  {% endif %}
 </body>
 </html>

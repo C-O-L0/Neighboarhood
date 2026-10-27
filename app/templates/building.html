@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Block {{ b.block }} {{ b.street }} · Neighboar{% endblock %}
+{% block content %}
+{% set land_labels = {
+  'residential': 'Residential', 'commercial': 'Commercial', 'market_hawker': 'Market / hawker',
+  'miscellaneous': 'Miscellaneous', 'multistorey_carpark': 'Multi-storey car park',
+  'precinct_pavilion': 'Precinct pavilion'} %}
+<h1>Block {{ b.block }} {{ b.street }}</h1>
+<p class="town">{{ b.town }} ({{ b.town_code }})</p>
+
+<h2>Details</h2>
+<dl class="facts">
+  <dt>Block</dt><dd>{{ b.block }}</dd>
+  <dt>Street</dt><dd>{{ b.street }}</dd>
+  <dt>Town</dt><dd>{{ b.town }}</dd>
+  <dt>Completion year</dt><dd>{{ b.year_completed|unknown }}</dd>
+  <dt>Lease start year</dt><dd>{{ b.lease_commence_year|unknown }}</dd>
+  <dt>Highest floor</dt><dd>{{ b.max_floor|unknown }}</dd>
+  <dt>Latitude</dt><dd>{{ b.latitude|unknown }}</dd>
+  <dt>Longitude</dt><dd>{{ b.longitude|unknown }}</dd>
+  <dt>Land use</dt>
+  <dd>
+    {% if b.land_use is none %}Unknown
+    {% else %}
+    <ul>
+      {% for key, label in land_labels.items() %}<li>{{ label }}: {{ 'Yes' if b.land_use[key] else 'No' }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </dd>
+  <dt>Total dwelling units</dt><dd>{{ b.total_units|unknown }}</dd>
+</dl>
+
+<h2>Units by flat type</h2>
+{% if b.supply is none %}
+<p>Unknown</p>
+{% elif not b.supply %}
+<p>No dwelling units</p>
+{% else %}
+<table class="supply">
+  <thead><tr><th>Flat type</th><th>Sold</th><th>Rental</th></tr></thead>
+  <tbody>
+    {% for s in b.supply %}<tr><td>{{ s.flat_type }}</td><td>{{ s.sold }}</td><td>{{ s.rental }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2>Resale statistics</h2>
+{% if b.stats.txn_count == 0 %}
+<p>No sales yet</p>
+{% else %}
+<p>{{ b.stats.txn_count }} sales, latest {{ b.stats.last_txn_month|month }}. Median* price {{ b.stats.median_price|money }}, average price per sqm {{ b.stats.avg_psm|money }}.</p>
+<table class="stats">
+  <thead><tr><th>Flat type</th><th>Sales</th><th>Median* price</th><th>Average price per sqm</th></tr></thead>
+  <tbody>
+    {% for f in b.stats.by_flat_type %}
+    <tr><td>{{ f.flat_type }}</td><td>{{ f.txn_count }}</td><td>{{ f.median_price|money }}</td><td>{{ f.avg_psm|money }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="footnote">* median: the lower of the two middle prices when n is even</p>
+{% endif %}
+
+<h2>Latest sales</h2>
+{% if not b.recent_sales %}
+<p>No sales yet</p>
+{% else %}
+<table class="sales">
+  <thead><tr><th>Month</th><th>Flat type</th><th>Model</th><th>Storey</th><th>Area (sqm)</th><th>Price</th><th>Price per sqm</th></tr></thead>
+  <tbody>
+    {% for r in b.recent_sales %}
+    <tr><td>{{ r.txn_month|month }}</td><td>{{ r.flat_type }}</td><td>{{ r.flat_model }}</td><td>{{ r.storey_min|storey(r.storey_max) }}</td><td>{{ r.floor_area_sqm }}</td><td>{{ r.resale_price|money }}</td><td>{{ r.price_psm|money }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

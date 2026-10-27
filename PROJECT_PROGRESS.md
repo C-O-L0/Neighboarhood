@@ -2,6 +2,19 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-27 Phase 2 plan
+
+- Phase 2 is split by feature instead of BUILD_PLAN section 13's per-database branches, so each PR carries both database sides and its own equivalence tests. The PostgreSQL and MongoDB owners review their side of each feature PR (README rule).
+- The conventions every feature follows (repo layout, DTO types, DB-mode switch, timing, equivalence harness, formatting filters) are in `docs/conventions.md`.
+- The header's DB-mode links reuse the request path only when it fully matches a strict path allowlist (no empty segments, no backslash or control characters), otherwise they point at `/`. Two review rounds found `//host` and `/\host` paths turning the links into off-site URLs; the allowlist closes the whole class.
+- Task list:
+  - 2.1 DB-mode switch, timing, repo pattern, equivalence harness and building page: merged in this PR (`app/db-mode-switch`).
+  - 2.2 Search and filter: not started.
+  - 2.3 Trends: not started.
+  - 2.4 Rankings: not started.
+  - 2.5 Interface (Chart.js, styling): not started.
+  - Phase 2 gate: not started.
+
 ## 2026-10-27 Phase 1 gate passed
 
 - From empty volumes on main 7fcfdec: `up` and `migrate` succeeded, and the full clean and load of both databases took 26 s. PostgreSQL holds 275,471 rows and MongoDB 254,844 documents. Every compared count matches: the 12 rows in `docs/import_report.md`, "Database counts". Lookups are checked against cleaning in PostgreSQL only.

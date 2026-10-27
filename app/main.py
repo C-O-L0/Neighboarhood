@@ -5,17 +5,17 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
 from app.db import Databases
-from app.routers import health
+from app.routers import building, health
+from app.services.dbmode import COOKIE, COOKIE_MAX_AGE, MODES, requested_mode, resolve_mode
+from app.templating import templates
 
 BASE = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=BASE / "templates")
 
 
 def create_app() -> FastAPI:
@@ -41,6 +41,28 @@ def create_app() -> FastAPI:
         https_only=False,  # local demo over http://localhost
     )
     app.state.templates = templates
+
+    @app.middleware("http")
+    async def db_mode(request: Request, call_next):
+        """Resolve the database for this request, reject a bad ?db=, and remember a valid one in a cookie."""
+        request.state.timings = []
+        param = requested_mode(request)
+        request.state.db_mode = resolve_mode(request)
+        if param is not None and param not in MODES:
+            return templates.TemplateResponse(
+                request,
+                "error.html",
+                {"heading": "Unknown database", "message": "The db parameter must be pg or mongo."},
+                status_code=400,
+            )
+        response = await call_next(request)
+        if param is not None:
+            response.set_cookie(
+                COOKIE, param, max_age=COOKIE_MAX_AGE, path="/", httponly=True, samesite="lax"
+            )
+        return response
+
     app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
     app.include_router(health.router)
+    app.include_router(building.router)
     return app

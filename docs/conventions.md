@@ -1,0 +1,87 @@
+# Phase 2 conventions
+
+Rules for every feature that the web app serves from either database. They come from task 2.1 (DB-mode switch and building page) and are what tasks 2.2 to 2.5 build on. Section numbers in brackets refer to `docs/BUILD_PLAN.md`.
+
+## 1. Layout (section 3)
+
+- `app/repos/dto.py`: frozen dataclasses returned by both repos.
+- `app/repos/protocols.py`: one `Protocol` per feature.
+- `app/repos/pg/<feature>.py` and `app/repos/mongo/<feature>.py`: the two implementations.
+- `app/services/`: DB-mode resolution (`dbmode.py`), timing and repo dispatch (`repos.py`).
+- `app/routers/<feature>.py` and `app/templates/<feature>.html`.
+- `tests/equivalence/` (with `__init__.py`): the equivalence harness.
+
+A new feature adds its DTOs, its Protocol, its two repos, one entry in `REPOS` in `app/services/repos.py`, and one `Case` in `tests/equivalence/cases.py`.
+
+## 2. Types in DTOs
+
+- Money and areas are `Decimal` (MongoDB `Decimal128.to_decimal()`).
+- Months are `datetime.date` on day 1 (MongoDB midnight-UTC datetimes converted with `.date()`).
+- Coordinates are `Decimal` with exactly 6 dp: MongoDB floats via `Decimal(repr(x)).quantize(Decimal("0.000001"))`, PostgreSQL `NUMERIC(9,6)` as is.
+- Never `float` in a DTO.
+
+## 3. Repos
+
+- Repos materialise everything they return (`fetchall()`, `list(cursor)`) and do no I/O after returning.
+- A PostgreSQL repo is built around one connection and a MongoDB repo around one `Database`. Repos never open pools or clients.
+- A PostgreSQL repo that issues more than one statement to build one result runs them in one read-only REPEATABLE READ transaction: `SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY` as the first statement inside `conn.transaction()`. One page then sees one snapshot, as a single MongoDB document read does.
+- Repo connections are always passed in idle and in autocommit mode, so `conn.transaction()` issues a real `BEGIN`. The `app_rw` and `app_admin` pools in `app/db.py` are created with `kwargs={"autocommit": True}`, and every test fixture that hands a connection to a repo connects with `autocommit=True`.
+
+## 4. Text ordering
+
+Every SQL `ORDER BY` (and window `ORDER BY`) on a text column uses `COLLATE "C"`. This matches MongoDB's and Python's code-point order; the PostgreSQL database uses `en_US.utf8`, under which for example `Model A2` sorts before `Model A-Maisonette`. MongoDB repos that return embedded arrays in a defined order sort them in Python with the same key rather than relying on `$push` order.
+
+## 5. Timing (section 2)
+
+The service layer times only the repo call with `time.perf_counter_ns()`. Connection checkout from the pool is outside the timed span. It records `Timing(label, db, ms)` on `request.state.timings`. The page footer lists each timing as "<label>: <ms> ms on PostgreSQL|MongoDB (query and fetch)".
+
+## 6. DB mode
+
+- `?db=pg|mongo` selects the database. Any other value is a 400.
+- If the parameter is absent, the `db_mode` cookie decides when it holds a valid value, otherwise `pg`.
+- A request with a valid `?db=` sets `db_mode` on the response (`HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age` 30 days).
+- The header shows the current mode and two links to the current path and query with `db=pg` and `db=mongo`. Other query parameters are kept and URL-encoded.
+- The cookie is a display preference, not account state, so it needs no CSRF token. Section 9 CSRF applies to state-changing forms from Phase 3.
+
+## 7. Least privilege
+
+User-facing routes use the `app_rw` pool and the MongoDB `app` user only (`app/db.py`), never admin identities.
+
+## 8. Security
+
+- Parameterised SQL only.
+- Identifiers come only from allowlists, through `psycopg.sql.Identifier`.
+- MongoDB filters are built only from typed, validated values (Pydantic or path converters), never from raw request dicts.
+- Text inputs have length limits matching the column sizes.
+
+## 9. Lookups for forms
+
+Town names, resale flat types and flat models come from the fixed lists in `etl/clean.py` (`TOWNS`, `FLAT_TYPES` with `is_resale_type`, `FLAT_MODELS`), the single definition both databases are loaded from (PROJECT_PROGRESS, 2026-10-20). Forms make no database call for lookups. Block and street input is normalised with `etl.clean.normalise_key`.
+
+## 10. Equivalence tests
+
+Tests in `tests/equivalence/` are marked `pytest.mark.integration` and call both repos directly with `app_rw` and MongoDB `app` connections.
+
+- `tests/equivalence/cases.py` is the single registry of comparison cases. Each feature registers `Case(name, pg_call, mongo_call, params)`. The calls take (connection or database, params) and return DTOs; `params(conn)` returns the parameter dicts to run. The pytest files iterate over the registry, and Phase 4's `bench/verify.py` will iterate over the same registry on full data.
+- Sampling rule: when the loaded data has at most 1,000 buildings (the sample), every case runs its full parameter list. Otherwise each feature's case list is the fixed full-data list it declares (buildings: every 25th building id in id order, plus the stub, 37 TEBAN GDNS RD and one zero-unit property block).
+- A session-scoped `settle` fixture in `tests/equivalence/conftest.py` connects as `app_admin` with `psycopg.connect(settings.pg_dsn("app_admin"), autocommit=True)`, as `etl/load_pg.py` does for its refresh, and calls `refresh_town_stats()` before any equivalence test runs (section 6, "settle step"). Every equivalence test depends on it.
+- `tests/equivalence/compare.py` provides `assert_equivalent(pg, mongo)`. It is recursive over dataclasses, lists (order matters), dicts and scalars. Values must be exactly equal, including `None` and every `Decimal`, except dataclass fields declared with `field(metadata={"tol": Decimal("0.01")})`, which may differ by at most 0.01. Only rounded aggregates where PostgreSQL rounds half away from zero and MongoDB `$round` rounds half to even carry that metadata (today `avg_psm`). Medians are exact observed prices and are never tolerant. A failure names the field path.
+
+## 11. Formatting filters
+
+Registered once in `app/templating.py` and used by every page; there is no other formatting code.
+
+| Filter | Example |
+| --- | --- |
+| `money` | `money(Decimal("1234.5"))` is `$1,234.50`; `money(Decimal("-12500"))` is `-$12,500.00`; `money(None)` is `Unknown` |
+| `month` | `month(date(2024, 1, 1))` is `Jan 2024` |
+| `lease` | `lease(733)` is `61 years 01 month`; `lease(732)` is `61 years`; `lease(735)` is `61 years 03 months`; `lease(12)` is `1 year`; `lease(13)` is `1 year 01 month` |
+| `storey` | `storey(7, 9)` is `07 TO 09` |
+| `pct` | `pct(Decimal("-3.4"))` is `-3.4%` (one decimal place, half up); `pct(None)` is empty |
+| `unknown` | `unknown(None)` is `Unknown`; any other value is returned unchanged |
+
+`lease` follows the source's own wording: whole years have no month part, a single month is singular, and a single year is singular.
+
+## 12. Labels
+
+A median is always labelled "median*" with the footnote "* median: the lower of the two middle prices when n is even" on the same page (section 6).

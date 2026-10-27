@@ -42,6 +42,8 @@ Proximity method: every residential block is geocoded once through OneMap (`etl/
 
 The detailed build plan, schemas, equivalence rules and timeline are in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
 
+The rules every Phase 2 feature follows (repository layout, DTO types, DB-mode switch, timing, equivalence tests, formatting filters) are in [`docs/conventions.md`](docs/conventions.md).
+
 ## Quick start
 
 Needs Docker Desktop (Windows or macOS) or Docker Engine with the Compose plugin (Linux).
