@@ -38,6 +38,7 @@
 <p>No dwelling units</p>
 {% else %}
 <table class="supply">
+  <caption>Dwelling units by flat type</caption>
   <thead><tr><th>Flat type</th><th>Sold</th><th>Rental</th></tr></thead>
   <tbody>
     {% for s in b.supply %}<tr><td>{{ s.flat_type }}</td><td>{{ s.sold }}</td><td>{{ s.rental }}</td></tr>
@@ -52,6 +53,7 @@
 {% else %}
 <p>{{ b.stats.txn_count }} sales, latest {{ b.stats.last_txn_month|month }}. Median* price {{ b.stats.median_price|money }}, average price per sqm {{ b.stats.avg_psm|money }}.</p>
 <table class="stats">
+  <caption>Resale statistics by flat type</caption>
   <thead><tr><th>Flat type</th><th>Sales</th><th>Median* price</th><th>Average price per sqm</th></tr></thead>
   <tbody>
     {% for f in b.stats.by_flat_type %}
@@ -66,7 +68,9 @@
 {% if not b.recent_sales %}
 <p>No sales yet</p>
 {% else %}
+<div class="table-wrap">
 <table class="sales">
+  <caption>Latest sales</caption>
   <thead><tr><th>Month</th><th>Flat type</th><th>Model</th><th>Storey</th><th>Area (sqm)</th><th>Price</th><th>Price per sqm</th></tr></thead>
   <tbody>
     {% for r in b.recent_sales %}
@@ -74,5 +78,6 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endif %}
 {% endblock %}

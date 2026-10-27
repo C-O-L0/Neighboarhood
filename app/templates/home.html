@@ -8,8 +8,10 @@
 {% if message %}<p class="bad" role="alert">{{ message }}</p>{% endif %}
 <form method="get" action="/building/find">
   <input type="hidden" name="db" value="{{ db_mode }}">
-  <label>Block <input name="block" value="{{ block }}" maxlength="5" required></label>
-  <label>Street <input name="street" value="{{ street }}" maxlength="40" required></label>
+  <label for="block">Block</label>
+  <input id="block" name="block" value="{{ block }}" maxlength="5" required>
+  <label for="street">Street</label>
+  <input id="street" name="street" value="{{ street }}" maxlength="40" required>
   <button type="submit">Look up</button>
 </form>
 {% endblock %}

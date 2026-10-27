@@ -2,6 +2,13 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-28 Task 2.5 interface
+
+- Chart.js 4.4.7 is vendored as the npm package file `dist/chart.umd.js` (unmodified, licences alongside), served from `/static/vendor/`; no CDN at runtime. A test checks its SHA-256 against `app/static/vendor/README.md`.
+- Chart data reaches JavaScript only as embedded JSON. Money is rounded half up to 2 dp and sent as a string, so the chart JSON is byte-identical in both DB modes.
+- Wide tables scroll inside a `.table-wrap` element; tables themselves keep normal table layout.
+- `ruff format --check` reports 7 files that predate this task; CI runs `ruff check` only, so they are left as they are.
+
 ## 2026-10-27 Task 2.4 rankings
 
 - Towns are ranked within each flat type by median price only (`RANK()` in PG, `$rank` in MongoDB), so equal medians share a rank and the next rank skips; the town name is only the final tie-break for display order. "Above island median" means strictly greater.
@@ -36,8 +43,8 @@ Decisions and next actions only (README rule). Newest first.
   - 2.1 DB-mode switch, timing, repo pattern, equivalence harness and building page: merged (PR #12, `app/db-mode-switch`).
   - 2.2 Search and filter: merged (PR #13, `app/search`).
   - 2.3 Trends: merged (PR #14, `app/trends`).
-  - 2.4 Rankings: merged (`app/rankings`).
-  - 2.5 Interface (Chart.js, styling): spec approved, not started.
+  - 2.4 Rankings: merged (PR #15, `app/rankings`).
+  - 2.5 Interface (Chart.js, styling): `app/ui-search`.
   - Phase 2 gate: not started.
 
 ## 2026-10-27 Phase 1 gate passed

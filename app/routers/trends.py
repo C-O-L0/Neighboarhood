@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
+from app.services.charts import trends_chart
 from app.services.repos import call_repo
 from app.services.search import RESALE_TYPES
 from app.services.trends import FIELDS, TrendQuery, error_messages
@@ -36,4 +37,5 @@ def trends(request: Request):
         context["errors"] = error_messages(exc)
         return templates.TemplateResponse(request, "trends.html", context, status_code=422)
     context["points"] = call_repo(request, "trends", "trend", query, label="trends")
+    context["chart"] = trends_chart(context["points"])
     return templates.TemplateResponse(request, "trends.html", context)
