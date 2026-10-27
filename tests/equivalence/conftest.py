@@ -1,5 +1,7 @@
 """Fixtures for the equivalence tests: both repos are called directly as the app's own identities."""
 
+import secrets
+
 import psycopg
 import pytest
 from pymongo import MongoClient
@@ -36,3 +38,48 @@ def mongo_db(settings, settle):
     client = MongoClient(settings.mongo_uri("app", direct=True), serverSelectionTimeoutMS=5000, tz_aware=True)
     yield client[settings.mongo_db]
     client.close()
+
+
+@pytest.fixture(scope="session")
+def owner_conn(settings):
+    """The schema owner in autocommit mode, to delete test buyers (cascade removes their saves)."""
+    if not settings.pg_owner_password:
+        pytest.skip("PG_OWNER_PASSWORD is not set; pass it to the test container")
+    with psycopg.connect(settings.pg_dsn("neighboar_owner"), autocommit=True) as conn:
+        yield conn
+
+
+@pytest.fixture(scope="session")
+def etl_db(settings):
+    """The ETL user, which may delete buyer documents the app user cannot."""
+    if not settings.mongo_etl_password:
+        pytest.skip("MONGO_ETL_PASSWORD is not set; pass it to the test container")
+    client = MongoClient(settings.mongo_uri("etl", direct=True), serverSelectionTimeoutMS=5000, tz_aware=True)
+    yield client[settings.mongo_db]
+    client.close()
+
+
+@pytest.fixture
+def new_buyers(pg_conn, mongo_db, owner_conn, etl_db):
+    """Factory for fresh test buyers (one per database, created through the account repos).
+
+    Returns (pg_id, mongo_id). Every buyer made is deleted afterwards, so the synthetic buyers 1 to 200
+    are never touched.
+    """
+    from app.repos.mongo.accounts import MongoAccountRepo
+    from app.repos.pg.accounts import PgAccountRepo
+
+    made: list[tuple[int, int]] = []
+
+    def make() -> tuple[int, int]:
+        email = f"test-saved-{secrets.token_hex(6)}@example.com"
+        pg_id = PgAccountRepo(pg_conn).create(email, "not-a-real-hash", None)
+        mongo_id = MongoAccountRepo(mongo_db).create(email, "not-a-real-hash", None)
+        assert isinstance(pg_id, int) and isinstance(mongo_id, int)
+        made.append((pg_id, mongo_id))
+        return pg_id, mongo_id
+
+    yield make
+    for pg_id, mongo_id in made:
+        owner_conn.execute("DELETE FROM buyer WHERE buyer_id = %s", (pg_id,))
+        etl_db.buyers.delete_one({"_id": mongo_id})

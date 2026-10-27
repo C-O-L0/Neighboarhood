@@ -260,6 +260,56 @@ def _mongo_account(db, p):
     return _without_hash(MongoAccountRepo(db).by_id(p["buyer_id"]))
 
 
+# Saved-block script (task 3.2). Unlike the cases above it writes, so it is not in CASES: tests/equivalence/
+# test_saved.py runs it on a fresh test buyer in each database and compares outcomes step by step.
+# A step is (operation, building_id, note); the operation is "save", "edit" or "remove".
+MISSING_BUILDING = 2_000_000_000  # a valid INT that is no building's id
+SAVE_CAP = 50
+SavedStep = tuple[str, int, str | None]
+
+
+def saved_script(conn) -> list[SavedStep]:
+    rows = conn.execute("SELECT building_id, in_property_dataset FROM building ORDER BY building_id").fetchall()
+    stub = next(r[0] for r in rows if not r[1])
+    plain = [r[0] for r in rows if r[1]]
+    a, b, c = plain[:3]
+    steps: list[SavedStep] = [
+        ("save", a, "note A"),
+        ("save", b, None),
+        ("save", c, "note C"),
+        ("save", stub, "the stub"),
+        ("edit", b, "now with a note"),
+        ("remove", a, None),
+        ("remove", a, None),  # not_saved
+        ("save", b, "again"),  # already_saved
+        ("edit", a, "gone"),  # not_saved
+        ("save", MISSING_BUILDING, None),  # no_such_building
+    ]
+    saved = {b, c, stub}
+    for building_id in plain:
+        if len(saved) == SAVE_CAP:
+            break
+        if building_id not in saved:
+            steps.append(("save", building_id, None))
+            saved.add(building_id)
+    extra = next(i for i in plain if i not in saved)
+    steps += [
+        ("save", extra, None),  # cap_reached
+        ("save", b, None),  # already_saved at the cap
+        ("save", MISSING_BUILDING, None),  # no_such_building at the cap
+    ]
+    return steps
+
+
+def run_step(repo, buyer_id: int, step: SavedStep):
+    op, building_id, note = step
+    if op == "save":
+        return repo.save(buyer_id, building_id, note)
+    if op == "edit":
+        return repo.edit_note(buyer_id, building_id, note)
+    return repo.remove(buyer_id, building_id)
+
+
 CASES: list[Case] = [
     Case(
         name="building",

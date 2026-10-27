@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.services.repos import call_repo
+from app.services.saved import notice_from
 from app.templating import templates
 from etl.clean import normalise_key
 
@@ -49,4 +50,9 @@ def building_page(request: Request, building_id: int):
         detail = call_repo(request, "building", "get", building_id, label="building page")
     if detail is None:
         return _not_found(request, f"Building {building_id}")
-    return templates.TemplateResponse(request, "building.html", {"b": detail})
+    saved = None
+    if request.state.account is not None:
+        blocks = call_repo(request, "saved", "list", request.state.account.buyer_id, label="saved list")
+        saved = next((s for s in blocks if s.building_id == building_id), None)
+    notice = notice_from(request.query_params, request.state.db_mode)
+    return templates.TemplateResponse(request, "building.html", {"b": detail, "saved": saved, "notice": notice})

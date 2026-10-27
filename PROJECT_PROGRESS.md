@@ -2,6 +2,15 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-28 Task 3.2 saved blocks
+
+- Saving, editing a note and removing return a typed outcome, never an exception: `ok`, `already_saved`, `not_saved`, `no_such_building`, `cap_reached`. A save checks them in that order in both databases, so a buyer at 50 saves gets the same answer from each. PG checks the building and the existing row inside the transaction before the INSERT; trigger (b) stays the real cap guard. MongoDB reports a validator rejection (code 121) as `cap_reached` only when the buyer really holds 50 saves.
+- `not_saved` changes nothing in either database, `last_active_at` included.
+- The rollback demo (`simulate_failure`) runs only after the `no_such_building` and `already_saved` checks. PG raises before commit; MongoDB raises inside `with_transaction`. The page shows the counts seen inside the transaction (PG insert 1 and update 1, MongoDB matched 1). The normal MongoDB save stays a single atomic `update_one`.
+- Page messages after a POST are keys from a fixed table plus integer counts, so no request text is echoed back. A signed-out POST redirects to sign-in before any form validation.
+- The scripted equivalence sequence lives in `tests/equivalence/cases.py` but outside `CASES`, so the read-only comparisons and `bench/verify.py` never write.
+- The building page's signed-out prompt is plain text rather than a link, so the page stays byte-identical in both modes.
+
 ## 2026-10-28 Task 3.1b accounts and sessions
 
 - Each database is a complete account store. Registering, signing in and (from 3.2) saving blocks touch only the database selected for that request. The synthetic buyers exist in both with the same ids, but later registrations can get different ids in each.

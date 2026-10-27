@@ -15,6 +15,7 @@
       <a href="/trends">Trends</a>
       <a href="/rankings">Rankings</a>
       <a href="/health">Health</a>
+      {% if account %}<a href="/saved?db={{ db_mode }}">Saved</a>{% endif %}
     </nav>
     <nav class="account" aria-label="Account">
       {% if account %}
