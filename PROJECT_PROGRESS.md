@@ -2,6 +2,13 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-27 Phase 1 review fixes
+
+- Commit 10d8943 changed only a comment in the applied `001_schema.sql`, so any database migrated before 22 Oct now fails `migrate` with "changed after it was applied". It is kept as is, because reverting would break databases migrated after 22 Oct instead. Teammates with an older volume run `docker compose down -v` and reload (no user data exists yet). Later schema changes go in a new numbered file.
+- Trigger (a)'s resale-flat-type rule is already enforced in MongoDB by the `flat_type` enum. Its completion-year rule needs the building's `year_completed`, which a validator cannot read, so the Phase 3 Mongo admin transaction enforces it and the Phase 3 negative tests cover both databases.
+- PostgreSQL rounds a price with more than 2 dp and an area with more than 1 dp silently, while MongoDB now rejects them. Parity therefore relies on the app: admin sale input must reject a price with more than 2 dp and an area with more than 1 dp before either database sees it (Pydantic, section 9), covered by Phase 3 negative tests.
+- The Mongo validators now mirror the PostgreSQL CHECKs for the price maximum, area and price scale, property-block attributes, year bounds and building and hawker coordinates.
+
 ## 2026-10-27 Import report database counts
 
 - The import report now also shows PostgreSQL and MongoDB counts after load, taken by `etl/db_counts.py` at the end of the pipeline, so the Phase 1 gate can show both databases hold the same snapshot. This overrides BUILD_PLAN section 7 step 8, which limited the report to cleaning counts.

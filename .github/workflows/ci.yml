@@ -41,7 +41,9 @@ jobs:
         run: docker compose up -d --wait --wait-timeout 300 web
 
       - name: Tests (unit + integration against the running stack)
-        run: docker compose run --rm --no-deps -e NEIGHBOAR_URL=http://web:8000 web python -m pytest -q -m "integration or not integration"
+        run: |
+          set -a; . ./.env; set +a
+          docker compose run --rm --no-deps -e NEIGHBOAR_URL=http://web:8000 -e PG_APP_RO_PASSWORD -e PG_OWNER_PASSWORD -e MONGO_ETL_PASSWORD web python -m pytest -q -m "integration or not integration"
 
       - name: Logs on failure
         if: failure()

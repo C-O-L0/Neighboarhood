@@ -92,7 +92,7 @@ def test_documents_use_only_validator_fields():
     assert sale_schema["properties"]["source"] == {"enum": ["snapshot", "admin"]}
     assert "source" in sale_schema["required"]
 
-    profile_schema = json.loads((VALIDATORS / "building_profiles.json").read_text(encoding="utf-8"))
+    profile_schema = json.loads((VALIDATORS / "building_profiles.json").read_text(encoding="utf-8"))["$jsonSchema"]
     for doc in (profile_document(building(), TOWN, []), profile_document(STUB, TOWN, [])):
         assert set(doc) <= set(profile_schema["properties"])
         assert set(profile_schema["required"]) <= set(doc)
