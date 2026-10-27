@@ -16,6 +16,18 @@
       <a href="/rankings">Rankings</a>
       <a href="/health">Health</a>
     </nav>
+    <nav class="account" aria-label="Account">
+      {% if account %}
+      <span>Signed in as <a href="/account?db={{ db_mode }}">{{ account.display_name or account.email }}</a> ({{ db_mode_name }})</span>
+      <form method="post" action="/logout?db={{ db_mode }}" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit">Sign out</button>
+      </form>
+      {% else %}
+      <a href="/login?db={{ db_mode }}">Sign in</a>
+      <a href="/register?db={{ db_mode }}">Register</a>
+      {% endif %}
+    </nav>
     <nav class="mode" aria-label="Database">
       <span>Database: <strong id="db-mode">{{ db_mode_name }}</strong></span>
       <a href="{{ mode_links['pg'] }}"{% if db_mode == 'pg' %} aria-current="true"{% endif %}>PostgreSQL</a>

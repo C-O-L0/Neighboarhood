@@ -79,9 +79,17 @@ Registered once in `app/templating.py` and used by every page; there is no other
 | `storey` | `storey(7, 9)` is `07 TO 09` |
 | `pct` | `pct(Decimal("-3.4"))` is `-3.4%` (one decimal place, half up); `pct(None)` is empty |
 | `unknown` | `unknown(None)` is `Unknown`; any other value is returned unchanged |
+| `stamp` | `stamp(datetime(2026, 10, 28, 14, 3, tzinfo=UTC))` is `2026-10-28 14:03 UTC`; `stamp(None)` is `Never` |
 
 `lease` follows the source's own wording: whole years have no month part, a single month is singular, and a single year is singular.
 
 ## 12. Labels
 
 A median is always labelled "median*" with the footnote "* median: the lower of the two middle prices when n is even" on the same page (section 6).
+
+## 13. Accounts, sessions and CSRF (task 3.1b)
+
+- Each database holds its own accounts. A request reads and writes accounts only in the database chosen for it, and signing in under one mode does not sign the user in under the other. The signed session holds `{"uid": {"pg": int, "mongo": int}, "csrf": str}` and nothing else.
+- CSRF is enforced by an app-level dependency (`app/services/guards.py`), so every POST route, including later ones, needs the form field `csrf_token` and gets a 403 otherwise, before its own validation runs. Templates read the token from the `csrf_token` context variable; every `<form method="post">` includes it as a hidden field.
+- The login throttle (5 failures per lower-cased email and client IP in a sliding 15 minutes, then HTTP 429) is held in memory per process. The app runs one uvicorn worker, so the state is lost on restart and is not shared if workers are added.
+- Passwords are 10 to 128 characters, checked before hashing, and hashed with argon2id (`argon2.PasswordHasher()`).

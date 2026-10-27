@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Register · Neighboar{% endblock %}
+{% block content %}
+<h1>Register</h1>
+<p>The account is created in the {{ db_mode_name }} database only.</p>
+{% if errors %}
+<div class="bad" role="alert">
+  <ul>
+    {% for e in errors %}<li>{{ e }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+<form method="post" action="/register?db={{ db_mode }}" class="authform">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" value="{{ f.email or '' }}" maxlength="254" autocomplete="username" required></div>
+  <div class="field"><label for="password">Password (10 to 128 characters)</label><input id="password" name="password" type="password" minlength="10" maxlength="128" autocomplete="new-password" required></div>
+  <div class="field"><label for="display_name">Display name (optional)</label><input id="display_name" name="display_name" value="{{ f.display_name or '' }}" maxlength="60"></div>
+  <button type="submit">Register</button>
+</form>
+<p>Already registered? <a href="/login?db={{ db_mode }}">Sign in</a>.</p>
+{% endblock %}

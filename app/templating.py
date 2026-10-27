@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
@@ -57,10 +57,19 @@ def unknown(value):
     return "Unknown" if value is None else value
 
 
+def stamp(value: datetime | None) -> str:
+    """A UTC timestamp to the minute; 'Never' when there is none (for example a first sign-in)."""
+    return "Never" if value is None else value.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
+
+
 def _context(request: Request) -> dict:
     state = request.state
     mode = getattr(state, "db_mode", "pg")
+    # The one place templates get the CSRF token from; routes never pass it themselves.
+    session = request.scope.get("session") or {}
     return {
+        "csrf_token": session.get("csrf", ""),
+        "account": getattr(state, "account", None),
         "db_mode": mode,
         "db_mode_name": MODE_NAMES[mode],
         "mode_links": mode_links(request),
@@ -69,4 +78,6 @@ def _context(request: Request) -> dict:
 
 
 templates = Jinja2Templates(directory=BASE / "templates", context_processors=[_context])
-templates.env.filters.update(money=money, month=month, lease=lease, storey=storey, pct=pct, unknown=unknown)
+templates.env.filters.update(
+    money=money, month=month, lease=lease, storey=storey, pct=pct, unknown=unknown, stamp=stamp
+)

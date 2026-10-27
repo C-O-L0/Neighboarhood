@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Your account · Neighboar{% endblock %}
+{% block content %}
+<h1>Your account</h1>
+<table class="details">
+  <caption>Account details</caption>
+  <tbody>
+    <tr><th scope="row">Email</th><td>{{ account.email }}</td></tr>
+    <tr><th scope="row">Display name</th><td>{{ account.display_name|unknown }}</td></tr>
+    <tr><th scope="row">Created</th><td>{{ account.created_at|stamp }}</td></tr>
+    <tr><th scope="row">Last active</th><td>{{ account.last_active_at|stamp }}</td></tr>
+    <tr><th scope="row">Database</th><td>{{ db_mode_name }}</td></tr>
+  </tbody>
+</table>
+{% endblock %}
