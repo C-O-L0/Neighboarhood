@@ -102,3 +102,26 @@ class SearchResult:
     total: int
     page: int
     pages: int
+
+
+@dataclass(frozen=True)
+class TrendPoint:
+    month: date
+    n: int
+    median_price: Decimal
+    avg_psm: Decimal = field(metadata={"tol": AVG_TOL})
+    prev_year_median: Decimal | None
+    rolling_n: int
+    rolling_median: Decimal
+
+    @property
+    def yoy_change(self) -> Decimal | None:
+        if self.prev_year_median is None:
+            return None
+        return self.median_price - self.prev_year_median
+
+    @property
+    def yoy_pct(self) -> Decimal | None:
+        if self.prev_year_median is None:
+            return None
+        return (self.yoy_change / self.prev_year_median * 100).quantize(Decimal("0.1"), ROUND_HALF_UP)

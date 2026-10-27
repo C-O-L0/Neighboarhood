@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Price trends · Neighboar{% endblock %}
+{% block content %}
+<h1>Price trends</h1>
+{% if errors %}
+<div class="bad" role="alert">
+  <p>Please correct the following.</p>
+  <ul>
+    {% for e in errors %}<li>{{ e }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+<form method="get" action="/trends" class="searchform">
+  <input type="hidden" name="db" value="{{ db_mode }}">
+  <label>Town
+    <select name="town">
+      <option value="">Choose a town</option>
+      {% for t in towns %}<option value="{{ t }}"{% if f.town == t %} selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Flat type
+    <select name="flat_type">
+      <option value="">Choose a flat type</option>
+      {% for t in flat_types %}<option value="{{ t }}"{% if f.flat_type == t %} selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>From month <input name="month_from" value="{{ f.month_from }}" placeholder="2022-01" maxlength="7"></label>
+  <label>To month <input name="month_to" value="{{ f.month_to }}" placeholder="2024-12" maxlength="7"></label>
+  <button type="submit">Show trend</button>
+</form>
+
+{% if points is not none %}
+<h2>{{ f.flat_type }} in {{ f.town }}</h2>
+{% if points %}
+<table class="trends">
+  <thead><tr><th>Month</th><th>Sales</th><th>Median* price</th><th>Average price per sqm</th><th>Previous year median*</th><th>YoY change</th><th>YoY %</th><th>12-month sales</th><th>12-month median*</th></tr></thead>
+  <tbody>
+    {% for p in points %}
+    <tr><td>{{ p.month|month }}</td><td>{{ p.n }}</td><td>{{ p.median_price|money }}</td><td>{{ p.avg_psm|money }}</td><td>{{ p.prev_year_median|money if p.prev_year_median is not none else 'No sales' }}</td><td>{{ p.yoy_change|money if p.yoy_change is not none else '' }}</td><td>{{ p.yoy_pct|pct }}</td><td>{{ p.rolling_n }}</td><td>{{ p.rolling_median|money }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="footnote">* median: the lower of the two middle prices when n is even</p>
+{% else %}
+<p>No sales match.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

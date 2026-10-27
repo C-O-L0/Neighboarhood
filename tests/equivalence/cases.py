@@ -17,9 +17,12 @@ from typing import Any
 
 from app.repos.mongo.building import MongoBuildingRepo
 from app.repos.mongo.search import MongoSearchRepo
+from app.repos.mongo.trends import MongoTrendRepo
 from app.repos.pg.building import PgBuildingRepo
 from app.repos.pg.search import PgSearchRepo
+from app.repos.pg.trends import PgTrendRepo
 from app.services.search import SearchQuery
+from app.services.trends import TrendQuery
 
 SAMPLE_MAX = 1000
 FULL_DATA_STEP = 25  # building cases: every 25th building id in id order, plus the named blocks
@@ -136,6 +139,75 @@ def _mongo_search(db, p):
     return MongoSearchRepo(db).search(_query(p))
 
 
+# Trend series: every (town, resale flat type) pair with sales, unbounded and with a range whose
+# bounds are two months inside the series that have sales. On full data (more pairs than
+# TREND_SAMPLE_PAIRS) the list is exactly 10 distinct pairs chosen by a fixed rule (select_full_pairs):
+# the first 3 pairs in (town, flat type) order that have missing months, then pairs from every
+# (len // 10)th position of that order that are not already chosen, until there are 10; sorted.
+TREND_SAMPLE_PAIRS = 40
+TREND_FULL_PAIRS = 10
+
+
+def trend_series(conn) -> dict[tuple[str, str], list]:
+    """(town, flat type) -> ascending months with sales, from the town-month view."""
+    rows = conn.execute(
+        """
+        SELECT tw.name, ft.name, array_agg(m.month ORDER BY m.month)
+        FROM mv_town_month_stats m
+        JOIN town tw USING (town_id)
+        JOIN flat_type ft USING (flat_type_id)
+        GROUP BY tw.name, ft.name
+        ORDER BY tw.name COLLATE "C", ft.name COLLATE "C"
+        """
+    ).fetchall()
+    return {(t, f): months for t, f, months in rows}
+
+
+def has_gap(months: list) -> bool:
+    return len(months) != (months[-1].year - months[0].year) * 12 + months[-1].month - months[0].month + 1
+
+
+def select_full_pairs(keys: list, gappy: set) -> list:
+    """The full-data selection rule: 3 gappy pairs first, then stride pairs not yet chosen, 10 in all."""
+    chosen = [k for k in keys if k in gappy][:3]
+    for k in keys[:: max(1, len(keys) // TREND_FULL_PAIRS)]:
+        if len(chosen) == TREND_FULL_PAIRS:
+            break
+        if k not in chosen:
+            chosen.append(k)
+    for k in keys:  # only reached when the stride gives fewer than enough distinct pairs
+        if len(chosen) == TREND_FULL_PAIRS:
+            break
+        if k not in chosen:
+            chosen.append(k)
+    return sorted(chosen)
+
+
+def trend_params(conn) -> list[dict]:
+    series = trend_series(conn)
+    keys = list(series)
+    if len(keys) > TREND_SAMPLE_PAIRS:
+        keys = select_full_pairs(keys, {k for k in keys if has_gap(series[k])})
+    params = []
+    for town, flat_type in keys:
+        params.append({"town": town, "flat_type": flat_type})
+        months = series[town, flat_type]
+        if len(months) >= 2:
+            lo, hi = months[len(months) // 4], months[3 * len(months) // 4]
+            params.append(
+                {"town": town, "flat_type": flat_type, "month_from": f"{lo:%Y-%m}", "month_to": f"{hi:%Y-%m}"}
+            )
+    return params
+
+
+def _pg_trend(conn, p):
+    return PgTrendRepo(conn).trend(TrendQuery.model_validate(p))
+
+
+def _mongo_trend(db, p):
+    return MongoTrendRepo(db).trend(TrendQuery.model_validate(p))
+
+
 CASES: list[Case] = [
     Case(
         name="building",
@@ -145,4 +217,5 @@ CASES: list[Case] = [
     ),
     Case(name="search", pg_call=_pg_search, mongo_call=_mongo_search, params=search_params),
     Case(name="search_edges", pg_call=_pg_search, mongo_call=_mongo_search, params=search_edge_params),
+    Case(name="trends", pg_call=_pg_trend, mongo_call=_mongo_trend, params=trend_params),
 ]

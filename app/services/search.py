@@ -47,6 +47,14 @@ def _decimal(value: str, label: str, places: int, upper: Decimal, *, allow_zero:
     return number
 
 
+def parse_month(value: str, label: str) -> date:
+    """A YYYY-MM string as the first of that month; shared by the search and trends forms."""
+    m = _MONTH.fullmatch(value.strip())
+    if not m or not 1 <= int(m[2]) <= 12 or int(m[1]) < 1:
+        raise ValueError(f"{label} must look like 2024-03.")
+    return date(int(m[1]), int(m[2]), 1)
+
+
 def _text(value: str, label: str, limit: int) -> str | None:
     if not value.isprintable():
         raise ValueError(f"{label} contains characters that are not allowed.")
@@ -105,11 +113,7 @@ class SearchQuery(BaseModel):
     @field_validator("month_from", "month_to", mode="before")
     @classmethod
     def _month(cls, v, info):
-        label = "From month" if info.field_name == "month_from" else "To month"
-        m = _MONTH.fullmatch(v.strip())
-        if not m or not 1 <= int(m[2]) <= 12 or int(m[1]) < 1:
-            raise ValueError(f"{label} must look like 2024-03.")
-        return date(int(m[1]), int(m[2]), 1)
+        return parse_month(v, "From month" if info.field_name == "month_from" else "To month")
 
     @field_validator("price_min", "price_max", mode="before")
     @classmethod

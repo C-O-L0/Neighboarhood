@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.repos.dto import BuildingDetail, SearchResult
+from app.repos.dto import BuildingDetail, SearchResult, TrendPoint
 from app.services.search import SearchQuery
+from app.services.trends import TrendQuery
 
 
 class BuildingRepo(Protocol):
@@ -21,4 +22,10 @@ class BuildingRepo(Protocol):
 class SearchRepo(Protocol):
     def search(self, query: SearchQuery) -> SearchResult:
         """One page of matching sales and the exact total, in the order the query asks for."""
+        ...
+
+
+class TrendRepo(Protocol):
+    def trend(self, query: TrendQuery) -> list[TrendPoint]:
+        """The monthly series for one town and flat type, month ascending (months without sales are absent)."""
         ...

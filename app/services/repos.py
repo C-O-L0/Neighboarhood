@@ -9,14 +9,17 @@ from fastapi import Request
 
 from app.repos.mongo.building import MongoBuildingRepo
 from app.repos.mongo.search import MongoSearchRepo
+from app.repos.mongo.trends import MongoTrendRepo
 from app.repos.pg.building import PgBuildingRepo
 from app.repos.pg.search import PgSearchRepo
+from app.repos.pg.trends import PgTrendRepo
 from app.services.dbmode import Timing
 
 # feature -> (PostgreSQL repo class, MongoDB repo class); later features register here.
 REPOS = {
     "building": (PgBuildingRepo, MongoBuildingRepo),
     "search": (PgSearchRepo, MongoSearchRepo),
+    "trends": (PgTrendRepo, MongoTrendRepo),
 }
 
 
