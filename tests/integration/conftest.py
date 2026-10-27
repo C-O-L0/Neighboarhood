@@ -82,3 +82,16 @@ def mongo_etl(settings):
     client, db = _mongo(settings, "etl")
     yield db
     client.close()
+
+
+@pytest.fixture(scope="session")
+def demo_passwords(settings):
+    """(buyer, admin) demo passwords for etl/synth_buyers.py; skips when unset or unusable."""
+    from etl.synth_buyers import check_demo_passwords
+
+    pair = (settings.demo_buyer_password, settings.demo_admin_password)
+    try:
+        check_demo_passwords(*pair)
+    except ValueError as exc:
+        pytest.skip(f"{exc}; pass DEMO_BUYER_PASSWORD and DEMO_ADMIN_PASSWORD to the test container")
+    return pair

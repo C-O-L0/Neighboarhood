@@ -12,15 +12,19 @@ parameter list; otherwise each feature returns the fixed full-data list it decla
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
+from app.repos.mongo.accounts import MongoAccountRepo
 from app.repos.mongo.building import MongoBuildingRepo
 from app.repos.mongo.rankings import MongoRankingRepo
+from app.repos.mongo.saved import MongoSavedRepo
 from app.repos.mongo.search import MongoSearchRepo
 from app.repos.mongo.trends import MongoTrendRepo
+from app.repos.pg.accounts import PgAccountRepo
 from app.repos.pg.building import PgBuildingRepo
 from app.repos.pg.rankings import PgRankingRepo
+from app.repos.pg.saved import PgSavedRepo
 from app.repos.pg.search import PgSearchRepo
 from app.repos.pg.trends import PgTrendRepo
 from app.services.rankings import RankingQuery
@@ -237,6 +241,25 @@ def _mongo_rank(db, p):
     return MongoRankingRepo(db).rank(RankingQuery.model_validate(p))
 
 
+# Synthetic buyers (etl/synth_buyers.py): ids 1 to 200 exist in both databases. Accounts compare
+# equal ignoring password_hash (a separate test checks the hashes), saves compare including saved_at.
+def buyer_params(conn) -> list[dict]:
+    rows = conn.execute("SELECT buyer_id FROM buyer WHERE buyer_id <= 200 ORDER BY buyer_id").fetchall()
+    return [{"buyer_id": r[0]} for r in rows]
+
+
+def _without_hash(account):
+    return None if account is None else replace(account, password_hash="")
+
+
+def _pg_account(conn, p):
+    return _without_hash(PgAccountRepo(conn).by_id(p["buyer_id"]))
+
+
+def _mongo_account(db, p):
+    return _without_hash(MongoAccountRepo(db).by_id(p["buyer_id"]))
+
+
 CASES: list[Case] = [
     Case(
         name="building",
@@ -248,4 +271,11 @@ CASES: list[Case] = [
     Case(name="search_edges", pg_call=_pg_search, mongo_call=_mongo_search, params=search_edge_params),
     Case(name="trends", pg_call=_pg_trend, mongo_call=_mongo_trend, params=trend_params),
     Case(name="rankings", pg_call=_pg_rank, mongo_call=_mongo_rank, params=ranking_params),
+    Case(name="accounts", pg_call=_pg_account, mongo_call=_mongo_account, params=buyer_params),
+    Case(
+        name="saved",
+        pg_call=lambda conn, p: PgSavedRepo(conn).list(p["buyer_id"]),
+        mongo_call=lambda db, p: MongoSavedRepo(db).list(p["buyer_id"]),
+        params=buyer_params,
+    ),
 ]

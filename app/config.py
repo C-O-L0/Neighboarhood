@@ -35,6 +35,10 @@ class Settings(BaseSettings):
 
     secret_key: str = ""
 
+    # Demo accounts loaded by etl/synth_buyers.py (ids 1 and 2); the ETL service only.
+    demo_buyer_password: str = ""
+    demo_admin_password: str = ""
+
     # ---- connection strings ----
     def pg_dsn(self, role: str) -> str:
         """DSN for a PostgreSQL role: postgres (superuser), neighboar_owner, app_rw, app_admin, app_ro."""

@@ -43,7 +43,7 @@ jobs:
       - name: Tests (unit + integration against the running stack)
         run: |
           set -a; . ./.env; set +a
-          docker compose run --rm --no-deps -e NEIGHBOAR_URL=http://web:8000 -e PG_APP_RO_PASSWORD -e PG_OWNER_PASSWORD -e MONGO_ETL_PASSWORD web python -m pytest -q -m "integration or not integration"
+          docker compose run --rm --no-deps -e NEIGHBOAR_URL=http://web:8000 -e PG_APP_RO_PASSWORD -e PG_OWNER_PASSWORD -e MONGO_ETL_PASSWORD -e DEMO_BUYER_PASSWORD -e DEMO_ADMIN_PASSWORD web python -m pytest -q -m "integration or not integration"
 
       - name: Logs on failure
         if: failure()

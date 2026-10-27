@@ -88,6 +88,22 @@ docker compose run --rm etl python -m etl.pipeline --sample
 
 The full load takes about a minute: PostgreSQL gets 275,471 rows, MongoDB 254,844 documents, both from the same cleaned files in `data/interim/`. `python -m etl.pipeline` ends by counting rows and documents in both databases (`etl/db_counts.py`) and `docs/import_report.md` shows those counts next to the cleaning output (rows accepted by cleaning). Schema files are in `db/postgres/`, MongoDB validators in `db/mongo/validators/`, column definitions in `docs/data_dictionary.md`, diagrams in `docs/diagrams/`.
 
+Every load also writes 200 synthetic buyers (ids 1 to 200) and about 1,000 saved blocks to both databases (`etl/synth_buyers.py`, fixed seed, so the same data every time). Add two lines to your `.env` first, each a password of your own choosing of 10 to 128 characters that does not start with `change-me`:
+
+```text
+DEMO_BUYER_PASSWORD=...
+DEMO_ADMIN_PASSWORD=...
+```
+
+They set the passwords of the two documented accounts, `demo@neighboar.local` (a normal buyer) and `admin@neighboar.local` (an administrator). The other 198 buyers (`buyer003@example.com` to `buyer200@example.com`) have random passwords that are thrown away, so nobody can log in as them. The pipeline stops before cleaning if either variable is missing or too short. If an account of yours already uses one of these ids or emails, the script stops with a message and writes nothing.
+
+To run the whole test suite against the running stack (the demo passwords are passed to the test container only, never to `web`):
+
+```bash
+set -a; . ./.env; set +a
+docker compose run --rm --no-deps -e NEIGHBOAR_URL=http://web:8000 -e PG_APP_RO_PASSWORD -e PG_OWNER_PASSWORD -e MONGO_ETL_PASSWORD -e DEMO_BUYER_PASSWORD -e DEMO_ADMIN_PASSWORD web python -m pytest -q -m "integration or not integration"
+```
+
 Use named volumes so normal restarts retain local database data. `docker compose down` removes containers but retains named volumes. Only `docker compose down -v` deletes local database data.
 
 Commit `compose.yaml`, the Dockerfile, `.env.example`, schema migrations, import scripts, and dependency lock files. Do not commit `.env`, database volumes, generated downloads, or passwords. Each teammate copies `.env.example` to `.env` and uses their own local development credentials. Docker recommends Compose for managing a multi-service application and supports health checks and named volumes for reliable startup and persistence. [Docker Compose quickstart](https://docs.docker.com/compose/gettingstarted/)

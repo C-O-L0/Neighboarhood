@@ -8,7 +8,7 @@ is a rounded aggregate that the equivalence tests compare with that tolerance.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 
 AVG_TOL = Decimal("0.01")
@@ -137,3 +137,26 @@ class TownRank:
     avg_psm: Decimal = field(metadata={"tol": AVG_TOL})
     island_median: Decimal
     beats_island: bool
+
+
+@dataclass(frozen=True)
+class Account:
+    """A buyer account. Datetimes are timezone-aware UTC; both repos return the same values."""
+
+    buyer_id: int
+    email: str
+    display_name: str | None
+    is_admin: bool
+    created_at: datetime
+    last_active_at: datetime | None
+    password_hash: str
+
+
+@dataclass(frozen=True)
+class SavedBlock:
+    building_id: int
+    block: str
+    street: str
+    town: str
+    note: str | None
+    saved_at: datetime

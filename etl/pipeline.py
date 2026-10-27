@@ -5,6 +5,10 @@ Full snapshot (needs data/raw, see etl/download.py):
 Committed sample (no download needed; what CI loads):
     docker compose run --rm etl python -m etl.pipeline --sample
 
+Whenever either load runs, the 200 synthetic buyers and their saved blocks are written to
+both databases afterwards (etl/synth_buyers.py), because each loader clears its database's
+saves. DEMO_BUYER_PASSWORD and DEMO_ADMIN_PASSWORD must be set; they are checked first.
+
 When both loads run, the pipeline ends by counting rows and documents in both
 databases (etl/db_counts.py) and exits 1 if they disagree. The import report
 (docs/import_report.md) is regenerated separately with `python -m etl.report`,
@@ -19,7 +23,8 @@ import tempfile
 import time
 from pathlib import Path
 
-from etl import clean, db_counts, download, load_mongo, load_pg
+from app.config import get_settings
+from etl import clean, db_counts, download, load_mongo, load_pg, synth_buyers
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -31,6 +36,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--skip-pg", action="store_true")
     args = ap.parse_args(argv)
     started = time.perf_counter()
+
+    s = get_settings()
+    try:
+        synth_buyers.check_demo_passwords(s.demo_buyer_password, s.demo_admin_password)
+    except ValueError as exc:
+        print(f"[pipeline] {exc}. Nothing was cleaned or loaded.", file=sys.stderr)
+        return 1
 
     if args.sample:
         raw = ROOT / "data" / "sample"
@@ -51,6 +63,11 @@ def main(argv: list[str] | None = None) -> int:
     if not args.skip_mongo:
         print("== load MongoDB", flush=True)
         load_mongo.main(["--interim", str(interim)])
+    if not (args.skip_pg and args.skip_mongo):
+        print("== synthetic buyers", flush=True)
+        status = synth_buyers.main([])
+        if status:
+            return status
     status = 0
     if not args.skip_pg and not args.skip_mongo:
         print("== database counts", flush=True)
