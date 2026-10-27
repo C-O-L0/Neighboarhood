@@ -2,6 +2,16 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-28 Phase 2 gate passed
+
+- On main 65524a1, the full clean and load of both databases took 23 s. Every count in "Database counts" matches: 241,357 sales and 13,358 buildings in each database. `docs/import_report.md` is unchanged.
+- The equivalence suite passes on the full data: 65 passed, 3 skipped. The three skips are rankings facts that only hold on the sample (exact ties and a single-town case); the full-data rankings cases still run.
+- The whole suite gives 452 passed and 5 skipped on the full data. After reloading the sample (2 s), it gives 457 passed with no skips.
+- The rankings page test for a flat type with no sales now skips on the full data, which has sales of every resale flat type in every year from 2017 to 2026. It still asserts on the sample.
+- Every page shows its per-request timing in both modes (integration tests check the footer).
+- Deferred to Phase 5: BUILD_PLAN section 13 asks for report sections 1 and 2 at this gate, but the report is drafted in one pass in Phase 5.
+- Next: Phase 3 (3.1a synthetic buyers, 3.1b auth, 3.2 saved blocks, 3.3 admin sales, 3.4 food access, 3.5a integrity matrix, 3.5b privilege audit).
+
 ## 2026-10-28 Task 2.5 interface
 
 - Chart.js 4.4.7 is vendored as the npm package file `dist/chart.umd.js` (unmodified, licences alongside), served from `/static/vendor/`; no CDN at runtime. A test checks its SHA-256 against `app/static/vendor/README.md`.
@@ -44,8 +54,8 @@ Decisions and next actions only (README rule). Newest first.
   - 2.2 Search and filter: merged (PR #13, `app/search`).
   - 2.3 Trends: merged (PR #14, `app/trends`).
   - 2.4 Rankings: merged (PR #15, `app/rankings`).
-  - 2.5 Interface (Chart.js, styling): `app/ui-search`.
-  - Phase 2 gate: not started.
+  - 2.5 Interface (Chart.js, styling): merged (PR #16, `app/ui-search`).
+  - Phase 2 gate: passed (see "Phase 2 gate passed").
 
 ## 2026-10-27 Phase 1 gate passed
 
