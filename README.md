@@ -84,7 +84,7 @@ docker compose run --rm etl
 docker compose run --rm etl python -m etl.pipeline --sample
 ```
 
-The full load takes about a minute: PostgreSQL gets 275,471 rows, MongoDB 254,844 documents, both from the same cleaned files in `data/interim/`. These database counts come from the loaders; `docs/import_report.md` reports cleaning output only (rows accepted by cleaning). Schema files are in `db/postgres/`, MongoDB validators in `db/mongo/validators/`, column definitions in `docs/data_dictionary.md`, diagrams in `docs/diagrams/`.
+The full load takes about a minute: PostgreSQL gets 275,471 rows, MongoDB 254,844 documents, both from the same cleaned files in `data/interim/`. `python -m etl.pipeline` ends by counting rows and documents in both databases (`etl/db_counts.py`) and `docs/import_report.md` shows those counts next to the cleaning output (rows accepted by cleaning). Schema files are in `db/postgres/`, MongoDB validators in `db/mongo/validators/`, column definitions in `docs/data_dictionary.md`, diagrams in `docs/diagrams/`.
 
 Use named volumes so normal restarts retain local database data. `docker compose down` removes containers but retains named volumes. Only `docker compose down -v` deletes local database data.
 

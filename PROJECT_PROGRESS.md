@@ -2,6 +2,11 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-27 Import report database counts
+
+- The import report now also shows PostgreSQL and MongoDB counts after load, taken by `etl/db_counts.py` at the end of the pipeline, so the Phase 1 gate can show both databases hold the same snapshot. This overrides BUILD_PLAN section 7 step 8, which limited the report to cleaning counts.
+- Counts are plain row and document counts. Lookups are compared in PostgreSQL only (MongoDB embeds them), and "sale (all sources)" is compared between the two databases only, so admin-recorded sales never break a match; the report marks counts taken for a different cleaning run as stale.
+
 ## 2026-10-27 CI runner
 
 - CI runs on `ubuntu-22.04`. MongoDB 8.3.11 will not start on Linux 6.19 or newer (SERVER-121912), which the `ubuntu-24.04` runners now use, so CI on main had failed since PR #6. The image pin is unchanged. Docker Desktop's WSL kernel (6.18 today) is affected the same way once it moves to 6.19: if MongoDB then fails locally, revisit the image pin.
