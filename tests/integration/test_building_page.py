@@ -88,7 +88,8 @@ def test_invalid_db_is_400():
 
 def test_valid_db_sets_the_cookie_with_its_attributes():
     resp = get("/?db=mongo")
-    cookie = resp.headers["set-cookie"].lower()
+    # every page also sets the session cookie (CSRF token), so pick this one out
+    cookie = next(c for c in resp.headers.get_list("set-cookie") if c.startswith("db_mode=")).lower()
     assert cookie.startswith("db_mode=mongo")
     assert "httponly" in cookie
     assert "samesite=lax" in cookie

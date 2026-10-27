@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.repos.dto import Account, BuildingDetail, SavedBlock, SearchResult, TownRank, TrendPoint
+from app.repos.dto import Account, BuildingDetail, Duplicate, SavedBlock, SearchResult, TownRank, TrendPoint
 from app.services.rankings import RankingQuery
 from app.services.search import SearchQuery
 from app.services.trends import TrendQuery
@@ -41,6 +41,18 @@ class RankingRepo(Protocol):
 class AccountRepo(Protocol):
     def by_id(self, buyer_id: int) -> Account | None:
         """The account with this id, or None."""
+        ...
+
+    def by_email(self, email: str) -> Account | None:
+        """The account with this email (compared ignoring case), or None."""
+        ...
+
+    def create(self, email: str, password_hash: str, display_name: str | None) -> int | Duplicate:
+        """Register a non-admin account; its new id, or Duplicate if the email is taken."""
+        ...
+
+    def touch(self, buyer_id: int) -> None:
+        """Set last_active_at to now."""
         ...
 
 

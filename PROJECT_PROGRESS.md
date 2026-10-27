@@ -2,6 +2,15 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-28 Task 3.1b accounts and sessions
+
+- Each database is a complete account store. Registering, signing in and (from 3.2) saving blocks touch only the database selected for that request. The synthetic buyers exist in both with the same ids, but later registrations can get different ids in each.
+- The session holds `{"uid": {"pg": id, "mongo": id}, "csrf": token}` and nothing else. This overrides BUILD_PLAN section 9's "holding only buyer_id": the CSRF token has to live in the session, and signing in under one mode does not sign the user in under the other. The cookie is signed, `HttpOnly`, `SameSite=Lax` and lasts 8 hours.
+- Register redirects (303) to the sign-in page rather than signing the user in. A duplicate email gets 409, a failed sign-in 401 (the same message whether the email is unknown or the password is wrong, and an unknown email is still checked against a dummy hash), and a throttled sign-in 429.
+- The throttle covers sign-in only. It counts 5 failures per (email, client IP) in a sliding 15-minute window, is per process (the app runs one uvicorn worker), and takes the IP from the connection. Behind Docker Desktop every client shares one IP, so in practice it limits per email.
+- CSRF is one app-level dependency that runs before every route's own dependencies and form validation, so any POST without a valid token gets 403. A test lists every POST route, so routes added later are covered automatically. On FastAPI 0.143 the test walks `iter_route_contexts`, because `app.routes` no longer lists routes from included routers.
+- If the signed-in account cannot be read (its database is down), the page treats the visitor as signed out for that request instead of failing, so `/health` still reports 503.
+
 ## 2026-10-28 Task 3.1a synthetic buyers
 
 - `etl/synth_buyers.py` writes 200 buyers and their saved blocks into both databases with `random.Random(65)` (948 saves on the sample). The seed drives names, saves, notes and timestamps only; passwords never come from it. Ids 3 to 200 get random passwords that are discarded, and each hash goes to both databases unchanged.

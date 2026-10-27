@@ -160,3 +160,8 @@ class SavedBlock:
     town: str
     note: str | None
     saved_at: datetime
+
+
+@dataclass(frozen=True)
+class Duplicate:
+    """Returned by AccountRepo.create when the email is already registered (ignoring case)."""
