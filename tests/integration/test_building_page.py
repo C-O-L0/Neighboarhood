@@ -1,0 +1,187 @@
+"""Building page, DB-mode switch, timing footer and block lookup through the running web app."""
+
+import os
+import re
+
+import httpx
+import pytest
+
+BASE = os.environ.get("NEIGHBOAR_URL", "http://127.0.0.1:8000")
+pytestmark = pytest.mark.integration
+
+MAIN = re.compile(r'<main class="page">(.*?)</main>', re.S)
+TIMING = re.compile(r"<li>([^<]+): [\d.]+ ms on (PostgreSQL|MongoDB) \(query and fetch\)</li>")
+
+
+def get(path, **kw):
+    return httpx.get(f"{BASE}{path}", timeout=15, **kw)
+
+
+def main_of(resp):
+    return re.sub(r"\s+", " ", MAIN.search(resp.text).group(1)).strip()
+
+
+@pytest.fixture
+def ids(pg_rw):
+    def one(sql):
+        return pg_rw.execute(sql).fetchone()[0]
+
+    return {
+        "normal": one(
+            "SELECT b.building_id FROM building b WHERE in_property_dataset AND EXISTS "
+            "(SELECT 1 FROM building_flat_supply s WHERE s.building_id = b.building_id) "
+            "AND (SELECT count(*) FROM resale_transaction t WHERE t.building_id = b.building_id) > 10 "
+            "ORDER BY building_id LIMIT 1"
+        ),
+        "stub": one("SELECT building_id FROM building WHERE NOT in_property_dataset"),
+        "zero_units": one(
+            "SELECT building_id FROM building b WHERE in_property_dataset AND NOT EXISTS "
+            "(SELECT 1 FROM building_flat_supply s WHERE s.building_id = b.building_id) ORDER BY building_id LIMIT 1"
+        ),
+        "teban": one("SELECT building_id FROM building WHERE block = '37' AND street = 'TEBAN GDNS RD'"),
+    }
+
+
+@pytest.mark.parametrize("kind", ["normal", "stub", "zero_units", "teban"])
+def test_same_rendered_values_from_both_databases(ids, kind):
+    pg = get(f"/building/{ids[kind]}?db=pg")
+    mongo = get(f"/building/{ids[kind]}?db=mongo")
+    assert pg.status_code == mongo.status_code == 200
+    a, b = main_of(pg), main_of(mongo)
+    assert a == b
+
+
+def test_stub_shows_unknown_and_zero_units_shows_zero(ids):
+    stub = main_of(get(f"/building/{ids['stub']}?db=pg"))
+    assert "<dt>Completion year</dt><dd>Unknown</dd>" in stub
+    assert "<dt>Highest floor</dt><dd>Unknown</dd>" in stub
+    assert "<dt>Total dwelling units</dt><dd>Unknown</dd>" in stub
+    assert "<dt>Land use</dt> <dd> Unknown" in stub
+    assert "<h2>Units by flat type</h2> <p>Unknown</p>" in stub
+    zero = main_of(get(f"/building/{ids['zero_units']}?db=mongo"))
+    assert "<dt>Total dwelling units</dt><dd>0</dd>" in zero
+    assert "No dwelling units" in zero
+
+
+def test_teban_lease_year(ids):
+    for db in ("pg", "mongo"):
+        assert "<dt>Lease start year</dt><dd>1966</dd>" in main_of(get(f"/building/{ids['teban']}?db={db}"))
+
+
+def test_median_is_labelled_with_its_footnote(ids):
+    page = get(f"/building/{ids['normal']}").text
+    assert "median*" in page.lower() or "Median*" in page
+    assert "* median: the lower of the two middle prices when n is even" in page
+
+
+@pytest.mark.parametrize("db", ["pg", "mongo"])
+def test_unknown_building_is_404(db):
+    resp = get(f"/building/2000000000?db={db}")
+    assert resp.status_code == 404
+    assert get(f"/building/99999999999?db={db}").status_code == 404
+
+
+def test_invalid_db_is_400():
+    assert get("/?db=xyz").status_code == 400
+    assert get("/building/1?db=").status_code == 400
+
+
+def test_valid_db_sets_the_cookie_with_its_attributes():
+    resp = get("/?db=mongo")
+    cookie = resp.headers["set-cookie"].lower()
+    assert cookie.startswith("db_mode=mongo")
+    assert "httponly" in cookie
+    assert "samesite=lax" in cookie
+    assert "path=/" in cookie
+    assert "max-age=2592000" in cookie
+
+
+def test_cookie_alone_decides_the_mode_and_default_is_pg(ids):
+    path = f"/building/{ids['normal']}"
+    assert {m[1] for m in TIMING.findall(get(path).text)} == {"PostgreSQL"}
+    with httpx.Client(base_url=BASE, cookies={"db_mode": "mongo"}, timeout=15) as client:
+        assert {m[1] for m in TIMING.findall(client.get(path).text)} == {"MongoDB"}
+        # the query parameter wins over the cookie
+        assert {m[1] for m in TIMING.findall(client.get(path + "?db=pg").text)} == {"PostgreSQL"}
+    with httpx.Client(base_url=BASE, cookies={"db_mode": "bogus"}, timeout=15) as client:
+        assert {m[1] for m in TIMING.findall(client.get(path).text)} == {"PostgreSQL"}
+
+
+@pytest.mark.parametrize("db,name", [("pg", "PostgreSQL"), ("mongo", "MongoDB")])
+def test_footer_has_one_timing_line_naming_the_database(ids, db, name):
+    timings = TIMING.findall(get(f"/building/{ids['normal']}?db={db}").text)
+    assert timings == [("building page", name)]
+
+
+def test_header_links_keep_other_parameters_and_encode_them():
+    page = get("/building/find?block=1+2&street=A%26B&db=pg").text  # 422 page still has the header
+    assert 'href="/building/find?block=1+2&amp;street=A%26B&amp;db=mongo"' in page
+    assert 'href="/building/find?block=1+2&amp;street=A%26B&amp;db=pg"' in page
+
+
+@pytest.mark.parametrize("db", ["pg", "mongo"])
+def test_find_redirects_to_the_building(ids, db):
+    resp = get(f"/building/find?block=37&street=teban++gdns rd&db={db}", follow_redirects=False)
+    assert resp.status_code == 303
+    assert resp.headers["location"] == f"/building/{ids['teban']}"
+
+
+@pytest.mark.parametrize("db", ["pg", "mongo"])
+def test_find_not_found_is_404(db):
+    resp = get(f"/building/find?block=99999&street=NO SUCH ROAD&db={db}", follow_redirects=False)
+    assert resp.status_code == 404
+    assert "not found" in resp.text.lower()
+    assert len(TIMING.findall(resp.text)) == 1
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "block=&street=X",
+        "block=37&street=",
+        "block=123456&street=X",
+        "block=1&street=" + "A" * 41,
+        "",
+        "block=%20&street=X",
+    ],
+)
+def test_find_rejects_bad_input_with_422_and_no_db_call(query):
+    resp = get(f"/building/find?{query}", follow_redirects=False)
+    assert resp.status_code == 422
+    assert not TIMING.findall(resp.text)
+
+
+def test_home_page_has_the_lookup_form():
+    resp = get("/")
+    assert resp.status_code == 200
+    assert 'action="/building/find"' in resp.text
+
+
+def test_health_still_works():
+    assert get("/api/health").status_code == 200
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "//evil.example/x?db=zz",
+        "/%2F%2Fevil.example?db=zz",
+        "/%5Cevil.example?db=zz",
+        "/%5C%5Cevil.example?db=zz",
+        "/%09/evil.example?db=zz",
+    ],
+)
+def test_toggle_links_stay_on_this_origin(path):
+    # httpx would normalise the path, so send the request line as written
+    resp = httpx.get(httpx.URL(BASE).copy_with(raw_path=path.encode()), timeout=15)
+    assert resp.status_code == 400
+    hrefs = re.findall(r'<nav class="mode".*?</nav>', resp.text, re.S)[0]
+    links = re.findall(r'href="([^"]*)"', hrefs)
+    assert len(links) == 2
+    assert all(re.match(r"/(?![/\\])", h) for h in links), links
+
+
+def test_toggle_links_keep_a_normal_path(ids):
+    page = get(f"/building/{ids['normal']}?db=pg").text
+    assert f'href="/building/{ids["normal"]}?db=mongo"' in page
+    assert f'href="/building/{ids["normal"]}?db=pg"' in page

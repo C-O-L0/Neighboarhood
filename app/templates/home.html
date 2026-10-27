@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Neighboar{% endblock %}
+{% block content %}
+<h1>Neighbourhood explorer for HDB resale flats</h1>
+<p>Look up a block to see its flats, completion year, lease start, resale statistics and latest sales. Every page can be served from PostgreSQL or MongoDB: switch with the links in the header and compare the query time in the footer.</p>
+
+<h2>Find a block</h2>
+{% if message %}<p class="bad" role="alert">{{ message }}</p>{% endif %}
+<form method="get" action="/building/find">
+  <input type="hidden" name="db" value="{{ db_mode }}">
+  <label>Block <input name="block" value="{{ block }}" maxlength="5" required></label>
+  <label>Street <input name="street" value="{{ street }}" maxlength="40" required></label>
+  <button type="submit">Look up</button>
+</form>
+{% endblock %}

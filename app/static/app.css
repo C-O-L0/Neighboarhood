@@ -18,3 +18,10 @@ th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var
 th { color: var(--muted); font-weight: 600; }
 .ok { color: var(--ok); }
 .bad { color: var(--bad); }
+
+.topbar { display: flex; justify-content: space-between; align-items: center; }
+.mode a[aria-current="true"] { font-weight: bold; text-decoration: none; }
+.mode > * { margin-left: 0.75rem; }
+.timings { margin-top: 2rem; padding-top: 0.5rem; border-top: 1px solid #ccc; font-size: 0.9rem; color: #555; }
+.timings ul { list-style: none; padding: 0; margin: 0; }
+.footnote { font-size: 0.9rem; color: #555; }
