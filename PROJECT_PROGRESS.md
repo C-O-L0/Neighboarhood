@@ -2,6 +2,24 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-27 Phase 1 gate passed
+
+- From empty volumes on main 7fcfdec: `up` and `migrate` succeeded, and the full clean and load of both databases took 26 s. PostgreSQL holds 275,471 rows and MongoDB 254,844 documents. Every compared count matches: the 12 rows in `docs/import_report.md`, "Database counts". Lookups are checked against cleaning in PostgreSQL only.
+- Active in PostgreSQL:
+  - all 88 constraints are validated, and both triggers are enabled;
+  - `app_rw`, `app_admin` and `app_ro` hold only their section 4 privileges;
+  - only `app_admin` can execute `refresh_town_stats()`, which is SECURITY DEFINER with a fixed search path;
+  - `neighboar_owner` owns every object.
+- Active in MongoDB:
+  - all five collections have strict validators;
+  - the `etl`, `app` and `app_admin` users hold their section 5 roles;
+  - all indexes are built.
+- 159 tests pass on the full data as well as on the sample.
+- The ERD, architecture and MongoDB model diagrams are in `docs/diagrams/` as SVG and PNG.
+  - The PNGs are rendered with `dot -Gdpi=300`; for example, the ERD is 4,284 px wide, which is 36.3 cm at 300 dpi.
+  - The PNG files carry no DPI metadata, so set the width by hand when inserting them into the report.
+- Next: Phase 2 (DB-mode switch with timing, search and filter, trends and rankings, building page, equivalence suite).
+
 ## 2026-10-27 Phase 1 review fixes
 
 - Commit 10d8943 changed only a comment in the applied `001_schema.sql`, so any database migrated before 22 Oct now fails `migrate` with "changed after it was applied". It is kept as is, because reverting would break databases migrated after 22 Oct instead. Teammates with an older volume run `docker compose down -v` and reload (no user data exists yet). Later schema changes go in a new numbered file.
