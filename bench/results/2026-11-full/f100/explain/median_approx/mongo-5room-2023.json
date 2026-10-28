@@ -1,0 +1,326 @@
+[
+  {
+    "n": 1,
+    "call": {
+      "kind": "aggregate",
+      "collection": "resale_transactions",
+      "pipeline": [
+        {
+          "$match": {
+            "flat_type": "5 ROOM",
+            "txn_month": {
+              "$gte": "2023-01-01 00:00:00+00:00",
+              "$lt": "2024-01-01 00:00:00+00:00"
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": null,
+            "median": {
+              "$median": {
+                "input": "$resale_price",
+                "method": "approximate"
+              }
+            }
+          }
+        }
+      ],
+      "options": {}
+    },
+    "explain": {
+      "explainVersion": "1",
+      "stages": [
+        {
+          "$cursor": {
+            "queryPlanner": {
+              "namespace": "neighboar.resale_transactions",
+              "parsedQuery": {
+                "$and": [
+                  {
+                    "flat_type": {
+                      "$eq": "5 ROOM"
+                    }
+                  },
+                  {
+                    "txn_month": {
+                      "$lt": "2024-01-01 00:00:00"
+                    }
+                  },
+                  {
+                    "txn_month": {
+                      "$gte": "2023-01-01 00:00:00"
+                    }
+                  }
+                ]
+              },
+              "indexFilterSet": false,
+              "queryHash": "796D11F2",
+              "planCacheShapeHash": "796D11F2",
+              "planCacheKey": "DA4FB95E",
+              "optimizationTimeMillis": 0,
+              "cursorType": "regular",
+              "maxIndexedOrSolutionsReached": false,
+              "maxIndexedAndSolutionsReached": false,
+              "maxScansToExplodeReached": false,
+              "prunedSimilarIndexes": false,
+              "winningPlan": {
+                "isCached": true,
+                "stage": "PROJECTION_SIMPLE",
+                "transformBy": {
+                  "resale_price": 1,
+                  "_id": 0
+                },
+                "inputStage": {
+                  "stage": "FETCH",
+                  "nss": "neighboar.resale_transactions",
+                  "inputStage": {
+                    "stage": "IXSCAN",
+                    "nss": "neighboar.resale_transactions",
+                    "keyPattern": {
+                      "flat_type": 1,
+                      "txn_month": 1
+                    },
+                    "indexName": "type_month",
+                    "isMultiKey": false,
+                    "multiKeyPaths": {
+                      "flat_type": [],
+                      "txn_month": []
+                    },
+                    "isUnique": false,
+                    "isSparse": false,
+                    "isPartial": false,
+                    "indexVersion": 2,
+                    "direction": "forward",
+                    "indexBounds": {
+                      "flat_type": [
+                        "[\"5 ROOM\", \"5 ROOM\"]"
+                      ],
+                      "txn_month": [
+                        "[new Date(1672531200000), new Date(1704067200000))"
+                      ]
+                    }
+                  }
+                }
+              },
+              "rejectedPlans": [
+                {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "transformBy": {
+                    "resale_price": 1,
+                    "_id": 0
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "filter": {
+                      "$and": [
+                        {
+                          "txn_month": {
+                            "$lt": "2024-01-01 00:00:00"
+                          }
+                        },
+                        {
+                          "txn_month": {
+                            "$gte": "2023-01-01 00:00:00"
+                          }
+                        }
+                      ]
+                    },
+                    "nss": "neighboar.resale_transactions",
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "nss": "neighboar.resale_transactions",
+                      "keyPattern": {
+                        "flat_type": 1,
+                        "resale_price": 1,
+                        "_id": 1
+                      },
+                      "indexName": "type_price",
+                      "isMultiKey": false,
+                      "multiKeyPaths": {
+                        "flat_type": [],
+                        "resale_price": [],
+                        "_id": []
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "flat_type": [
+                          "[\"5 ROOM\", \"5 ROOM\"]"
+                        ],
+                        "resale_price": [
+                          "[MinKey, MaxKey]"
+                        ],
+                        "_id": [
+                          "[MinKey, MaxKey]"
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "executionStats": {
+              "executionSuccess": true,
+              "nReturned": 5842,
+              "executionTimeMillis": 5,
+              "totalKeysExamined": 5842,
+              "totalDocsExamined": 5842,
+              "executionStages": {
+                "isCached": true,
+                "stage": "PROJECTION_SIMPLE",
+                "nReturned": 5842,
+                "executionTimeMillisEstimate": 0,
+                "works": 5843,
+                "advanced": 5842,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 10,
+                "restoreState": 9,
+                "isEOF": 1,
+                "transformBy": {
+                  "resale_price": 1,
+                  "_id": 0
+                },
+                "inputStage": {
+                  "stage": "FETCH",
+                  "nReturned": 5842,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 5843,
+                  "advanced": 5842,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 10,
+                  "restoreState": 9,
+                  "isEOF": 1,
+                  "nss": "neighboar.resale_transactions",
+                  "docsExamined": 5842,
+                  "alreadyHasObj": 0,
+                  "inputStage": {
+                    "stage": "IXSCAN",
+                    "nReturned": 5842,
+                    "executionTimeMillisEstimate": 0,
+                    "works": 5843,
+                    "advanced": 5842,
+                    "needTime": 0,
+                    "needYield": 0,
+                    "saveState": 10,
+                    "restoreState": 9,
+                    "isEOF": 1,
+                    "nss": "neighboar.resale_transactions",
+                    "keyPattern": {
+                      "flat_type": 1,
+                      "txn_month": 1
+                    },
+                    "indexName": "type_month",
+                    "isMultiKey": false,
+                    "multiKeyPaths": {
+                      "flat_type": [],
+                      "txn_month": []
+                    },
+                    "isUnique": false,
+                    "isSparse": false,
+                    "isPartial": false,
+                    "indexVersion": 2,
+                    "direction": "forward",
+                    "indexBounds": {
+                      "flat_type": [
+                        "[\"5 ROOM\", \"5 ROOM\"]"
+                      ],
+                      "txn_month": [
+                        "[new Date(1672531200000), new Date(1704067200000))"
+                      ]
+                    },
+                    "keysExamined": 5842,
+                    "seeks": 1,
+                    "dupsTested": 0,
+                    "dupsDropped": 0,
+                    "peakTrackedMemBytes": 0
+                  }
+                }
+              }
+            }
+          },
+          "nReturned": 5842,
+          "executionTimeMillisEstimate": 3
+        },
+        {
+          "$group": {
+            "_id": {
+              "$const": null
+            },
+            "median": {
+              "$median": {
+                "input": "$resale_price",
+                "method": "approximate"
+              }
+            },
+            "$willBeMerged": false
+          },
+          "nReturned": 1,
+          "executionTimeMillisEstimate": 3,
+          "maxAccumulatorMemoryUsageBytes": {
+            "median": 65808
+          },
+          "totalOutputDataSizeBytes": 237,
+          "usedDisk": false,
+          "spills": 0,
+          "spilledDataStorageSize": 0,
+          "spilledBytes": 0,
+          "spilledRecords": 0,
+          "peakTrackedMemBytes": 65824
+        }
+      ],
+      "queryShapeHash": "12DDE3EF539D4654D05A16A119521AEDC1AD865691C9E5FCAF56FAE10EA6E529",
+      "serverInfo": {
+        "host": "35fc6b4ee753",
+        "port": 27017,
+        "version": "8.3.11",
+        "gitVersion": "b8b83d6e6e1aed495578ad8c6f9234ad329c9955"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      },
+      "command": {
+        "aggregate": "resale_transactions",
+        "pipeline": [
+          {
+            "$match": {
+              "flat_type": "5 ROOM",
+              "txn_month": {
+                "$gte": "2023-01-01 00:00:00",
+                "$lt": "2024-01-01 00:00:00"
+              }
+            }
+          },
+          {
+            "$group": {
+              "_id": null,
+              "median": {
+                "$median": {
+                  "input": "$resale_price",
+                  "method": "approximate"
+                }
+              }
+            }
+          }
+        ],
+        "cursor": {},
+        "$db": "neighboar"
+      }
+    }
+  }
+]

@@ -1,0 +1,293 @@
+[
+  {
+    "n": 1,
+    "call": {
+      "kind": "count_documents",
+      "collection": "resale_transactions",
+      "filter": {}
+    },
+    "explain": {
+      "explainVersion": "2",
+      "queryPlanner": {
+        "namespace": "neighboar.resale_transactions",
+        "parsedQuery": {},
+        "indexFilterSet": false,
+        "queryHash": "CDC0091B",
+        "planCacheShapeHash": "CDC0091B",
+        "planCacheKey": "BB9BAF92",
+        "optimizationTimeMillis": 0,
+        "optimizedPipeline": true,
+        "maxIndexedOrSolutionsReached": false,
+        "maxIndexedAndSolutionsReached": false,
+        "maxScansToExplodeReached": false,
+        "prunedSimilarIndexes": false,
+        "winningPlan": {
+          "isCached": false,
+          "queryPlan": {
+            "stage": "GROUP",
+            "planNodeId": 2,
+            "inputStage": {
+              "stage": "COLLSCAN",
+              "planNodeId": 1,
+              "filter": {},
+              "nss": "neighboar.resale_transactions",
+              "direction": "forward"
+            }
+          },
+          "slotBasedPlan": {
+            "slots": "$$RESULT=s6 env: {  }",
+            "stages": "[2] project [s6 = newBsonObj(\"_id\", s5, \"n\", s3)] \n[2] project [s5 = 1] \n[2] group [] [s3 = _internalCount::accumulate(s3, 1)] spillSlots[s4] mergingExprs[_internalCount::merge(s4)] \n[1] scan generic [s1 = record, s2 = recordId] @\"ae3e7302-8a44-4cbb-bf4d-097af1f9b450\" "
+          }
+        },
+        "rejectedPlans": []
+      },
+      "executionStats": {
+        "executionSuccess": true,
+        "nReturned": 1,
+        "executionTimeMillis": 22,
+        "totalKeysExamined": 0,
+        "totalDocsExamined": 241357,
+        "executionStages": {
+          "stage": "project",
+          "planNodeId": 2,
+          "nReturned": 1,
+          "executionTimeMillisEstimate": 17,
+          "opens": 1,
+          "closes": 1,
+          "saveState": 1,
+          "restoreState": 1,
+          "isEOF": 1,
+          "projections": {
+            "6": "newBsonObj(\"_id\", s5, \"n\", s3) "
+          },
+          "inputStage": {
+            "stage": "project",
+            "planNodeId": 2,
+            "nReturned": 1,
+            "executionTimeMillisEstimate": 17,
+            "opens": 1,
+            "closes": 1,
+            "saveState": 1,
+            "restoreState": 1,
+            "isEOF": 1,
+            "projections": {
+              "5": "1 "
+            },
+            "inputStage": {
+              "stage": "group",
+              "planNodeId": 2,
+              "nReturned": 1,
+              "executionTimeMillisEstimate": 17,
+              "opens": 1,
+              "closes": 1,
+              "saveState": 1,
+              "restoreState": 1,
+              "isEOF": 1,
+              "groupBySlots": [],
+              "expressions": {
+                "3": "_internalCount::accumulate(s3, 1) ",
+                "initExprs": {
+                  "3": null,
+                  "mergingExprs": {
+                    "4": "_internalCount::merge(s4) "
+                  }
+                }
+              },
+              "usedDisk": false,
+              "spills": 0,
+              "spilledBytes": 0,
+              "spilledRecords": 0,
+              "spilledDataStorageSize": 0,
+              "peakTrackedMemBytes": 0,
+              "inputStage": {
+                "stage": "scan",
+                "planNodeId": 1,
+                "nReturned": 241357,
+                "executionTimeMillisEstimate": 17,
+                "opens": 1,
+                "closes": 1,
+                "saveState": 1,
+                "restoreState": 1,
+                "isEOF": 1,
+                "numReads": 241357,
+                "recordSlot": 1,
+                "recordIdSlot": 2,
+                "scanFieldNames": [],
+                "scanFieldSlots": []
+              }
+            }
+          }
+        }
+      },
+      "queryShapeHash": "C25C7C74CCF3E71EA707DDB718DD22C4C6BD68F9E401D497E75A6B1A7204CEE9",
+      "command": {
+        "aggregate": "resale_transactions",
+        "pipeline": [
+          {
+            "$match": {}
+          },
+          {
+            "$group": {
+              "_id": 1,
+              "n": {
+                "$sum": 1
+              }
+            }
+          }
+        ],
+        "cursor": {},
+        "$db": "neighboar"
+      },
+      "serverInfo": {
+        "host": "35fc6b4ee753",
+        "port": 27017,
+        "version": "8.3.11",
+        "gitVersion": "b8b83d6e6e1aed495578ad8c6f9234ad329c9955"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      }
+    }
+  },
+  {
+    "n": 2,
+    "call": {
+      "kind": "find",
+      "collection": "resale_transactions",
+      "filter": {},
+      "projection": null,
+      "sort": [
+        [
+          "txn_month",
+          -1
+        ],
+        [
+          "_id",
+          -1
+        ]
+      ],
+      "skip": 0,
+      "limit": 50
+    },
+    "explain": {
+      "explainVersion": "1",
+      "queryPlanner": {
+        "namespace": "neighboar.resale_transactions",
+        "parsedQuery": {},
+        "indexFilterSet": false,
+        "queryHash": "DB17AA60",
+        "planCacheShapeHash": "DB17AA60",
+        "planCacheKey": "CE41BA1A",
+        "optimizationTimeMillis": 0,
+        "maxIndexedOrSolutionsReached": false,
+        "maxIndexedAndSolutionsReached": false,
+        "maxScansToExplodeReached": false,
+        "prunedSimilarIndexes": false,
+        "winningPlan": {
+          "isCached": false,
+          "stage": "SORT",
+          "sortPattern": {
+            "txn_month": -1,
+            "_id": -1
+          },
+          "memLimit": 104857600,
+          "limitAmount": 50,
+          "type": "simple",
+          "inputStage": {
+            "stage": "COLLSCAN",
+            "nss": "neighboar.resale_transactions",
+            "direction": "forward"
+          }
+        },
+        "rejectedPlans": []
+      },
+      "executionStats": {
+        "executionSuccess": true,
+        "nReturned": 50,
+        "executionTimeMillis": 78,
+        "totalKeysExamined": 0,
+        "totalDocsExamined": 241357,
+        "executionStages": {
+          "isCached": false,
+          "stage": "SORT",
+          "nReturned": 50,
+          "executionTimeMillisEstimate": 73,
+          "works": 241409,
+          "advanced": 50,
+          "needTime": 241358,
+          "needYield": 0,
+          "saveState": 4,
+          "restoreState": 4,
+          "isEOF": 1,
+          "sortPattern": {
+            "txn_month": -1,
+            "_id": -1
+          },
+          "memLimit": 104857600,
+          "limitAmount": 50,
+          "type": "simple",
+          "totalDataSizeSorted": 21403,
+          "usedDisk": false,
+          "spills": 0,
+          "spilledRecords": 0,
+          "spilledBytes": 0,
+          "spilledDataStorageSize": 0,
+          "peakTrackedMemBytes": 22142,
+          "inputStage": {
+            "stage": "COLLSCAN",
+            "nReturned": 241357,
+            "executionTimeMillisEstimate": 10,
+            "works": 241358,
+            "advanced": 241357,
+            "needTime": 0,
+            "needYield": 0,
+            "saveState": 4,
+            "restoreState": 4,
+            "isEOF": 1,
+            "nss": "neighboar.resale_transactions",
+            "direction": "forward",
+            "docsExamined": 241357
+          }
+        }
+      },
+      "queryShapeHash": "741609E2DC69A42AF52BFB2F99F5D9AC3E331B5407AAEFA2C0FF6F563E93FAF6",
+      "command": {
+        "find": "resale_transactions",
+        "filter": {},
+        "sort": {
+          "txn_month": -1,
+          "_id": -1
+        },
+        "limit": 50,
+        "$db": "neighboar"
+      },
+      "serverInfo": {
+        "host": "35fc6b4ee753",
+        "port": 27017,
+        "version": "8.3.11",
+        "gitVersion": "b8b83d6e6e1aed495578ad8c6f9234ad329c9955"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      }
+    }
+  }
+]

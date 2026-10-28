@@ -1,0 +1,907 @@
+[
+  {
+    "n": 1,
+    "call": {
+      "kind": "aggregate",
+      "collection": "resale_transactions",
+      "pipeline": [
+        {
+          "$match": {
+            "txn_month": {
+              "$gte": "2019-01-01 00:00:00+00:00",
+              "$lt": "2020-01-01 00:00:00+00:00"
+            },
+            "flat_type": "4 ROOM"
+          }
+        },
+        {
+          "$facet": {
+            "towns": [
+              {
+                "$group": {
+                  "_id": {
+                    "flat_type": "$flat_type",
+                    "town": "$town"
+                  },
+                  "n": {
+                    "$sum": 1
+                  },
+                  "prices": {
+                    "$push": "$resale_price"
+                  },
+                  "sum_psm": {
+                    "$sum": {
+                      "$divide": [
+                        "$resale_price",
+                        "$floor_area_sqm"
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "$project": {
+                  "n": 1,
+                  "median_price": {
+                    "$arrayElemAt": [
+                      {
+                        "$sortArray": {
+                          "input": "$prices",
+                          "sortBy": 1
+                        }
+                      },
+                      {
+                        "$floor": {
+                          "$divide": [
+                            {
+                              "$subtract": [
+                                "$n",
+                                1
+                              ]
+                            },
+                            2
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  "avg_psm": {
+                    "$round": [
+                      {
+                        "$divide": [
+                          "$sum_psm",
+                          "$n"
+                        ]
+                      },
+                      2
+                    ]
+                  }
+                }
+              }
+            ],
+            "island": [
+              {
+                "$group": {
+                  "_id": "$flat_type",
+                  "n": {
+                    "$sum": 1
+                  },
+                  "prices": {
+                    "$push": "$resale_price"
+                  }
+                }
+              },
+              {
+                "$project": {
+                  "median_price": {
+                    "$arrayElemAt": [
+                      {
+                        "$sortArray": {
+                          "input": "$prices",
+                          "sortBy": 1
+                        }
+                      },
+                      {
+                        "$floor": {
+                          "$divide": [
+                            {
+                              "$subtract": [
+                                "$n",
+                                1
+                              ]
+                            },
+                            2
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "$unwind": "$towns"
+        },
+        {
+          "$set": {
+            "island_row": {
+              "$arrayElemAt": [
+                {
+                  "$filter": {
+                    "input": "$island",
+                    "as": "i",
+                    "cond": {
+                      "$eq": [
+                        "$$i._id",
+                        "$towns._id.flat_type"
+                      ]
+                    }
+                  }
+                },
+                0
+              ]
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "flat_type": "$towns._id.flat_type",
+            "town": "$towns._id.town",
+            "n": "$towns.n",
+            "median_price": "$towns.median_price",
+            "avg_psm": "$towns.avg_psm",
+            "island_median": "$island_row.median_price",
+            "beats_island": {
+              "$gt": [
+                "$towns.median_price",
+                "$island_row.median_price"
+              ]
+            }
+          }
+        },
+        {
+          "$setWindowFields": {
+            "partitionBy": "$flat_type",
+            "sortBy": {
+              "median_price": -1
+            },
+            "output": {
+              "rank": {
+                "$rank": {}
+              }
+            }
+          }
+        },
+        {
+          "$sort": {
+            "flat_type": 1,
+            "rank": 1,
+            "town": 1
+          }
+        }
+      ],
+      "options": {}
+    },
+    "explain": {
+      "explainVersion": "1",
+      "stages": [
+        {
+          "$cursor": {
+            "queryPlanner": {
+              "namespace": "neighboar.resale_transactions",
+              "parsedQuery": {
+                "$and": [
+                  {
+                    "flat_type": {
+                      "$eq": "4 ROOM"
+                    }
+                  },
+                  {
+                    "txn_month": {
+                      "$lt": "2020-01-01 00:00:00"
+                    }
+                  },
+                  {
+                    "txn_month": {
+                      "$gte": "2019-01-01 00:00:00"
+                    }
+                  }
+                ]
+              },
+              "indexFilterSet": false,
+              "queryHash": "352CFBFD",
+              "planCacheShapeHash": "352CFBFD",
+              "planCacheKey": "B1578D18",
+              "optimizationTimeMillis": 0,
+              "cursorType": "regular",
+              "maxIndexedOrSolutionsReached": false,
+              "maxIndexedAndSolutionsReached": false,
+              "maxScansToExplodeReached": false,
+              "prunedSimilarIndexes": false,
+              "winningPlan": {
+                "isCached": true,
+                "stage": "PROJECTION_SIMPLE",
+                "transformBy": {
+                  "flat_type": 1,
+                  "floor_area_sqm": 1,
+                  "resale_price": 1,
+                  "town": 1,
+                  "_id": 0
+                },
+                "inputStage": {
+                  "stage": "FETCH",
+                  "nss": "neighboar.resale_transactions",
+                  "inputStage": {
+                    "stage": "IXSCAN",
+                    "nss": "neighboar.resale_transactions",
+                    "keyPattern": {
+                      "flat_type": 1,
+                      "txn_month": 1
+                    },
+                    "indexName": "type_month",
+                    "isMultiKey": false,
+                    "multiKeyPaths": {
+                      "flat_type": [],
+                      "txn_month": []
+                    },
+                    "isUnique": false,
+                    "isSparse": false,
+                    "isPartial": false,
+                    "indexVersion": 2,
+                    "direction": "forward",
+                    "indexBounds": {
+                      "flat_type": [
+                        "[\"4 ROOM\", \"4 ROOM\"]"
+                      ],
+                      "txn_month": [
+                        "[new Date(1546300800000), new Date(1577836800000))"
+                      ]
+                    }
+                  }
+                }
+              },
+              "rejectedPlans": [
+                {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "transformBy": {
+                    "flat_type": 1,
+                    "floor_area_sqm": 1,
+                    "resale_price": 1,
+                    "town": 1,
+                    "_id": 0
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "filter": {
+                      "$and": [
+                        {
+                          "txn_month": {
+                            "$lt": "2020-01-01 00:00:00"
+                          }
+                        },
+                        {
+                          "txn_month": {
+                            "$gte": "2019-01-01 00:00:00"
+                          }
+                        }
+                      ]
+                    },
+                    "nss": "neighboar.resale_transactions",
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "nss": "neighboar.resale_transactions",
+                      "keyPattern": {
+                        "flat_type": 1,
+                        "resale_price": 1,
+                        "_id": 1
+                      },
+                      "indexName": "type_price",
+                      "isMultiKey": false,
+                      "multiKeyPaths": {
+                        "flat_type": [],
+                        "resale_price": [],
+                        "_id": []
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "flat_type": [
+                          "[\"4 ROOM\", \"4 ROOM\"]"
+                        ],
+                        "resale_price": [
+                          "[MinKey, MaxKey]"
+                        ],
+                        "_id": [
+                          "[MinKey, MaxKey]"
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "executionStats": {
+              "executionSuccess": true,
+              "nReturned": 4605,
+              "executionTimeMillis": 8,
+              "totalKeysExamined": 4605,
+              "totalDocsExamined": 4605,
+              "executionStages": {
+                "isCached": true,
+                "stage": "PROJECTION_SIMPLE",
+                "nReturned": 4605,
+                "executionTimeMillisEstimate": 0,
+                "works": 4606,
+                "advanced": 4605,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 10,
+                "restoreState": 9,
+                "isEOF": 1,
+                "transformBy": {
+                  "flat_type": 1,
+                  "floor_area_sqm": 1,
+                  "resale_price": 1,
+                  "town": 1,
+                  "_id": 0
+                },
+                "inputStage": {
+                  "stage": "FETCH",
+                  "nReturned": 4605,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 4606,
+                  "advanced": 4605,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 10,
+                  "restoreState": 9,
+                  "isEOF": 1,
+                  "nss": "neighboar.resale_transactions",
+                  "docsExamined": 4605,
+                  "alreadyHasObj": 0,
+                  "inputStage": {
+                    "stage": "IXSCAN",
+                    "nReturned": 4605,
+                    "executionTimeMillisEstimate": 0,
+                    "works": 4606,
+                    "advanced": 4605,
+                    "needTime": 0,
+                    "needYield": 0,
+                    "saveState": 10,
+                    "restoreState": 9,
+                    "isEOF": 1,
+                    "nss": "neighboar.resale_transactions",
+                    "keyPattern": {
+                      "flat_type": 1,
+                      "txn_month": 1
+                    },
+                    "indexName": "type_month",
+                    "isMultiKey": false,
+                    "multiKeyPaths": {
+                      "flat_type": [],
+                      "txn_month": []
+                    },
+                    "isUnique": false,
+                    "isSparse": false,
+                    "isPartial": false,
+                    "indexVersion": 2,
+                    "direction": "forward",
+                    "indexBounds": {
+                      "flat_type": [
+                        "[\"4 ROOM\", \"4 ROOM\"]"
+                      ],
+                      "txn_month": [
+                        "[new Date(1546300800000), new Date(1577836800000))"
+                      ]
+                    },
+                    "keysExamined": 4605,
+                    "seeks": 1,
+                    "dupsTested": 0,
+                    "dupsDropped": 0,
+                    "peakTrackedMemBytes": 0
+                  }
+                }
+              }
+            }
+          },
+          "nReturned": 4605,
+          "executionTimeMillisEstimate": 2
+        },
+        {
+          "$facet": {
+            "towns": [
+              {
+                "$internalFacetTeeConsumer": {},
+                "nReturned": 4605,
+                "executionTimeMillisEstimate": 2
+              },
+              {
+                "$group": {
+                  "_id": {
+                    "flat_type": "$flat_type",
+                    "town": "$town"
+                  },
+                  "n": {
+                    "$sum": {
+                      "$const": 1
+                    }
+                  },
+                  "prices": {
+                    "$push": "$resale_price"
+                  },
+                  "sum_psm": {
+                    "$sum": {
+                      "$divide": [
+                        "$resale_price",
+                        "$floor_area_sqm"
+                      ]
+                    }
+                  },
+                  "$willBeMerged": false
+                },
+                "nReturned": 26,
+                "executionTimeMillisEstimate": 2,
+                "maxAccumulatorMemoryUsageBytes": {
+                  "n": 4992,
+                  "prices": 224576,
+                  "sum_psm": 4992
+                },
+                "totalOutputDataSizeBytes": 237050,
+                "usedDisk": false,
+                "spills": 0,
+                "spilledDataStorageSize": 0,
+                "spilledBytes": 0,
+                "spilledRecords": 0,
+                "peakTrackedMemBytes": 236998
+              },
+              {
+                "$project": {
+                  "_id": true,
+                  "n": true,
+                  "median_price": {
+                    "$arrayElemAt": [
+                      {
+                        "$sortArray": {
+                          "input": "$prices",
+                          "sortBy": 1
+                        }
+                      },
+                      {
+                        "$floor": [
+                          {
+                            "$divide": [
+                              {
+                                "$subtract": [
+                                  "$n",
+                                  {
+                                    "$const": 1
+                                  }
+                                ]
+                              },
+                              {
+                                "$const": 2
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "avg_psm": {
+                    "$round": [
+                      {
+                        "$divide": [
+                          "$sum_psm",
+                          "$n"
+                        ]
+                      },
+                      {
+                        "$const": 2
+                      }
+                    ]
+                  }
+                },
+                "nReturned": 26,
+                "executionTimeMillisEstimate": 2
+              }
+            ],
+            "island": [
+              {
+                "$internalFacetTeeConsumer": {},
+                "nReturned": 4605,
+                "executionTimeMillisEstimate": 0
+              },
+              {
+                "$group": {
+                  "_id": "$flat_type",
+                  "n": {
+                    "$sum": {
+                      "$const": 1
+                    }
+                  },
+                  "prices": {
+                    "$push": "$resale_price"
+                  },
+                  "$willBeMerged": false
+                },
+                "nReturned": 1,
+                "executionTimeMillisEstimate": 0,
+                "maxAccumulatorMemoryUsageBytes": {
+                  "n": 192,
+                  "prices": 221176
+                },
+                "totalOutputDataSizeBytes": 221349,
+                "usedDisk": false,
+                "spills": 0,
+                "spilledDataStorageSize": 0,
+                "spilledBytes": 0,
+                "spilledRecords": 0,
+                "peakTrackedMemBytes": 221384
+              },
+              {
+                "$project": {
+                  "_id": true,
+                  "median_price": {
+                    "$arrayElemAt": [
+                      {
+                        "$sortArray": {
+                          "input": "$prices",
+                          "sortBy": 1
+                        }
+                      },
+                      {
+                        "$floor": [
+                          {
+                            "$divide": [
+                              {
+                                "$subtract": [
+                                  "$n",
+                                  {
+                                    "$const": 1
+                                  }
+                                ]
+                              },
+                              {
+                                "$const": 2
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "nReturned": 1,
+                "executionTimeMillisEstimate": 0
+              }
+            ]
+          },
+          "nReturned": 1,
+          "executionTimeMillisEstimate": 2
+        },
+        {
+          "$unwind": {
+            "path": "$towns"
+          },
+          "nReturned": 26,
+          "executionTimeMillisEstimate": 2
+        },
+        {
+          "$set": {
+            "island_row": {
+              "$arrayElemAt": [
+                {
+                  "$filter": {
+                    "input": "$island",
+                    "as": "i",
+                    "cond": {
+                      "$eq": [
+                        "$$i._id",
+                        "$towns._id.flat_type"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "$const": 0
+                }
+              ]
+            }
+          },
+          "nReturned": 26,
+          "executionTimeMillisEstimate": 2
+        },
+        {
+          "$project": {
+            "flat_type": "$towns._id.flat_type",
+            "town": "$towns._id.town",
+            "n": "$towns.n",
+            "median_price": "$towns.median_price",
+            "avg_psm": "$towns.avg_psm",
+            "island_median": "$island_row.median_price",
+            "beats_island": {
+              "$gt": [
+                "$towns.median_price",
+                "$island_row.median_price"
+              ]
+            },
+            "_id": false
+          },
+          "nReturned": 26,
+          "executionTimeMillisEstimate": 2
+        },
+        {
+          "$sort": {
+            "sortKey": {
+              "flat_type": 1,
+              "median_price": -1
+            },
+            "outputSortKeyMetadata": true
+          },
+          "totalDataSizeSortedBytesEstimate": 31870,
+          "usedDisk": false,
+          "spills": 0,
+          "spilledBytes": 0,
+          "spilledRecords": 0,
+          "spilledDataStorageSize": 0,
+          "nReturned": 26,
+          "executionTimeMillisEstimate": 2,
+          "peakTrackedMemBytes": 31870
+        },
+        {
+          "$_internalSetWindowFields": {
+            "partitionBy": "$flat_type",
+            "sortBy": {
+              "median_price": -1
+            },
+            "output": {
+              "rank": {
+                "$rank": {}
+              }
+            }
+          },
+          "nReturned": 26,
+          "executionTimeMillisEstimate": 2,
+          "maxFunctionMemoryUsageBytes": {
+            "rank": 496
+          },
+          "usedDisk": false,
+          "spills": 0,
+          "spilledDataStorageSize": 0,
+          "spilledBytes": 0,
+          "spilledRecords": 0,
+          "peakTrackedMemBytes": 2804
+        },
+        {
+          "$sort": {
+            "sortKey": {
+              "flat_type": 1,
+              "rank": 1,
+              "town": 1
+            }
+          },
+          "totalDataSizeSortedBytesEstimate": 31604,
+          "usedDisk": false,
+          "spills": 0,
+          "spilledBytes": 0,
+          "spilledRecords": 0,
+          "spilledDataStorageSize": 0,
+          "nReturned": 26,
+          "executionTimeMillisEstimate": 2,
+          "peakTrackedMemBytes": 31604
+        }
+      ],
+      "queryShapeHash": "D661513FCAB8A1B2CD3717EFDD7DA2DDDFF097461030FE97C8A6FAC743A05CC6",
+      "peakTrackedMemBytes": 2804,
+      "serverInfo": {
+        "host": "35fc6b4ee753",
+        "port": 27017,
+        "version": "8.3.11",
+        "gitVersion": "b8b83d6e6e1aed495578ad8c6f9234ad329c9955"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      },
+      "command": {
+        "aggregate": "resale_transactions",
+        "pipeline": [
+          {
+            "$match": {
+              "txn_month": {
+                "$gte": "2019-01-01 00:00:00",
+                "$lt": "2020-01-01 00:00:00"
+              },
+              "flat_type": "4 ROOM"
+            }
+          },
+          {
+            "$facet": {
+              "towns": [
+                {
+                  "$group": {
+                    "_id": {
+                      "flat_type": "$flat_type",
+                      "town": "$town"
+                    },
+                    "n": {
+                      "$sum": 1
+                    },
+                    "prices": {
+                      "$push": "$resale_price"
+                    },
+                    "sum_psm": {
+                      "$sum": {
+                        "$divide": [
+                          "$resale_price",
+                          "$floor_area_sqm"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "$project": {
+                    "n": 1,
+                    "median_price": {
+                      "$arrayElemAt": [
+                        {
+                          "$sortArray": {
+                            "input": "$prices",
+                            "sortBy": 1
+                          }
+                        },
+                        {
+                          "$floor": {
+                            "$divide": [
+                              {
+                                "$subtract": [
+                                  "$n",
+                                  1
+                                ]
+                              },
+                              2
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "avg_psm": {
+                      "$round": [
+                        {
+                          "$divide": [
+                            "$sum_psm",
+                            "$n"
+                          ]
+                        },
+                        2
+                      ]
+                    }
+                  }
+                }
+              ],
+              "island": [
+                {
+                  "$group": {
+                    "_id": "$flat_type",
+                    "n": {
+                      "$sum": 1
+                    },
+                    "prices": {
+                      "$push": "$resale_price"
+                    }
+                  }
+                },
+                {
+                  "$project": {
+                    "median_price": {
+                      "$arrayElemAt": [
+                        {
+                          "$sortArray": {
+                            "input": "$prices",
+                            "sortBy": 1
+                          }
+                        },
+                        {
+                          "$floor": {
+                            "$divide": [
+                              {
+                                "$subtract": [
+                                  "$n",
+                                  1
+                                ]
+                              },
+                              2
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "$unwind": "$towns"
+          },
+          {
+            "$set": {
+              "island_row": {
+                "$arrayElemAt": [
+                  {
+                    "$filter": {
+                      "input": "$island",
+                      "as": "i",
+                      "cond": {
+                        "$eq": [
+                          "$$i._id",
+                          "$towns._id.flat_type"
+                        ]
+                      }
+                    }
+                  },
+                  0
+                ]
+              }
+            }
+          },
+          {
+            "$project": {
+              "_id": 0,
+              "flat_type": "$towns._id.flat_type",
+              "town": "$towns._id.town",
+              "n": "$towns.n",
+              "median_price": "$towns.median_price",
+              "avg_psm": "$towns.avg_psm",
+              "island_median": "$island_row.median_price",
+              "beats_island": {
+                "$gt": [
+                  "$towns.median_price",
+                  "$island_row.median_price"
+                ]
+              }
+            }
+          },
+          {
+            "$setWindowFields": {
+              "partitionBy": "$flat_type",
+              "sortBy": {
+                "median_price": -1
+              },
+              "output": {
+                "rank": {
+                  "$rank": {}
+                }
+              }
+            }
+          },
+          {
+            "$sort": {
+              "flat_type": 1,
+              "rank": 1,
+              "town": 1
+            }
+          }
+        ],
+        "cursor": {},
+        "$db": "neighboar"
+      }
+    }
+  }
+]

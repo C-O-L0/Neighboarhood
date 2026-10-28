@@ -1,0 +1,172 @@
+[
+  {
+    "n": 1,
+    "call": {
+      "kind": "find",
+      "collection": "building_profiles",
+      "filter": {
+        "town.name": "MARINE PARADE"
+      },
+      "projection": {
+        "stats.by_flat_type": 1
+      }
+    },
+    "explain": {
+      "explainVersion": "1",
+      "queryPlanner": {
+        "namespace": "neighboar.building_profiles",
+        "parsedQuery": {
+          "town.name": {
+            "$eq": "MARINE PARADE"
+          }
+        },
+        "indexFilterSet": false,
+        "queryHash": "85EF7C7E",
+        "planCacheShapeHash": "85EF7C7E",
+        "planCacheKey": "D80366F5",
+        "optimizationTimeMillis": 0,
+        "maxIndexedOrSolutionsReached": false,
+        "maxIndexedAndSolutionsReached": false,
+        "maxScansToExplodeReached": false,
+        "prunedSimilarIndexes": false,
+        "winningPlan": {
+          "isCached": false,
+          "stage": "PROJECTION_DEFAULT",
+          "transformBy": {
+            "stats.by_flat_type": 1
+          },
+          "inputStage": {
+            "stage": "FETCH",
+            "nss": "neighboar.building_profiles",
+            "inputStage": {
+              "stage": "IXSCAN",
+              "nss": "neighboar.building_profiles",
+              "keyPattern": {
+                "town.name": 1
+              },
+              "indexName": "town_name",
+              "isMultiKey": false,
+              "multiKeyPaths": {
+                "town.name": []
+              },
+              "isUnique": false,
+              "isSparse": false,
+              "isPartial": false,
+              "indexVersion": 2,
+              "direction": "forward",
+              "indexBounds": {
+                "town.name": [
+                  "[\"MARINE PARADE\", \"MARINE PARADE\"]"
+                ]
+              }
+            }
+          }
+        },
+        "rejectedPlans": []
+      },
+      "executionStats": {
+        "executionSuccess": true,
+        "nReturned": 78,
+        "executionTimeMillis": 0,
+        "totalKeysExamined": 78,
+        "totalDocsExamined": 78,
+        "executionStages": {
+          "isCached": false,
+          "stage": "PROJECTION_DEFAULT",
+          "nReturned": 78,
+          "executionTimeMillisEstimate": 0,
+          "works": 79,
+          "advanced": 78,
+          "needTime": 0,
+          "needYield": 0,
+          "saveState": 0,
+          "restoreState": 0,
+          "isEOF": 1,
+          "transformBy": {
+            "stats.by_flat_type": 1
+          },
+          "inputStage": {
+            "stage": "FETCH",
+            "nReturned": 78,
+            "executionTimeMillisEstimate": 0,
+            "works": 79,
+            "advanced": 78,
+            "needTime": 0,
+            "needYield": 0,
+            "saveState": 0,
+            "restoreState": 0,
+            "isEOF": 1,
+            "nss": "neighboar.building_profiles",
+            "docsExamined": 78,
+            "alreadyHasObj": 0,
+            "inputStage": {
+              "stage": "IXSCAN",
+              "nReturned": 78,
+              "executionTimeMillisEstimate": 0,
+              "works": 79,
+              "advanced": 78,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "nss": "neighboar.building_profiles",
+              "keyPattern": {
+                "town.name": 1
+              },
+              "indexName": "town_name",
+              "isMultiKey": false,
+              "multiKeyPaths": {
+                "town.name": []
+              },
+              "isUnique": false,
+              "isSparse": false,
+              "isPartial": false,
+              "indexVersion": 2,
+              "direction": "forward",
+              "indexBounds": {
+                "town.name": [
+                  "[\"MARINE PARADE\", \"MARINE PARADE\"]"
+                ]
+              },
+              "keysExamined": 78,
+              "seeks": 1,
+              "dupsTested": 0,
+              "dupsDropped": 0,
+              "peakTrackedMemBytes": 0
+            }
+          }
+        }
+      },
+      "queryShapeHash": "4FDD90EBC1706CCC8DF0EE714179501A4E25EFDBFD86DDE952ABA5ACF554D79E",
+      "command": {
+        "find": "building_profiles",
+        "filter": {
+          "town.name": "MARINE PARADE"
+        },
+        "projection": {
+          "stats.by_flat_type": 1
+        },
+        "$db": "neighboar"
+      },
+      "serverInfo": {
+        "host": "35fc6b4ee753",
+        "port": 27017,
+        "version": "8.3.11",
+        "gitVersion": "b8b83d6e6e1aed495578ad8c6f9234ad329c9955"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      }
+    }
+  }
+]

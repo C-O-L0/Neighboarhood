@@ -1,0 +1,50 @@
+-- statement 1 (explained)
+WITH town_stats AS (
+    SELECT t.flat_type_id, b.town_id,
+           count(*)::int AS n,
+           percentile_disc(0.5) WITHIN GROUP (ORDER BY t.resale_price) AS median_price,
+           round(avg(t.resale_price / t.floor_area_sqm), 2) AS avg_psm
+    FROM resale_transaction t
+    JOIN building b ON b.building_id = t.building_id
+    WHERE t.txn_month >= make_date(%s::int, 1, 1) AND t.txn_month < make_date(%s::int + 1, 1, 1) AND t.flat_type_id = %s
+    GROUP BY t.flat_type_id, b.town_id
+),
+ranked AS (
+    SELECT s.flat_type_id, s.town_id, s.n, s.median_price, s.avg_psm,
+           RANK() OVER (PARTITION BY s.flat_type_id ORDER BY s.median_price DESC) AS rank,
+           (SELECT percentile_disc(0.5) WITHIN GROUP (ORDER BY i.resale_price)
+            FROM resale_transaction i
+            WHERE i.flat_type_id = s.flat_type_id
+              AND i.txn_month >= make_date(%s::int, 1, 1) AND i.txn_month < make_date(%s::int + 1, 1, 1)
+           ) AS island_median
+    FROM town_stats s
+)
+SELECT ft.name, r.rank, tw.name, r.n, r.median_price, r.avg_psm, r.island_median,
+       r.median_price > r.island_median
+FROM ranked r
+JOIN flat_type ft ON ft.flat_type_id = r.flat_type_id
+JOIN town tw ON tw.town_id = r.town_id
+ORDER BY ft.name COLLATE "C", r.rank, tw.name COLLATE "C"
+-- params: [2019, 2019, 4, 2019, 2019]
+Sort (actual time=13.518..13.525 rows=26.0 loops=1) buffers: shared hit=1738 read=0
+  -> Hash Join (actual time=3.035..13.506 rows=26.0 loops=1) buffers: shared hit=1738 read=0
+    -> Hash Join (actual time=3.022..13.481 rows=26.0 loops=1) buffers: shared hit=1737 read=0
+      -> WindowAgg (actual time=3.009..13.456 rows=26.0 loops=1) buffers: shared hit=1736 read=0
+        -> Sort (actual time=2.562..2.568 rows=26.0 loops=1) buffers: shared hit=202 read=0
+          -> Subquery Scan (actual time=2.045..2.555 rows=26.0 loops=1) buffers: shared hit=202 read=0
+            -> Aggregate (actual time=2.045..2.552 rows=26.0 loops=1) buffers: shared hit=202 read=0
+              -> Sort (actual time=2.017..2.077 rows=2306.0 loops=1) buffers: shared hit=202 read=0
+                -> Hash Join (actual time=1.456..1.819 rows=2306.0 loops=1) buffers: shared hit=202 read=0
+                  -> Bitmap Heap Scan on resale_transaction (actual time=0.032..0.156 rows=2306.0 loops=1) buffers: shared hit=59 read=0
+                    -> Bitmap Index Scan using resale_transaction_type_month_idx (actual time=0.026..0.026 rows=2306.0 loops=1) buffers: shared hit=6 read=0
+                  -> Hash (actual time=1.402..1.403 rows=13358.0 loops=1) buffers: shared hit=143 read=0
+                    -> Seq Scan on building (actual time=0.002..0.563 rows=13358.0 loops=1) buffers: shared hit=143 read=0
+        -> Aggregate (actual time=0.417..0.417 rows=1.0 loops=26) buffers: shared hit=1534 read=0
+          -> Bitmap Heap Scan on resale_transaction (actual time=0.021..0.121 rows=2306.0 loops=26) buffers: shared hit=1534 read=0
+            -> Bitmap Index Scan using resale_transaction_type_month_idx (actual time=0.018..0.018 rows=2306.0 loops=26) buffers: shared hit=156 read=0
+      -> Hash (actual time=0.004..0.004 rows=9.0 loops=1) buffers: shared hit=1 read=0
+        -> Seq Scan on flat_type (actual time=0.002..0.003 rows=9.0 loops=1) buffers: shared hit=1 read=0
+    -> Hash (actual time=0.01..0.01 rows=27.0 loops=1) buffers: shared hit=1 read=0
+      -> Seq Scan on town (actual time=0.005..0.006 rows=27.0 loops=1) buffers: shared hit=1 read=0
+Planning Time: 0.283 ms
+Execution Time: 13.579 ms

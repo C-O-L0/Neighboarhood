@@ -1,0 +1,476 @@
+[
+  {
+    "n": 1,
+    "call": {
+      "kind": "aggregate",
+      "collection": "building_profiles",
+      "pipeline": [
+        {
+          "$match": {
+            "town.name": "BISHAN",
+            "location": {
+              "$ne": null
+            }
+          }
+        },
+        {
+          "$lookup": {
+            "from": "hawker_centres",
+            "let": {
+              "loc": "$location"
+            },
+            "pipeline": [
+              {
+                "$geoNear": {
+                  "near": "$$loc",
+                  "distanceField": "d",
+                  "spherical": true,
+                  "key": "geometry",
+                  "query": {
+                    "properties.STATUS": {
+                      "$ne": "Under Construction"
+                    }
+                  }
+                }
+              },
+              {
+                "$sort": {
+                  "d": 1,
+                  "_id": 1
+                }
+              },
+              {
+                "$limit": 1
+              }
+            ],
+            "as": "nearest"
+          }
+        },
+        {
+          "$lookup": {
+            "from": "hawker_centres",
+            "let": {
+              "loc": "$location"
+            },
+            "pipeline": [
+              {
+                "$geoNear": {
+                  "near": "$$loc",
+                  "distanceField": "d",
+                  "spherical": true,
+                  "key": "geometry",
+                  "query": {
+                    "properties.STATUS": {
+                      "$ne": "Under Construction"
+                    }
+                  },
+                  "maxDistance": 1000
+                }
+              },
+              {
+                "$count": "n"
+              }
+            ],
+            "as": "c"
+          }
+        },
+        {
+          "$set": {
+            "dist": {
+              "$first": "$nearest.d"
+            },
+            "within_1km": {
+              "$ifNull": [
+                {
+                  "$first": "$c.n"
+                },
+                0
+              ]
+            }
+          }
+        },
+        {
+          "$sort": {
+            "dist": 1,
+            "_id": 1
+          }
+        }
+      ],
+      "options": {}
+    },
+    "explain": {
+      "explainVersion": "1",
+      "stages": [
+        {
+          "$cursor": {
+            "queryPlanner": {
+              "namespace": "neighboar.building_profiles",
+              "parsedQuery": {
+                "$and": [
+                  {
+                    "town.name": {
+                      "$eq": "BISHAN"
+                    }
+                  },
+                  {
+                    "location": {
+                      "$not": {
+                        "$eq": null
+                      }
+                    }
+                  }
+                ]
+              },
+              "indexFilterSet": false,
+              "queryHash": "635E16F7",
+              "planCacheShapeHash": "635E16F7",
+              "planCacheKey": "DA682D79",
+              "optimizationTimeMillis": 0,
+              "cursorType": "regular",
+              "maxIndexedOrSolutionsReached": false,
+              "maxIndexedAndSolutionsReached": false,
+              "maxScansToExplodeReached": false,
+              "prunedSimilarIndexes": false,
+              "winningPlan": {
+                "isCached": false,
+                "stage": "FETCH",
+                "filter": {
+                  "location": {
+                    "$not": {
+                      "$eq": null
+                    }
+                  }
+                },
+                "nss": "neighboar.building_profiles",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nss": "neighboar.building_profiles",
+                  "keyPattern": {
+                    "town.name": 1
+                  },
+                  "indexName": "town_name",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "town.name": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "town.name": [
+                      "[\"BISHAN\", \"BISHAN\"]"
+                    ]
+                  }
+                }
+              },
+              "rejectedPlans": []
+            },
+            "executionStats": {
+              "executionSuccess": true,
+              "nReturned": 238,
+              "executionTimeMillis": 298,
+              "totalKeysExamined": 291,
+              "totalDocsExamined": 291,
+              "executionStages": {
+                "isCached": false,
+                "stage": "FETCH",
+                "filter": {
+                  "location": {
+                    "$not": {
+                      "$eq": null
+                    }
+                  }
+                },
+                "nReturned": 238,
+                "executionTimeMillisEstimate": 0,
+                "works": 292,
+                "advanced": 238,
+                "needTime": 53,
+                "needYield": 0,
+                "saveState": 8,
+                "restoreState": 7,
+                "isEOF": 1,
+                "nss": "neighboar.building_profiles",
+                "docsExamined": 291,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 291,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 292,
+                  "advanced": 291,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 8,
+                  "restoreState": 7,
+                  "isEOF": 1,
+                  "nss": "neighboar.building_profiles",
+                  "keyPattern": {
+                    "town.name": 1
+                  },
+                  "indexName": "town_name",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "town.name": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "town.name": [
+                      "[\"BISHAN\", \"BISHAN\"]"
+                    ]
+                  },
+                  "keysExamined": 291,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0,
+                  "peakTrackedMemBytes": 0
+                }
+              }
+            }
+          },
+          "nReturned": 238,
+          "executionTimeMillisEstimate": 0
+        },
+        {
+          "$lookup": {
+            "from": "hawker_centres",
+            "as": "nearest",
+            "let": {
+              "loc": "$location"
+            },
+            "pipeline": [
+              {
+                "$geoNear": {
+                  "near": "$$loc",
+                  "distanceField": "d",
+                  "spherical": true,
+                  "key": "geometry",
+                  "query": {
+                    "properties.STATUS": {
+                      "$ne": "Under Construction"
+                    }
+                  }
+                }
+              },
+              {
+                "$sort": {
+                  "d": 1,
+                  "_id": 1
+                }
+              },
+              {
+                "$limit": 1
+              }
+            ]
+          },
+          "nReturned": 238,
+          "executionTimeMillisEstimate": 126,
+          "totalDocsExamined": 61404,
+          "totalKeysExamined": 40630,
+          "collectionScans": 0,
+          "indexesUsed": [
+            "geometry_2dsphere"
+          ]
+        },
+        {
+          "$lookup": {
+            "from": "hawker_centres",
+            "as": "c",
+            "let": {
+              "loc": "$location"
+            },
+            "pipeline": [
+              {
+                "$geoNear": {
+                  "near": "$$loc",
+                  "distanceField": "d",
+                  "spherical": true,
+                  "key": "geometry",
+                  "query": {
+                    "properties.STATUS": {
+                      "$ne": "Under Construction"
+                    }
+                  },
+                  "maxDistance": 1000
+                }
+              },
+              {
+                "$count": "n"
+              }
+            ]
+          },
+          "nReturned": 238,
+          "executionTimeMillisEstimate": 298,
+          "totalDocsExamined": 982,
+          "totalKeysExamined": 3324,
+          "collectionScans": 0,
+          "indexesUsed": [
+            "geometry_2dsphere"
+          ]
+        },
+        {
+          "$set": {
+            "dist": {
+              "$first": [
+                "$nearest.d"
+              ]
+            },
+            "within_1km": {
+              "$ifNull": [
+                {
+                  "$first": [
+                    "$c.n"
+                  ]
+                },
+                {
+                  "$const": 0
+                }
+              ]
+            }
+          },
+          "nReturned": 238,
+          "executionTimeMillisEstimate": 298
+        },
+        {
+          "$sort": {
+            "sortKey": {
+              "dist": 1,
+              "_id": 1
+            }
+          },
+          "totalDataSizeSortedBytesEstimate": 958843,
+          "usedDisk": false,
+          "spills": 0,
+          "spilledBytes": 0,
+          "spilledRecords": 0,
+          "spilledDataStorageSize": 0,
+          "nReturned": 238,
+          "executionTimeMillisEstimate": 298,
+          "peakTrackedMemBytes": 958843
+        }
+      ],
+      "queryShapeHash": "3A5F4AA4CCB447D0ACA4D9B0AA1E96F29B198E256859A5FE62396968ADB0337F",
+      "serverInfo": {
+        "host": "35fc6b4ee753",
+        "port": 27017,
+        "version": "8.3.11",
+        "gitVersion": "b8b83d6e6e1aed495578ad8c6f9234ad329c9955"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      },
+      "command": {
+        "aggregate": "building_profiles",
+        "pipeline": [
+          {
+            "$match": {
+              "town.name": "BISHAN",
+              "location": {
+                "$ne": null
+              }
+            }
+          },
+          {
+            "$lookup": {
+              "from": "hawker_centres",
+              "let": {
+                "loc": "$location"
+              },
+              "pipeline": [
+                {
+                  "$geoNear": {
+                    "near": "$$loc",
+                    "distanceField": "d",
+                    "spherical": true,
+                    "key": "geometry",
+                    "query": {
+                      "properties.STATUS": {
+                        "$ne": "Under Construction"
+                      }
+                    }
+                  }
+                },
+                {
+                  "$sort": {
+                    "d": 1,
+                    "_id": 1
+                  }
+                },
+                {
+                  "$limit": 1
+                }
+              ],
+              "as": "nearest"
+            }
+          },
+          {
+            "$lookup": {
+              "from": "hawker_centres",
+              "let": {
+                "loc": "$location"
+              },
+              "pipeline": [
+                {
+                  "$geoNear": {
+                    "near": "$$loc",
+                    "distanceField": "d",
+                    "spherical": true,
+                    "key": "geometry",
+                    "query": {
+                      "properties.STATUS": {
+                        "$ne": "Under Construction"
+                      }
+                    },
+                    "maxDistance": 1000
+                  }
+                },
+                {
+                  "$count": "n"
+                }
+              ],
+              "as": "c"
+            }
+          },
+          {
+            "$set": {
+              "dist": {
+                "$first": "$nearest.d"
+              },
+              "within_1km": {
+                "$ifNull": [
+                  {
+                    "$first": "$c.n"
+                  },
+                  0
+                ]
+              }
+            }
+          },
+          {
+            "$sort": {
+              "dist": 1,
+              "_id": 1
+            }
+          }
+        ],
+        "cursor": {},
+        "$db": "neighboar"
+      }
+    }
+  }
+]

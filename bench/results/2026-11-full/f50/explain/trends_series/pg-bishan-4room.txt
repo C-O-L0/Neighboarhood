@@ -1,0 +1,32 @@
+-- statement 1 (explained)
+SELECT m.month, m.n, m.median_price, m.avg_psm, p.median_price, r.n, r.median_price
+FROM mv_town_month_stats m
+LEFT JOIN mv_town_month_stats p
+       ON p.town_id = m.town_id AND p.flat_type_id = m.flat_type_id
+      AND p.month = (m.month - interval '12 months')::date
+CROSS JOIN LATERAL (
+    SELECT count(*)::int AS n, percentile_disc(0.5) WITHIN GROUP (ORDER BY t.resale_price) AS median_price
+    FROM resale_transaction t
+    JOIN building b USING (building_id)
+    WHERE b.town_id = m.town_id AND t.flat_type_id = m.flat_type_id
+      AND t.txn_month BETWEEN (m.month - interval '11 months')::date AND m.month
+) r
+WHERE m.town_id = %s AND m.flat_type_id = %s ORDER BY m.month
+-- params: [3, 4]
+Sort (actual time=60.127..60.133 rows=117.0 loops=1) buffers: shared hit=16446 read=0
+  -> Hash Join (actual time=0.132..60.105 rows=117.0 loops=1) buffers: shared hit=16446 read=0
+    -> Nested Loop (actual time=0.107..60.016 rows=117.0 loops=1) buffers: shared hit=16441 read=0
+      -> Index Scan using mv_town_month_stats_key on mv_town_month_stats (actual time=0.013..0.042 rows=117.0 loops=1) buffers: shared hit=6 read=0
+      -> Memoize (actual time=0.512..0.512 rows=1.0 loops=117) buffers: shared hit=16435 read=0
+        -> Aggregate (actual time=0.511..0.511 rows=1.0 loops=117) buffers: shared hit=16435 read=0
+          -> Hash Join (actual time=0.09..0.498 rows=98.07 loops=117) buffers: shared hit=16428 read=0
+            -> Bitmap Heap Scan on resale_transaction (actual time=0.048..0.269 rows=4997.0 loops=117) buffers: shared hit=15375 read=0
+              -> Bitmap Index Scan using resale_transaction_type_month_idx (actual time=0.041..0.041 rows=4997.0 loops=117) buffers: shared hit=1004 read=0
+            -> Hash (actual time=0.033..0.033 rows=291.0 loops=117) buffers: shared hit=1053 read=0
+              -> Bitmap Heap Scan on building (actual time=0.004..0.019 rows=291.0 loops=117) buffers: shared hit=1053 read=0
+                -> Bitmap Index Scan using building_town_idx (actual time=0.003..0.003 rows=291.0 loops=117) buffers: shared hit=234 read=0
+    -> Hash (actual time=0.024..0.024 rows=117.0 loops=1) buffers: shared hit=5 read=0
+      -> Bitmap Heap Scan on mv_town_month_stats (actual time=0.007..0.016 rows=117.0 loops=1) buffers: shared hit=5 read=0
+        -> Bitmap Index Scan using mv_town_month_stats_key (actual time=0.004..0.004 rows=117.0 loops=1) buffers: shared hit=2 read=0
+Planning Time: 0.295 ms
+Execution Time: 60.167 ms

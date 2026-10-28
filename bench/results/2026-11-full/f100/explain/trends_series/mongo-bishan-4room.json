@@ -1,0 +1,1004 @@
+[
+  {
+    "n": 1,
+    "call": {
+      "kind": "aggregate",
+      "collection": "resale_transactions",
+      "pipeline": [
+        {
+          "$match": {
+            "town": "BISHAN",
+            "flat_type": "4 ROOM"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$txn_month",
+            "n": {
+              "$sum": 1
+            },
+            "prices": {
+              "$push": "$resale_price"
+            },
+            "sum_psm": {
+              "$sum": {
+                "$divide": [
+                  "$resale_price",
+                  "$floor_area_sqm"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "$set": {
+            "txn_month": "$_id"
+          }
+        },
+        {
+          "$setWindowFields": {
+            "sortBy": {
+              "txn_month": 1
+            },
+            "output": {
+              "prev_n": {
+                "$sum": "$n",
+                "window": {
+                  "range": [
+                    -12,
+                    -12
+                  ],
+                  "unit": "month"
+                }
+              },
+              "prev_prices": {
+                "$push": "$prices",
+                "window": {
+                  "range": [
+                    -12,
+                    -12
+                  ],
+                  "unit": "month"
+                }
+              },
+              "roll_n": {
+                "$sum": "$n",
+                "window": {
+                  "range": [
+                    -11,
+                    0
+                  ],
+                  "unit": "month"
+                }
+              },
+              "roll_prices": {
+                "$push": "$prices",
+                "window": {
+                  "range": [
+                    -11,
+                    0
+                  ],
+                  "unit": "month"
+                }
+              }
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "month": "$txn_month",
+            "n": 1,
+            "median_price": {
+              "$arrayElemAt": [
+                {
+                  "$sortArray": {
+                    "input": "$prices",
+                    "sortBy": 1
+                  }
+                },
+                {
+                  "$floor": {
+                    "$divide": [
+                      {
+                        "$subtract": [
+                          "$n",
+                          1
+                        ]
+                      },
+                      2
+                    ]
+                  }
+                }
+              ]
+            },
+            "avg_psm": {
+              "$round": [
+                {
+                  "$divide": [
+                    "$sum_psm",
+                    "$n"
+                  ]
+                },
+                2
+              ]
+            },
+            "prev_year_median": {
+              "$cond": [
+                {
+                  "$gt": [
+                    "$prev_n",
+                    0
+                  ]
+                },
+                {
+                  "$arrayElemAt": [
+                    {
+                      "$sortArray": {
+                        "input": {
+                          "$reduce": {
+                            "input": "$prev_prices",
+                            "initialValue": [],
+                            "in": {
+                              "$concatArrays": [
+                                "$$value",
+                                "$$this"
+                              ]
+                            }
+                          }
+                        },
+                        "sortBy": 1
+                      }
+                    },
+                    {
+                      "$floor": {
+                        "$divide": [
+                          {
+                            "$subtract": [
+                              "$prev_n",
+                              1
+                            ]
+                          },
+                          2
+                        ]
+                      }
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "rolling_n": "$roll_n",
+            "rolling_median": {
+              "$arrayElemAt": [
+                {
+                  "$sortArray": {
+                    "input": {
+                      "$reduce": {
+                        "input": "$roll_prices",
+                        "initialValue": [],
+                        "in": {
+                          "$concatArrays": [
+                            "$$value",
+                            "$$this"
+                          ]
+                        }
+                      }
+                    },
+                    "sortBy": 1
+                  }
+                },
+                {
+                  "$floor": {
+                    "$divide": [
+                      {
+                        "$subtract": [
+                          "$roll_n",
+                          1
+                        ]
+                      },
+                      2
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$sort": {
+            "month": 1
+          }
+        }
+      ],
+      "options": {}
+    },
+    "explain": {
+      "explainVersion": "2",
+      "stages": [
+        {
+          "$cursor": {
+            "queryPlanner": {
+              "namespace": "neighboar.resale_transactions",
+              "parsedQuery": {
+                "$and": [
+                  {
+                    "flat_type": {
+                      "$eq": "4 ROOM"
+                    }
+                  },
+                  {
+                    "town": {
+                      "$eq": "BISHAN"
+                    }
+                  }
+                ]
+              },
+              "indexFilterSet": false,
+              "queryHash": "C5AD5AA9",
+              "planCacheShapeHash": "C5AD5AA9",
+              "planCacheKey": "C118AC78",
+              "optimizationTimeMillis": 0,
+              "cursorType": "regular",
+              "maxIndexedOrSolutionsReached": false,
+              "maxIndexedAndSolutionsReached": false,
+              "maxScansToExplodeReached": false,
+              "prunedSimilarIndexes": false,
+              "winningPlan": {
+                "isCached": false,
+                "queryPlan": {
+                  "stage": "GROUP",
+                  "planNodeId": 4,
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "planNodeId": 2,
+                    "nss": "neighboar.resale_transactions",
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "planNodeId": 1,
+                      "nss": "neighboar.resale_transactions",
+                      "keyPattern": {
+                        "town": 1,
+                        "flat_type": 1,
+                        "txn_month": 1
+                      },
+                      "indexName": "town_type_month",
+                      "isMultiKey": false,
+                      "multiKeyPaths": {
+                        "town": [],
+                        "flat_type": [],
+                        "txn_month": []
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "town": [
+                          "[\"BISHAN\", \"BISHAN\"]"
+                        ],
+                        "flat_type": [
+                          "[\"4 ROOM\", \"4 ROOM\"]"
+                        ],
+                        "txn_month": [
+                          "[MinKey, MaxKey]"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "slotBasedPlan": {
+                  "slots": "$$RESULT=s19 env: { s5 = {\"town\" : 1, \"flat_type\" : 1, \"txn_month\" : 1} }",
+                  "stages": "[4] project [s19 = newObj(\"_id\", s17, \"n\", s11, \"prices\", s13, \"sum_psm\", s18)] \n[4] project [s18 = doubleDoubleSumFinalize(s16)] \n[4] group [s17] [s11 = _internalCount::accumulate(s11, 1), s13 = _internalPush::accumulate(s13, s9), s16 = aggDoubleDoubleSum(\n    if ((typeMatch(s9, 1088) ?: true) || (typeMatch(s8, 1088) ?: true)) \n    then null \n    elif (isNumber(s9) && isNumber(s8)) \n    then (s9 / s8) \n    else fail(7157719, \"$divide only supports numeric types\") \n)] spillSlots[s12, s14, s15] mergingExprs[_internalCount::merge(s12), _internalPush::merge(s14), aggMergeDoubleDoubleSums(s15)] \n[4] project [s17 = (s10 ?: null)] \n[2] fetch s1 = seek, s6 = result, s7 = recordId, s4 = inSnapshotId, s2 = inIndexIdent, s3 = inIndexKey, s5 = inIndexKeyPattern [s8 = floor_area_sqm, s9 = resale_price, s10 = txn_month] @\"ae3e7302-8a44-4cbb-bf4d-097af1f9b450\" \n[1] ixseek seekKeyLow = KS(3C42495348414E003C3420524F4F4D000A01) seekKeyHigh = KS(3C42495348414E003C3420524F4F4D00F0FE) [s3 = indexKey, s1 = recordId, s4 = snapshotId, s2 = indexIdent] [] @\"ae3e7302-8a44-4cbb-bf4d-097af1f9b450\" @\"town_type_month\" forward "
+                }
+              },
+              "rejectedPlans": [
+                {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "transformBy": {
+                    "floor_area_sqm": 1,
+                    "resale_price": 1,
+                    "txn_month": 1,
+                    "_id": 0
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "filter": {
+                      "town": {
+                        "$eq": "BISHAN"
+                      }
+                    },
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "keyPattern": {
+                        "flat_type": 1,
+                        "txn_month": 1
+                      },
+                      "indexName": "type_month",
+                      "isMultiKey": false,
+                      "multiKeyPaths": {
+                        "flat_type": [],
+                        "txn_month": []
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "flat_type": [
+                          "[\"4 ROOM\", \"4 ROOM\"]"
+                        ],
+                        "txn_month": [
+                          "[MinKey, MaxKey]"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "transformBy": {
+                    "floor_area_sqm": 1,
+                    "resale_price": 1,
+                    "txn_month": 1,
+                    "_id": 0
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "filter": {
+                      "town": {
+                        "$eq": "BISHAN"
+                      }
+                    },
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "keyPattern": {
+                        "flat_type": 1,
+                        "resale_price": 1,
+                        "_id": 1
+                      },
+                      "indexName": "type_price",
+                      "isMultiKey": false,
+                      "multiKeyPaths": {
+                        "flat_type": [],
+                        "resale_price": [],
+                        "_id": []
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "flat_type": [
+                          "[\"4 ROOM\", \"4 ROOM\"]"
+                        ],
+                        "resale_price": [
+                          "[MinKey, MaxKey]"
+                        ],
+                        "_id": [
+                          "[MinKey, MaxKey]"
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "executionStats": {
+              "executionSuccess": true,
+              "nReturned": 117,
+              "executionTimeMillis": 9,
+              "totalKeysExamined": 2024,
+              "totalDocsExamined": 2024,
+              "executionStages": {
+                "stage": "project",
+                "planNodeId": 4,
+                "nReturned": 117,
+                "executionTimeMillisEstimate": 0,
+                "opens": 1,
+                "closes": 1,
+                "saveState": 4,
+                "restoreState": 3,
+                "isEOF": 1,
+                "projections": {
+                  "19": "newObj(\"_id\", s17, \"n\", s11, \"prices\", s13, \"sum_psm\", s18) "
+                },
+                "inputStage": {
+                  "stage": "project",
+                  "planNodeId": 4,
+                  "nReturned": 117,
+                  "executionTimeMillisEstimate": 0,
+                  "opens": 1,
+                  "closes": 1,
+                  "saveState": 4,
+                  "restoreState": 3,
+                  "isEOF": 1,
+                  "projections": {
+                    "18": "doubleDoubleSumFinalize(s16) "
+                  },
+                  "inputStage": {
+                    "stage": "group",
+                    "planNodeId": 4,
+                    "nReturned": 117,
+                    "executionTimeMillisEstimate": 0,
+                    "opens": 1,
+                    "closes": 1,
+                    "saveState": 4,
+                    "restoreState": 3,
+                    "isEOF": 1,
+                    "groupBySlots": [
+                      17
+                    ],
+                    "expressions": {
+                      "11": "_internalCount::accumulate(s11, 1) ",
+                      "13": "_internalPush::accumulate(s13, s9) ",
+                      "16": "aggDoubleDoubleSum(\n    if ((typeMatch(s9, 1088) ?: true) || (typeMatch(s8, 1088) ?: true)) \n    then null \n    elif (isNumber(s9) && isNumber(s8)) \n    then (s9 / s8) \n    else fail(7157719, \"$divide only supports numeric types\") \n) ",
+                      "initExprs": {
+                        "11": null,
+                        "13": null,
+                        "16": null,
+                        "mergingExprs": {
+                          "12": "_internalCount::merge(s12) ",
+                          "14": "_internalPush::merge(s14) ",
+                          "15": "aggMergeDoubleDoubleSums(s15) "
+                        }
+                      }
+                    },
+                    "usedDisk": false,
+                    "spills": 0,
+                    "spilledBytes": 0,
+                    "spilledRecords": 0,
+                    "spilledDataStorageSize": 0,
+                    "peakTrackedMemBytes": 26220,
+                    "inputStage": {
+                      "stage": "project",
+                      "planNodeId": 4,
+                      "nReturned": 2024,
+                      "executionTimeMillisEstimate": 0,
+                      "opens": 1,
+                      "closes": 1,
+                      "saveState": 4,
+                      "restoreState": 3,
+                      "isEOF": 1,
+                      "projections": {
+                        "17": "(s10 ?: null) "
+                      },
+                      "inputStage": {
+                        "stage": "fetch",
+                        "planNodeId": 2,
+                        "nReturned": 2024,
+                        "executionTimeMillisEstimate": 0,
+                        "opens": 1,
+                        "closes": 1,
+                        "saveState": 4,
+                        "restoreState": 3,
+                        "isEOF": 1,
+                        "numReads": 2024,
+                        "inputStage": {
+                          "stage": "ixseek",
+                          "planNodeId": 1,
+                          "nReturned": 2024,
+                          "executionTimeMillisEstimate": 0,
+                          "opens": 1,
+                          "closes": 1,
+                          "saveState": 4,
+                          "restoreState": 3,
+                          "isEOF": 1,
+                          "indexName": "town_type_month",
+                          "keysExamined": 2024,
+                          "seeks": 1,
+                          "numReads": 2025,
+                          "indexKeySlot": 3,
+                          "recordIdSlot": 1,
+                          "snapshotIdSlot": 4,
+                          "indexIdentSlot": 2,
+                          "outputSlots": [],
+                          "indexKeysToInclude": "00000000000000000000000000000000",
+                          "seekKeyLow": "KS(3C42495348414E003C3420524F4F4D000A01) ",
+                          "seekKeyHigh": "KS(3C42495348414E003C3420524F4F4D00F0FE) "
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "nReturned": 117,
+          "executionTimeMillisEstimate": 3
+        },
+        {
+          "$set": {
+            "txn_month": "$_id"
+          },
+          "nReturned": 117,
+          "executionTimeMillisEstimate": 3
+        },
+        {
+          "$sort": {
+            "sortKey": {
+              "txn_month": 1
+            },
+            "outputSortKeyMetadata": true
+          },
+          "totalDataSizeSortedBytesEstimate": 182796,
+          "usedDisk": false,
+          "spills": 0,
+          "spilledBytes": 0,
+          "spilledRecords": 0,
+          "spilledDataStorageSize": 0,
+          "nReturned": 117,
+          "executionTimeMillisEstimate": 3,
+          "peakTrackedMemBytes": 182796
+        },
+        {
+          "$_internalSetWindowFields": {
+            "sortBy": {
+              "txn_month": 1
+            },
+            "output": {
+              "prev_n": {
+                "$sum": "$n",
+                "window": {
+                  "range": [
+                    -12,
+                    -12
+                  ],
+                  "unit": "month"
+                }
+              },
+              "prev_prices": {
+                "$push": "$prices",
+                "window": {
+                  "range": [
+                    -12,
+                    -12
+                  ],
+                  "unit": "month"
+                }
+              },
+              "roll_n": {
+                "$sum": "$n",
+                "window": {
+                  "range": [
+                    -11,
+                    0
+                  ],
+                  "unit": "month"
+                }
+              },
+              "roll_prices": {
+                "$push": "$prices",
+                "window": {
+                  "range": [
+                    -11,
+                    0
+                  ],
+                  "unit": "month"
+                }
+              }
+            }
+          },
+          "nReturned": 117,
+          "executionTimeMillisEstimate": 3,
+          "maxFunctionMemoryUsageBytes": {
+            "prev_n": 360,
+            "prev_prices": 5968,
+            "roll_n": 536,
+            "roll_prices": 32736
+          },
+          "usedDisk": false,
+          "spills": 0,
+          "spilledDataStorageSize": 0,
+          "spilledBytes": 0,
+          "spilledRecords": 0,
+          "peakTrackedMemBytes": 64908
+        },
+        {
+          "$project": {
+            "n": true,
+            "month": "$txn_month",
+            "median_price": {
+              "$arrayElemAt": [
+                {
+                  "$sortArray": {
+                    "input": "$prices",
+                    "sortBy": 1
+                  }
+                },
+                {
+                  "$floor": [
+                    {
+                      "$divide": [
+                        {
+                          "$subtract": [
+                            "$n",
+                            {
+                              "$const": 1
+                            }
+                          ]
+                        },
+                        {
+                          "$const": 2
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "avg_psm": {
+              "$round": [
+                {
+                  "$divide": [
+                    "$sum_psm",
+                    "$n"
+                  ]
+                },
+                {
+                  "$const": 2
+                }
+              ]
+            },
+            "prev_year_median": {
+              "$cond": [
+                {
+                  "$gt": [
+                    "$prev_n",
+                    {
+                      "$const": 0
+                    }
+                  ]
+                },
+                {
+                  "$arrayElemAt": [
+                    {
+                      "$sortArray": {
+                        "input": {
+                          "$reduce": {
+                            "input": "$prev_prices",
+                            "initialValue": {
+                              "$const": []
+                            },
+                            "in": {
+                              "$concatArrays": [
+                                "$$value",
+                                "$$this"
+                              ]
+                            }
+                          }
+                        },
+                        "sortBy": 1
+                      }
+                    },
+                    {
+                      "$floor": [
+                        {
+                          "$divide": [
+                            {
+                              "$subtract": [
+                                "$prev_n",
+                                {
+                                  "$const": 1
+                                }
+                              ]
+                            },
+                            {
+                              "$const": 2
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$const": null
+                }
+              ]
+            },
+            "rolling_n": "$roll_n",
+            "rolling_median": {
+              "$arrayElemAt": [
+                {
+                  "$sortArray": {
+                    "input": {
+                      "$reduce": {
+                        "input": "$roll_prices",
+                        "initialValue": {
+                          "$const": []
+                        },
+                        "in": {
+                          "$concatArrays": [
+                            "$$value",
+                            "$$this"
+                          ]
+                        }
+                      }
+                    },
+                    "sortBy": 1
+                  }
+                },
+                {
+                  "$floor": [
+                    {
+                      "$divide": [
+                        {
+                          "$subtract": [
+                            "$roll_n",
+                            {
+                              "$const": 1
+                            }
+                          ]
+                        },
+                        {
+                          "$const": 2
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "_id": false
+          },
+          "nReturned": 117,
+          "executionTimeMillisEstimate": 6
+        },
+        {
+          "$sort": {
+            "sortKey": {
+              "month": 1
+            }
+          },
+          "totalDataSizeSortedBytesEstimate": 121764,
+          "usedDisk": false,
+          "spills": 0,
+          "spilledBytes": 0,
+          "spilledRecords": 0,
+          "spilledDataStorageSize": 0,
+          "nReturned": 117,
+          "executionTimeMillisEstimate": 6,
+          "peakTrackedMemBytes": 121764
+        }
+      ],
+      "queryShapeHash": "4A72E35EAD9ECCED1011759A0A94DC7C4E96D08867A1BEE0A733BD122A0CBC9C",
+      "peakTrackedMemBytes": 64908,
+      "serverInfo": {
+        "host": "35fc6b4ee753",
+        "port": 27017,
+        "version": "8.3.11",
+        "gitVersion": "b8b83d6e6e1aed495578ad8c6f9234ad329c9955"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      },
+      "command": {
+        "aggregate": "resale_transactions",
+        "pipeline": [
+          {
+            "$match": {
+              "town": "BISHAN",
+              "flat_type": "4 ROOM"
+            }
+          },
+          {
+            "$group": {
+              "_id": "$txn_month",
+              "n": {
+                "$sum": 1
+              },
+              "prices": {
+                "$push": "$resale_price"
+              },
+              "sum_psm": {
+                "$sum": {
+                  "$divide": [
+                    "$resale_price",
+                    "$floor_area_sqm"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "$set": {
+              "txn_month": "$_id"
+            }
+          },
+          {
+            "$setWindowFields": {
+              "sortBy": {
+                "txn_month": 1
+              },
+              "output": {
+                "prev_n": {
+                  "$sum": "$n",
+                  "window": {
+                    "range": [
+                      -12,
+                      -12
+                    ],
+                    "unit": "month"
+                  }
+                },
+                "prev_prices": {
+                  "$push": "$prices",
+                  "window": {
+                    "range": [
+                      -12,
+                      -12
+                    ],
+                    "unit": "month"
+                  }
+                },
+                "roll_n": {
+                  "$sum": "$n",
+                  "window": {
+                    "range": [
+                      -11,
+                      0
+                    ],
+                    "unit": "month"
+                  }
+                },
+                "roll_prices": {
+                  "$push": "$prices",
+                  "window": {
+                    "range": [
+                      -11,
+                      0
+                    ],
+                    "unit": "month"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "$project": {
+              "_id": 0,
+              "month": "$txn_month",
+              "n": 1,
+              "median_price": {
+                "$arrayElemAt": [
+                  {
+                    "$sortArray": {
+                      "input": "$prices",
+                      "sortBy": 1
+                    }
+                  },
+                  {
+                    "$floor": {
+                      "$divide": [
+                        {
+                          "$subtract": [
+                            "$n",
+                            1
+                          ]
+                        },
+                        2
+                      ]
+                    }
+                  }
+                ]
+              },
+              "avg_psm": {
+                "$round": [
+                  {
+                    "$divide": [
+                      "$sum_psm",
+                      "$n"
+                    ]
+                  },
+                  2
+                ]
+              },
+              "prev_year_median": {
+                "$cond": [
+                  {
+                    "$gt": [
+                      "$prev_n",
+                      0
+                    ]
+                  },
+                  {
+                    "$arrayElemAt": [
+                      {
+                        "$sortArray": {
+                          "input": {
+                            "$reduce": {
+                              "input": "$prev_prices",
+                              "initialValue": [],
+                              "in": {
+                                "$concatArrays": [
+                                  "$$value",
+                                  "$$this"
+                                ]
+                              }
+                            }
+                          },
+                          "sortBy": 1
+                        }
+                      },
+                      {
+                        "$floor": {
+                          "$divide": [
+                            {
+                              "$subtract": [
+                                "$prev_n",
+                                1
+                              ]
+                            },
+                            2
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  null
+                ]
+              },
+              "rolling_n": "$roll_n",
+              "rolling_median": {
+                "$arrayElemAt": [
+                  {
+                    "$sortArray": {
+                      "input": {
+                        "$reduce": {
+                          "input": "$roll_prices",
+                          "initialValue": [],
+                          "in": {
+                            "$concatArrays": [
+                              "$$value",
+                              "$$this"
+                            ]
+                          }
+                        }
+                      },
+                      "sortBy": 1
+                    }
+                  },
+                  {
+                    "$floor": {
+                      "$divide": [
+                        {
+                          "$subtract": [
+                            "$roll_n",
+                            1
+                          ]
+                        },
+                        2
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "$sort": {
+              "month": 1
+            }
+          }
+        ],
+        "cursor": {},
+        "$db": "neighboar"
+      }
+    }
+  }
+]

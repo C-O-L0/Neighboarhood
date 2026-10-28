@@ -1,0 +1,535 @@
+[
+  {
+    "n": 1,
+    "call": {
+      "kind": "count_documents",
+      "collection": "resale_transactions",
+      "filter": {
+        "flat_type": "3 ROOM",
+        "txn_month": {
+          "$gte": "2017-01-01 00:00:00+00:00",
+          "$lte": "2017-06-01 00:00:00+00:00"
+        }
+      }
+    },
+    "explain": {
+      "explainVersion": "2",
+      "queryPlanner": {
+        "namespace": "neighboar.resale_transactions",
+        "parsedQuery": {
+          "$and": [
+            {
+              "flat_type": {
+                "$eq": "3 ROOM"
+              }
+            },
+            {
+              "txn_month": {
+                "$lte": "2017-06-01 00:00:00"
+              }
+            },
+            {
+              "txn_month": {
+                "$gte": "2017-01-01 00:00:00"
+              }
+            }
+          ]
+        },
+        "indexFilterSet": false,
+        "queryHash": "E9B62572",
+        "planCacheShapeHash": "E9B62572",
+        "planCacheKey": "63A981EA",
+        "optimizationTimeMillis": 0,
+        "optimizedPipeline": true,
+        "maxIndexedOrSolutionsReached": false,
+        "maxIndexedAndSolutionsReached": false,
+        "maxScansToExplodeReached": false,
+        "prunedSimilarIndexes": false,
+        "winningPlan": {
+          "isCached": false,
+          "queryPlan": {
+            "stage": "GROUP",
+            "planNodeId": 3,
+            "inputStage": {
+              "stage": "FETCH",
+              "planNodeId": 2,
+              "filter": {
+                "$and": [
+                  {
+                    "txn_month": {
+                      "$lte": "2017-06-01 00:00:00"
+                    }
+                  },
+                  {
+                    "txn_month": {
+                      "$gte": "2017-01-01 00:00:00"
+                    }
+                  }
+                ]
+              },
+              "nss": "neighboar.resale_transactions",
+              "inputStage": {
+                "stage": "IXSCAN",
+                "planNodeId": 1,
+                "nss": "neighboar.resale_transactions",
+                "keyPattern": {
+                  "flat_type": 1,
+                  "resale_price": 1,
+                  "_id": 1
+                },
+                "indexName": "type_price",
+                "isMultiKey": false,
+                "multiKeyPaths": {
+                  "flat_type": [],
+                  "resale_price": [],
+                  "_id": []
+                },
+                "isUnique": false,
+                "isSparse": false,
+                "isPartial": false,
+                "indexVersion": 2,
+                "direction": "forward",
+                "indexBounds": {
+                  "flat_type": [
+                    "[\"3 ROOM\", \"3 ROOM\"]"
+                  ],
+                  "resale_price": [
+                    "[MinKey, MaxKey]"
+                  ],
+                  "_id": [
+                    "[MinKey, MaxKey]"
+                  ]
+                }
+              }
+            }
+          },
+          "slotBasedPlan": {
+            "slots": "$$RESULT=s12 env: { s5 = {\"flat_type\" : 1, \"resale_price\" : 1, \"_id\" : 1} }",
+            "stages": "[3] project [s12 = newBsonObj(\"_id\", s11, \"n\", s9)] \n[3] project [s11 = 1] \n[3] group [] [s9 = _internalCount::accumulate(s9, 1)] spillSlots[s10] mergingExprs[_internalCount::merge(s10)] \n[2] filter {(traverseF(s8, lambda(l3.0) { ((move(l3.0) <= Date(1496275200000)) ?: false) }, false) && traverseF(s8, lambda(l4.0) { ((move(l4.0) >= Date(1483228800000)) ?: false) }, false))} \n[2] fetch s1 = seek, s6 = result, s7 = recordId, s4 = inSnapshotId, s2 = inIndexIdent, s3 = inIndexKey, s5 = inIndexKeyPattern [s8 = txn_month] @\"ae3e7302-8a44-4cbb-bf4d-097af1f9b450\" \n[1] ixseek seekKeyLow = KS(3C3320524F4F4D000A0A01) seekKeyHigh = KS(3C3320524F4F4D00F0F0FE) [s3 = indexKey, s1 = recordId, s4 = snapshotId, s2 = indexIdent] [] @\"ae3e7302-8a44-4cbb-bf4d-097af1f9b450\" @\"type_price\" forward "
+          }
+        },
+        "rejectedPlans": []
+      },
+      "executionStats": {
+        "executionSuccess": true,
+        "nReturned": 1,
+        "executionTimeMillis": 35,
+        "totalKeysExamined": 57319,
+        "totalDocsExamined": 57319,
+        "executionStages": {
+          "stage": "project",
+          "planNodeId": 3,
+          "nReturned": 1,
+          "executionTimeMillisEstimate": 33,
+          "opens": 1,
+          "closes": 1,
+          "saveState": 2,
+          "restoreState": 2,
+          "isEOF": 1,
+          "projections": {
+            "12": "newBsonObj(\"_id\", s11, \"n\", s9) "
+          },
+          "inputStage": {
+            "stage": "project",
+            "planNodeId": 3,
+            "nReturned": 1,
+            "executionTimeMillisEstimate": 33,
+            "opens": 1,
+            "closes": 1,
+            "saveState": 2,
+            "restoreState": 2,
+            "isEOF": 1,
+            "projections": {
+              "11": "1 "
+            },
+            "inputStage": {
+              "stage": "group",
+              "planNodeId": 3,
+              "nReturned": 1,
+              "executionTimeMillisEstimate": 33,
+              "opens": 1,
+              "closes": 1,
+              "saveState": 2,
+              "restoreState": 2,
+              "isEOF": 1,
+              "groupBySlots": [],
+              "expressions": {
+                "9": "_internalCount::accumulate(s9, 1) ",
+                "initExprs": {
+                  "9": null,
+                  "mergingExprs": {
+                    "10": "_internalCount::merge(s10) "
+                  }
+                }
+              },
+              "usedDisk": false,
+              "spills": 0,
+              "spilledBytes": 0,
+              "spilledRecords": 0,
+              "spilledDataStorageSize": 0,
+              "peakTrackedMemBytes": 0,
+              "inputStage": {
+                "stage": "filter",
+                "planNodeId": 2,
+                "nReturned": 2471,
+                "executionTimeMillisEstimate": 33,
+                "opens": 1,
+                "closes": 1,
+                "saveState": 2,
+                "restoreState": 2,
+                "isEOF": 1,
+                "numTested": 57319,
+                "filter": "(traverseF(s8, lambda(l3.0) { ((move(l3.0) <= Date(1496275200000)) ?: false) }, false) && traverseF(s8, lambda(l4.0) { ((move(l4.0) >= Date(1483228800000)) ?: false) }, false)) ",
+                "inputStage": {
+                  "stage": "fetch",
+                  "planNodeId": 2,
+                  "nReturned": 57319,
+                  "executionTimeMillisEstimate": 33,
+                  "opens": 1,
+                  "closes": 1,
+                  "saveState": 2,
+                  "restoreState": 2,
+                  "isEOF": 1,
+                  "numReads": 57319,
+                  "inputStage": {
+                    "stage": "ixseek",
+                    "planNodeId": 1,
+                    "nReturned": 57319,
+                    "executionTimeMillisEstimate": 20,
+                    "opens": 1,
+                    "closes": 1,
+                    "saveState": 2,
+                    "restoreState": 2,
+                    "isEOF": 1,
+                    "indexName": "type_price",
+                    "keysExamined": 57319,
+                    "seeks": 1,
+                    "numReads": 57320,
+                    "indexKeySlot": 3,
+                    "recordIdSlot": 1,
+                    "snapshotIdSlot": 4,
+                    "indexIdentSlot": 2,
+                    "outputSlots": [],
+                    "indexKeysToInclude": "00000000000000000000000000000000",
+                    "seekKeyLow": "KS(3C3320524F4F4D000A0A01) ",
+                    "seekKeyHigh": "KS(3C3320524F4F4D00F0F0FE) "
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "queryShapeHash": "D61BEC3B9573BF972376A88B6EEA15F19C3CEED53EE89668933D3DBE1D1737A9",
+      "command": {
+        "aggregate": "resale_transactions",
+        "pipeline": [
+          {
+            "$match": {
+              "flat_type": "3 ROOM",
+              "txn_month": {
+                "$gte": "2017-01-01 00:00:00",
+                "$lte": "2017-06-01 00:00:00"
+              }
+            }
+          },
+          {
+            "$group": {
+              "_id": 1,
+              "n": {
+                "$sum": 1
+              }
+            }
+          }
+        ],
+        "cursor": {},
+        "$db": "neighboar"
+      },
+      "serverInfo": {
+        "host": "35fc6b4ee753",
+        "port": 27017,
+        "version": "8.3.11",
+        "gitVersion": "b8b83d6e6e1aed495578ad8c6f9234ad329c9955"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      }
+    }
+  },
+  {
+    "n": 2,
+    "call": {
+      "kind": "find",
+      "collection": "resale_transactions",
+      "filter": {
+        "flat_type": "3 ROOM",
+        "txn_month": {
+          "$gte": "2017-01-01 00:00:00+00:00",
+          "$lte": "2017-06-01 00:00:00+00:00"
+        }
+      },
+      "projection": null,
+      "sort": [
+        [
+          "txn_month",
+          -1
+        ],
+        [
+          "_id",
+          -1
+        ]
+      ],
+      "skip": 0,
+      "limit": 50
+    },
+    "explain": {
+      "explainVersion": "1",
+      "queryPlanner": {
+        "namespace": "neighboar.resale_transactions",
+        "parsedQuery": {
+          "$and": [
+            {
+              "flat_type": {
+                "$eq": "3 ROOM"
+              }
+            },
+            {
+              "txn_month": {
+                "$lte": "2017-06-01 00:00:00"
+              }
+            },
+            {
+              "txn_month": {
+                "$gte": "2017-01-01 00:00:00"
+              }
+            }
+          ]
+        },
+        "indexFilterSet": false,
+        "queryHash": "41BBC428",
+        "planCacheShapeHash": "41BBC428",
+        "planCacheKey": "D20B1007",
+        "optimizationTimeMillis": 0,
+        "maxIndexedOrSolutionsReached": false,
+        "maxIndexedAndSolutionsReached": false,
+        "maxScansToExplodeReached": false,
+        "prunedSimilarIndexes": false,
+        "winningPlan": {
+          "isCached": false,
+          "stage": "SORT",
+          "sortPattern": {
+            "txn_month": -1,
+            "_id": -1
+          },
+          "memLimit": 104857600,
+          "limitAmount": 50,
+          "type": "simple",
+          "inputStage": {
+            "stage": "FETCH",
+            "filter": {
+              "$and": [
+                {
+                  "txn_month": {
+                    "$lte": "2017-06-01 00:00:00"
+                  }
+                },
+                {
+                  "txn_month": {
+                    "$gte": "2017-01-01 00:00:00"
+                  }
+                }
+              ]
+            },
+            "nss": "neighboar.resale_transactions",
+            "inputStage": {
+              "stage": "IXSCAN",
+              "nss": "neighboar.resale_transactions",
+              "keyPattern": {
+                "flat_type": 1,
+                "resale_price": 1,
+                "_id": 1
+              },
+              "indexName": "type_price",
+              "isMultiKey": false,
+              "multiKeyPaths": {
+                "flat_type": [],
+                "resale_price": [],
+                "_id": []
+              },
+              "isUnique": false,
+              "isSparse": false,
+              "isPartial": false,
+              "indexVersion": 2,
+              "direction": "forward",
+              "indexBounds": {
+                "flat_type": [
+                  "[\"3 ROOM\", \"3 ROOM\"]"
+                ],
+                "resale_price": [
+                  "[MinKey, MaxKey]"
+                ],
+                "_id": [
+                  "[MinKey, MaxKey]"
+                ]
+              }
+            }
+          }
+        },
+        "rejectedPlans": []
+      },
+      "executionStats": {
+        "executionSuccess": true,
+        "nReturned": 50,
+        "executionTimeMillis": 43,
+        "totalKeysExamined": 57319,
+        "totalDocsExamined": 57319,
+        "executionStages": {
+          "isCached": false,
+          "stage": "SORT",
+          "nReturned": 50,
+          "executionTimeMillisEstimate": 40,
+          "works": 57371,
+          "advanced": 50,
+          "needTime": 57320,
+          "needYield": 0,
+          "saveState": 2,
+          "restoreState": 2,
+          "isEOF": 1,
+          "sortPattern": {
+            "txn_month": -1,
+            "_id": -1
+          },
+          "memLimit": 104857600,
+          "limitAmount": 50,
+          "type": "simple",
+          "totalDataSizeSorted": 21474,
+          "usedDisk": false,
+          "spills": 0,
+          "spilledRecords": 0,
+          "spilledBytes": 0,
+          "spilledDataStorageSize": 0,
+          "peakTrackedMemBytes": 21578,
+          "inputStage": {
+            "stage": "FETCH",
+            "filter": {
+              "$and": [
+                {
+                  "txn_month": {
+                    "$lte": "2017-06-01 00:00:00"
+                  }
+                },
+                {
+                  "txn_month": {
+                    "$gte": "2017-01-01 00:00:00"
+                  }
+                }
+              ]
+            },
+            "nReturned": 2471,
+            "executionTimeMillisEstimate": 39,
+            "works": 57320,
+            "advanced": 2471,
+            "needTime": 54848,
+            "needYield": 0,
+            "saveState": 2,
+            "restoreState": 2,
+            "isEOF": 1,
+            "nss": "neighboar.resale_transactions",
+            "docsExamined": 57319,
+            "alreadyHasObj": 0,
+            "inputStage": {
+              "stage": "IXSCAN",
+              "nReturned": 57319,
+              "executionTimeMillisEstimate": 23,
+              "works": 57320,
+              "advanced": 57319,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 2,
+              "restoreState": 2,
+              "isEOF": 1,
+              "nss": "neighboar.resale_transactions",
+              "keyPattern": {
+                "flat_type": 1,
+                "resale_price": 1,
+                "_id": 1
+              },
+              "indexName": "type_price",
+              "isMultiKey": false,
+              "multiKeyPaths": {
+                "flat_type": [],
+                "resale_price": [],
+                "_id": []
+              },
+              "isUnique": false,
+              "isSparse": false,
+              "isPartial": false,
+              "indexVersion": 2,
+              "direction": "forward",
+              "indexBounds": {
+                "flat_type": [
+                  "[\"3 ROOM\", \"3 ROOM\"]"
+                ],
+                "resale_price": [
+                  "[MinKey, MaxKey]"
+                ],
+                "_id": [
+                  "[MinKey, MaxKey]"
+                ]
+              },
+              "keysExamined": 57319,
+              "seeks": 1,
+              "dupsTested": 0,
+              "dupsDropped": 0,
+              "peakTrackedMemBytes": 0
+            }
+          }
+        }
+      },
+      "queryShapeHash": "D6F328363E62814CF2C8C6BC0A2F876A917EEE8E0A8AAE8D5E845DBD26ED92A8",
+      "command": {
+        "find": "resale_transactions",
+        "filter": {
+          "flat_type": "3 ROOM",
+          "txn_month": {
+            "$gte": "2017-01-01 00:00:00",
+            "$lte": "2017-06-01 00:00:00"
+          }
+        },
+        "sort": {
+          "txn_month": -1,
+          "_id": -1
+        },
+        "limit": 50,
+        "$db": "neighboar"
+      },
+      "serverInfo": {
+        "host": "35fc6b4ee753",
+        "port": 27017,
+        "version": "8.3.11",
+        "gitVersion": "b8b83d6e6e1aed495578ad8c6f9234ad329c9955"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      }
+    }
+  }
+]

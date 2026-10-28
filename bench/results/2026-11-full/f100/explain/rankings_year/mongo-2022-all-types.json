@@ -1,0 +1,799 @@
+[
+  {
+    "n": 1,
+    "call": {
+      "kind": "aggregate",
+      "collection": "resale_transactions",
+      "pipeline": [
+        {
+          "$match": {
+            "txn_month": {
+              "$gte": "2022-01-01 00:00:00+00:00",
+              "$lt": "2023-01-01 00:00:00+00:00"
+            }
+          }
+        },
+        {
+          "$facet": {
+            "towns": [
+              {
+                "$group": {
+                  "_id": {
+                    "flat_type": "$flat_type",
+                    "town": "$town"
+                  },
+                  "n": {
+                    "$sum": 1
+                  },
+                  "prices": {
+                    "$push": "$resale_price"
+                  },
+                  "sum_psm": {
+                    "$sum": {
+                      "$divide": [
+                        "$resale_price",
+                        "$floor_area_sqm"
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "$project": {
+                  "n": 1,
+                  "median_price": {
+                    "$arrayElemAt": [
+                      {
+                        "$sortArray": {
+                          "input": "$prices",
+                          "sortBy": 1
+                        }
+                      },
+                      {
+                        "$floor": {
+                          "$divide": [
+                            {
+                              "$subtract": [
+                                "$n",
+                                1
+                              ]
+                            },
+                            2
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  "avg_psm": {
+                    "$round": [
+                      {
+                        "$divide": [
+                          "$sum_psm",
+                          "$n"
+                        ]
+                      },
+                      2
+                    ]
+                  }
+                }
+              }
+            ],
+            "island": [
+              {
+                "$group": {
+                  "_id": "$flat_type",
+                  "n": {
+                    "$sum": 1
+                  },
+                  "prices": {
+                    "$push": "$resale_price"
+                  }
+                }
+              },
+              {
+                "$project": {
+                  "median_price": {
+                    "$arrayElemAt": [
+                      {
+                        "$sortArray": {
+                          "input": "$prices",
+                          "sortBy": 1
+                        }
+                      },
+                      {
+                        "$floor": {
+                          "$divide": [
+                            {
+                              "$subtract": [
+                                "$n",
+                                1
+                              ]
+                            },
+                            2
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "$unwind": "$towns"
+        },
+        {
+          "$set": {
+            "island_row": {
+              "$arrayElemAt": [
+                {
+                  "$filter": {
+                    "input": "$island",
+                    "as": "i",
+                    "cond": {
+                      "$eq": [
+                        "$$i._id",
+                        "$towns._id.flat_type"
+                      ]
+                    }
+                  }
+                },
+                0
+              ]
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "flat_type": "$towns._id.flat_type",
+            "town": "$towns._id.town",
+            "n": "$towns.n",
+            "median_price": "$towns.median_price",
+            "avg_psm": "$towns.avg_psm",
+            "island_median": "$island_row.median_price",
+            "beats_island": {
+              "$gt": [
+                "$towns.median_price",
+                "$island_row.median_price"
+              ]
+            }
+          }
+        },
+        {
+          "$setWindowFields": {
+            "partitionBy": "$flat_type",
+            "sortBy": {
+              "median_price": -1
+            },
+            "output": {
+              "rank": {
+                "$rank": {}
+              }
+            }
+          }
+        },
+        {
+          "$sort": {
+            "flat_type": 1,
+            "rank": 1,
+            "town": 1
+          }
+        }
+      ],
+      "options": {}
+    },
+    "explain": {
+      "explainVersion": "1",
+      "stages": [
+        {
+          "$cursor": {
+            "queryPlanner": {
+              "namespace": "neighboar.resale_transactions",
+              "parsedQuery": {
+                "$and": [
+                  {
+                    "txn_month": {
+                      "$lt": "2023-01-01 00:00:00"
+                    }
+                  },
+                  {
+                    "txn_month": {
+                      "$gte": "2022-01-01 00:00:00"
+                    }
+                  }
+                ]
+              },
+              "indexFilterSet": false,
+              "queryHash": "3FF98871",
+              "planCacheShapeHash": "3FF98871",
+              "planCacheKey": "D5978F53",
+              "optimizationTimeMillis": 0,
+              "cursorType": "regular",
+              "maxIndexedOrSolutionsReached": false,
+              "maxIndexedAndSolutionsReached": false,
+              "maxScansToExplodeReached": false,
+              "prunedSimilarIndexes": false,
+              "winningPlan": {
+                "isCached": false,
+                "stage": "PROJECTION_SIMPLE",
+                "transformBy": {
+                  "flat_type": 1,
+                  "floor_area_sqm": 1,
+                  "resale_price": 1,
+                  "town": 1,
+                  "_id": 0
+                },
+                "inputStage": {
+                  "stage": "COLLSCAN",
+                  "filter": {
+                    "$and": [
+                      {
+                        "txn_month": {
+                          "$lt": "2023-01-01 00:00:00"
+                        }
+                      },
+                      {
+                        "txn_month": {
+                          "$gte": "2022-01-01 00:00:00"
+                        }
+                      }
+                    ]
+                  },
+                  "nss": "neighboar.resale_transactions",
+                  "direction": "forward"
+                }
+              },
+              "rejectedPlans": []
+            },
+            "executionStats": {
+              "executionSuccess": true,
+              "nReturned": 26720,
+              "executionTimeMillis": 78,
+              "totalKeysExamined": 0,
+              "totalDocsExamined": 241357,
+              "executionStages": {
+                "isCached": false,
+                "stage": "PROJECTION_SIMPLE",
+                "nReturned": 26720,
+                "executionTimeMillisEstimate": 35,
+                "works": 241358,
+                "advanced": 26720,
+                "needTime": 214637,
+                "needYield": 0,
+                "saveState": 13,
+                "restoreState": 12,
+                "isEOF": 1,
+                "transformBy": {
+                  "flat_type": 1,
+                  "floor_area_sqm": 1,
+                  "resale_price": 1,
+                  "town": 1,
+                  "_id": 0
+                },
+                "inputStage": {
+                  "stage": "COLLSCAN",
+                  "filter": {
+                    "$and": [
+                      {
+                        "txn_month": {
+                          "$lt": "2023-01-01 00:00:00"
+                        }
+                      },
+                      {
+                        "txn_month": {
+                          "$gte": "2022-01-01 00:00:00"
+                        }
+                      }
+                    ]
+                  },
+                  "nReturned": 26720,
+                  "executionTimeMillisEstimate": 31,
+                  "works": 241358,
+                  "advanced": 26720,
+                  "needTime": 214637,
+                  "needYield": 0,
+                  "saveState": 13,
+                  "restoreState": 12,
+                  "isEOF": 1,
+                  "nss": "neighboar.resale_transactions",
+                  "direction": "forward",
+                  "docsExamined": 241357
+                }
+              }
+            }
+          },
+          "nReturned": 26720,
+          "executionTimeMillisEstimate": 48
+        },
+        {
+          "$facet": {
+            "towns": [
+              {
+                "$internalFacetTeeConsumer": {},
+                "nReturned": 26720,
+                "executionTimeMillisEstimate": 48
+              },
+              {
+                "$group": {
+                  "_id": {
+                    "flat_type": "$flat_type",
+                    "town": "$town"
+                  },
+                  "n": {
+                    "$sum": {
+                      "$const": 1
+                    }
+                  },
+                  "prices": {
+                    "$push": "$resale_price"
+                  },
+                  "sum_psm": {
+                    "$sum": {
+                      "$divide": [
+                        "$resale_price",
+                        "$floor_area_sqm"
+                      ]
+                    }
+                  },
+                  "$willBeMerged": false
+                },
+                "nReturned": 127,
+                "executionTimeMillisEstimate": 68,
+                "maxAccumulatorMemoryUsageBytes": {
+                  "n": 24384,
+                  "prices": 1299832,
+                  "sum_psm": 24384
+                },
+                "totalOutputDataSizeBytes": 1360786,
+                "usedDisk": false,
+                "spills": 0,
+                "spilledDataStorageSize": 0,
+                "spilledBytes": 0,
+                "spilledRecords": 0,
+                "peakTrackedMemBytes": 1360532
+              },
+              {
+                "$project": {
+                  "_id": true,
+                  "n": true,
+                  "median_price": {
+                    "$arrayElemAt": [
+                      {
+                        "$sortArray": {
+                          "input": "$prices",
+                          "sortBy": 1
+                        }
+                      },
+                      {
+                        "$floor": [
+                          {
+                            "$divide": [
+                              {
+                                "$subtract": [
+                                  "$n",
+                                  {
+                                    "$const": 1
+                                  }
+                                ]
+                              },
+                              {
+                                "$const": 2
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "avg_psm": {
+                    "$round": [
+                      {
+                        "$divide": [
+                          "$sum_psm",
+                          "$n"
+                        ]
+                      },
+                      {
+                        "$const": 2
+                      }
+                    ]
+                  }
+                },
+                "nReturned": 127,
+                "executionTimeMillisEstimate": 68
+              }
+            ],
+            "island": [
+              {
+                "$internalFacetTeeConsumer": {},
+                "nReturned": 26720,
+                "executionTimeMillisEstimate": 0
+              },
+              {
+                "$group": {
+                  "_id": "$flat_type",
+                  "n": {
+                    "$sum": {
+                      "$const": 1
+                    }
+                  },
+                  "prices": {
+                    "$push": "$resale_price"
+                  },
+                  "$willBeMerged": false
+                },
+                "nReturned": 7,
+                "executionTimeMillisEstimate": 0,
+                "maxAccumulatorMemoryUsageBytes": {
+                  "n": 1344,
+                  "prices": 1283512
+                },
+                "totalOutputDataSizeBytes": 1284763,
+                "usedDisk": false,
+                "spills": 0,
+                "spilledDataStorageSize": 0,
+                "spilledBytes": 0,
+                "spilledRecords": 0,
+                "peakTrackedMemBytes": 1285008
+              },
+              {
+                "$project": {
+                  "_id": true,
+                  "median_price": {
+                    "$arrayElemAt": [
+                      {
+                        "$sortArray": {
+                          "input": "$prices",
+                          "sortBy": 1
+                        }
+                      },
+                      {
+                        "$floor": [
+                          {
+                            "$divide": [
+                              {
+                                "$subtract": [
+                                  "$n",
+                                  {
+                                    "$const": 1
+                                  }
+                                ]
+                              },
+                              {
+                                "$const": 2
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "nReturned": 7,
+                "executionTimeMillisEstimate": 10
+              }
+            ]
+          },
+          "nReturned": 1,
+          "executionTimeMillisEstimate": 78
+        },
+        {
+          "$unwind": {
+            "path": "$towns"
+          },
+          "nReturned": 127,
+          "executionTimeMillisEstimate": 78
+        },
+        {
+          "$set": {
+            "island_row": {
+              "$arrayElemAt": [
+                {
+                  "$filter": {
+                    "input": "$island",
+                    "as": "i",
+                    "cond": {
+                      "$eq": [
+                        "$$i._id",
+                        "$towns._id.flat_type"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "$const": 0
+                }
+              ]
+            }
+          },
+          "nReturned": 127,
+          "executionTimeMillisEstimate": 78
+        },
+        {
+          "$project": {
+            "flat_type": "$towns._id.flat_type",
+            "town": "$towns._id.town",
+            "n": "$towns.n",
+            "median_price": "$towns.median_price",
+            "avg_psm": "$towns.avg_psm",
+            "island_median": "$island_row.median_price",
+            "beats_island": {
+              "$gt": [
+                "$towns.median_price",
+                "$island_row.median_price"
+              ]
+            },
+            "_id": false
+          },
+          "nReturned": 127,
+          "executionTimeMillisEstimate": 78
+        },
+        {
+          "$sort": {
+            "sortKey": {
+              "flat_type": 1,
+              "median_price": -1
+            },
+            "outputSortKeyMetadata": true
+          },
+          "totalDataSizeSortedBytesEstimate": 155856,
+          "usedDisk": false,
+          "spills": 0,
+          "spilledBytes": 0,
+          "spilledRecords": 0,
+          "spilledDataStorageSize": 0,
+          "nReturned": 127,
+          "executionTimeMillisEstimate": 78,
+          "peakTrackedMemBytes": 155856
+        },
+        {
+          "$_internalSetWindowFields": {
+            "partitionBy": "$flat_type",
+            "sortBy": {
+              "median_price": -1
+            },
+            "output": {
+              "rank": {
+                "$rank": {}
+              }
+            }
+          },
+          "nReturned": 127,
+          "executionTimeMillisEstimate": 78,
+          "maxFunctionMemoryUsageBytes": {
+            "rank": 536
+          },
+          "usedDisk": false,
+          "spills": 0,
+          "spilledDataStorageSize": 0,
+          "spilledBytes": 0,
+          "spilledRecords": 0,
+          "peakTrackedMemBytes": 2984
+        },
+        {
+          "$sort": {
+            "sortKey": {
+              "flat_type": 1,
+              "rank": 1,
+              "town": 1
+            }
+          },
+          "totalDataSizeSortedBytesEstimate": 154500,
+          "usedDisk": false,
+          "spills": 0,
+          "spilledBytes": 0,
+          "spilledRecords": 0,
+          "spilledDataStorageSize": 0,
+          "nReturned": 127,
+          "executionTimeMillisEstimate": 78,
+          "peakTrackedMemBytes": 154500
+        }
+      ],
+      "queryShapeHash": "250951E26126A40EA7D97514CAEAD70FBE2026AC4BD94AD9A2BC4F979E905686",
+      "peakTrackedMemBytes": 2097152,
+      "serverInfo": {
+        "host": "35fc6b4ee753",
+        "port": 27017,
+        "version": "8.3.11",
+        "gitVersion": "b8b83d6e6e1aed495578ad8c6f9234ad329c9955"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      },
+      "command": {
+        "aggregate": "resale_transactions",
+        "pipeline": [
+          {
+            "$match": {
+              "txn_month": {
+                "$gte": "2022-01-01 00:00:00",
+                "$lt": "2023-01-01 00:00:00"
+              }
+            }
+          },
+          {
+            "$facet": {
+              "towns": [
+                {
+                  "$group": {
+                    "_id": {
+                      "flat_type": "$flat_type",
+                      "town": "$town"
+                    },
+                    "n": {
+                      "$sum": 1
+                    },
+                    "prices": {
+                      "$push": "$resale_price"
+                    },
+                    "sum_psm": {
+                      "$sum": {
+                        "$divide": [
+                          "$resale_price",
+                          "$floor_area_sqm"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "$project": {
+                    "n": 1,
+                    "median_price": {
+                      "$arrayElemAt": [
+                        {
+                          "$sortArray": {
+                            "input": "$prices",
+                            "sortBy": 1
+                          }
+                        },
+                        {
+                          "$floor": {
+                            "$divide": [
+                              {
+                                "$subtract": [
+                                  "$n",
+                                  1
+                                ]
+                              },
+                              2
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "avg_psm": {
+                      "$round": [
+                        {
+                          "$divide": [
+                            "$sum_psm",
+                            "$n"
+                          ]
+                        },
+                        2
+                      ]
+                    }
+                  }
+                }
+              ],
+              "island": [
+                {
+                  "$group": {
+                    "_id": "$flat_type",
+                    "n": {
+                      "$sum": 1
+                    },
+                    "prices": {
+                      "$push": "$resale_price"
+                    }
+                  }
+                },
+                {
+                  "$project": {
+                    "median_price": {
+                      "$arrayElemAt": [
+                        {
+                          "$sortArray": {
+                            "input": "$prices",
+                            "sortBy": 1
+                          }
+                        },
+                        {
+                          "$floor": {
+                            "$divide": [
+                              {
+                                "$subtract": [
+                                  "$n",
+                                  1
+                                ]
+                              },
+                              2
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "$unwind": "$towns"
+          },
+          {
+            "$set": {
+              "island_row": {
+                "$arrayElemAt": [
+                  {
+                    "$filter": {
+                      "input": "$island",
+                      "as": "i",
+                      "cond": {
+                        "$eq": [
+                          "$$i._id",
+                          "$towns._id.flat_type"
+                        ]
+                      }
+                    }
+                  },
+                  0
+                ]
+              }
+            }
+          },
+          {
+            "$project": {
+              "_id": 0,
+              "flat_type": "$towns._id.flat_type",
+              "town": "$towns._id.town",
+              "n": "$towns.n",
+              "median_price": "$towns.median_price",
+              "avg_psm": "$towns.avg_psm",
+              "island_median": "$island_row.median_price",
+              "beats_island": {
+                "$gt": [
+                  "$towns.median_price",
+                  "$island_row.median_price"
+                ]
+              }
+            }
+          },
+          {
+            "$setWindowFields": {
+              "partitionBy": "$flat_type",
+              "sortBy": {
+                "median_price": -1
+              },
+              "output": {
+                "rank": {
+                  "$rank": {}
+                }
+              }
+            }
+          },
+          {
+            "$sort": {
+              "flat_type": 1,
+              "rank": 1,
+              "town": 1
+            }
+          }
+        ],
+        "cursor": {},
+        "$db": "neighboar"
+      }
+    }
+  }
+]

@@ -1,0 +1,4 @@
+-- call 1
+aggregate on resale_transactions: 9.0 ms
+stage $cursor: nReturned=11309 estimate=9 ms
+stage $group: nReturned=1 estimate=9 ms
