@@ -40,8 +40,11 @@ class Settings(BaseSettings):
     demo_admin_password: str = ""
 
     # ---- connection strings ----
-    def pg_dsn(self, role: str) -> str:
-        """DSN for a PostgreSQL role: postgres (superuser), neighboar_owner, app_rw, app_admin, app_ro."""
+    def pg_dsn(self, role: str, application_name: str = "neighboar") -> str:
+        """DSN for a PostgreSQL role: postgres (superuser), neighboar_owner, app_rw, app_admin, app_ro.
+
+        The web pools pass application_name="neighboar-web" so pg_stat_activity tells them from other tools.
+        """
         passwords = {
             self.postgres_user: self.postgres_password,
             "neighboar_owner": self.pg_owner_password,
@@ -57,7 +60,7 @@ class Settings(BaseSettings):
             dbname=self.postgres_db,
             user=role,
             password=passwords[role],
-            application_name="neighboar",
+            application_name=application_name,
         )
 
     def mongo_uri(self, user: str, *, direct: bool = False) -> str:

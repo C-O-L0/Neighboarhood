@@ -15,6 +15,8 @@ from pymongo.database import Database
 
 from app.config import Settings
 
+WEB_APPLICATION_NAME = "neighboar-web"  # shown in pg_stat_activity; ETL, migrate and tests keep "neighboar"
+
 
 @dataclass
 class Databases:
@@ -30,7 +32,12 @@ class Databases:
             # autocommit: repos pass idle connections to conn.transaction(), which then issues a real BEGIN
             # (docs/conventions.md, section 3).
             p = ConnectionPool(
-                s.pg_dsn(role), min_size=1, max_size=10, open=False, name=role, kwargs={"autocommit": True}
+                s.pg_dsn(role, WEB_APPLICATION_NAME),
+                min_size=1,
+                max_size=10,
+                open=False,
+                name=role,
+                kwargs={"autocommit": True},
             )
             p.open(wait=False)
             return p
