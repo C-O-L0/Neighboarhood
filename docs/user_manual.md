@@ -117,14 +117,15 @@ The other 198 synthetic buyers cannot be signed in to.
 
 ## 9. Run the tests
 
-With the stack up and the data loaded:
+With the stack up and the full data loaded. Run the tests straight after a load: signing in, saving buildings or recording sales writes to the database of the DB mode you are in only, by design, so the equivalence tests would then report the difference (for example, signing in as a demo account in PostgreSQL mode changes `last_active_at` in PostgreSQL only). If you have used the app since the load, the first command below reloads the data, which resets the demo accounts and the synthetic data.
 
 ```bash
+docker compose run --rm etl
 set -a; . ./.env; set +a
 docker compose run --rm --no-deps -e NEIGHBOAR_URL=http://web:8000 -e PG_APP_RO_PASSWORD -e PG_OWNER_PASSWORD -e MONGO_ETL_PASSWORD -e DEMO_BUYER_PASSWORD -e DEMO_ADMIN_PASSWORD web python -m pytest -q -m "integration or not integration"
 ```
 
-This runs the unit tests and the integration tests against your running databases. The demo passwords are given to the test container only. Run it with the full data loaded (step 6). Every test passes, and a few are skipped on the full data because they check facts that only hold on the committed sample. A skip is not a failure. It takes from a few seconds to a few minutes depending on the machine. The tests that write data use their own records and clean them up.
+This runs the unit tests and the integration tests against your running databases. The demo passwords are given to the test container only. Every test passes, and a few are skipped on the full data because they check facts that only hold on the committed sample. A skip is not a failure. It takes from a few seconds to a few minutes depending on the machine. The tests that write data use their own records and clean them up.
 
 ## 10. Back up and restore
 

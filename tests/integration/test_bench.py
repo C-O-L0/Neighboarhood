@@ -1,6 +1,7 @@
 """The benchmark harness against the running stack (task 4.1a).
 
-The harness runs on the sample here: --runs 3 --warmup 1, with --expect-fraction taken from the loaded data. Every run
+The harness runs on whatever is loaded (the sample in CI, the full data at a gate): --runs 3 --warmup 1, with
+--expect-fraction taken from the loaded data. Every run
 writes into a temporary results root (the hidden --results-root option), so nothing lands in bench/results. The
 tests need the passwords of the benchmark identities (PG_APP_RO_PASSWORD, PG_APP_ADMIN_PASSWORD, MONGO_APP_PASSWORD,
 MONGO_APP_ADMIN_PASSWORD, MONGO_ETL_PASSWORD) and skip without them; the CI test step and the README command already
@@ -263,7 +264,7 @@ def test_a_writes_run_leaves_counts_buildings_views_and_the_counter_unchanged(sa
 def test_env_json_records_the_environment(sample, conns):
     env = json.loads((sample.dir / "env.json").read_text(encoding="utf-8"))
     assert env["sale_counts"]["pg"] == env["sale_counts"]["mongo"] > 0
-    assert 0 < env["fraction"] < 1
+    assert 0 < env["fraction"] <= 1
     assert env["connections"]["postgresql"]["autocommit"] is True
     for entry in env["invocations"]:
         assert entry["verify"]["ok"] is True and entry["verify"]["checks"] > 0
@@ -431,14 +432,22 @@ def test_env_cache_values_come_from_the_server_and_the_wrapper_not_from_env(samp
 # ------------------------------------------------------------------------------------------------- refusals
 
 
+def wrong_fraction(fraction) -> str:
+    """An expectation that is wrong for whatever is loaded (the sample, a fraction or the full data)."""
+    return "1" if float(fraction) < 0.5 else "0.25"
+
+
 def test_a_wrong_expected_fraction_refuses_and_writes_nothing(fraction, tmp_path, bench_settings):
-    assert float(fraction) < 0.5
-    rc = bench_run.main(["--label", "wrong", "--results-root", str(tmp_path), "--expect-fraction", "1"])
+    rc = bench_run.main(
+        ["--label", "wrong", "--results-root", str(tmp_path), "--expect-fraction", wrong_fraction(fraction)]
+    )
     assert rc == 2 and not (tmp_path / "wrong").exists()
 
 
 def test_the_label_plays_no_part_in_the_fraction_check(fraction, tmp_path, bench_settings):
-    rc = bench_run.main(["--label", "full-data", "--results-root", str(tmp_path), "--expect-fraction", "1"])
+    rc = bench_run.main(
+        ["--label", "full-data", "--results-root", str(tmp_path), "--expect-fraction", wrong_fraction(fraction)]
+    )
     assert rc == 2
 
 
