@@ -4,7 +4,7 @@ Decisions and next actions only (README rule). Newest first.
 
 ## Run state (paused 2026-10-28)
 
-- Phase 4. Phase 3 closed with tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20), 3.3 (PR #22), 3.4 (PR #23), 3.5a (PR #24), 3.5b (PR #25) and the gate (PR #26). Phase 4: task 4.1a (PR #27) is merged; `main` is at the merge of PR #27. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
+- Phase 4. Phase 3 closed with tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20), 3.3 (PR #22), 3.4 (PR #23), 3.5a (PR #24), 3.5b (PR #25) and the gate (PR #26). Phase 4: tasks 4.1a (PR #27) and 4.1b (PR #28) are merged; `main` is at the merge of PR #28. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
 - No feature branch is in progress, and there are no open PRs.
 - Approved specs are kept locally outside version control in `.claude/specs/`:
   - 3.3 admin sales: `p3_3_spec.md`, plus `phase3_notes.md`. That note says to quantize the admin sale price to 0.01 and the area to 0.1 before writing Decimal128.
@@ -14,7 +14,7 @@ Decisions and next actions only (README rule). Newest first.
 
   They are approved; do not re-plan or re-review them.
 - The local `.env` has `DEMO_BUYER_PASSWORD` and `DEMO_ADMIN_PASSWORD` set; the databases hold the sample plus the synthetic buyers.
-- Next action: create `app/bench-explain` from `main` and send task 4.1b of `.claude/specs/p4_spec.md` to the implementer, then 4.2, 4.3 and 4.4 in that order, then the Phase 4 gate, and stop.
+- Next action: create `bench/results` from `main` and run task 4.2 of `.claude/specs/p4_spec.md` (charts module by the implementer, formal run on the full data), then 4.3 and 4.4 in that order, then the Phase 4 gate, and stop.
 
 ## 2026-10-28 Task 4.1b index on and off, and fractions
 
