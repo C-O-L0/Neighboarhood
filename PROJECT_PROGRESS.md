@@ -2,6 +2,17 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-29 Phase 4 gate passed
+
+- Phase 4 merged as 4.1a (PR #27), 4.1b (PR #28), 4.2 (PR #29), 4.3 (PR #30) and 4.4 (PR #31). The checks ran on main df34822.
+- Results and charts: `bench/results/2026-11-full/` holds f100, f50, f25, `scaling.csv`, `RESULTS.md` and the four charts. `bench.charts`, run on a copy of the four CSVs alone, produced all eight files byte-identical to the committed blobs. On a Windows checkout with `core.autocrlf=true` the working-tree SVGs are CRLF, so compare against `git show HEAD:<path>`, not the checked-out file.
+- Backup and restore: `scripts/check_backup_roundtrip.sh` on the sample (6,275 sales) exited 0. The fingerprint changed after the mutation and was equal after the restore. A changed byte in `postgres.dump` and a changed `db/postgres/*.sql` hash were both refused with nothing changed, and the script removed its three backup folders. The full suite afterwards gave 1432 passed. The `dbtools` image reports `pg_dump` and `pg_restore` 18.6 and `mongodump` and `mongorestore` 100.20.0. A build with a wrong checksum failing, and no secret in process arguments or `manifest.json`, were shown during 4.3.
+- Fresh clone: the 4.4 test on the development machine passed (sections 2 to 12 as written, full-data counts matching, 1424 passed and 8 skipped in the fresh stack, working stack image ids and volumes unchanged). Not done: the run on a clean Windows machine that BUILD_PLAN section 13 asks for. It stays under "Blocked, needs Ahsanul".
+- Working stack: the full clean and load from the pinned snapshot took 36 s, and every count in "Database counts" of `docs/import_report.md` matches (PostgreSQL 275,471 rows, MongoDB 254,844 documents, 200 buyers and 1,002 saved blocks in each). The full suite the CI way on the full data gave 1424 passed and 8 skipped. The skips are sample-only facts: two food, three rankings, two rankings page, and `test_pipeline_fraction.py`. ruff 0.17.1 is clean, and CI is green on main.
+- Least privilege and section 9: the privilege grid, the route identity spy and the section 9 file checks are in that suite and passed. In CI on main, PID 1 runs as 999 (`postgres`), 1000 (`mongodb`) and 10001 (`web`).
+- Deferred: the clean-Windows-machine run; the untested macOS, Linux and arm64 `dbtools` paths (including the likely Linux permission problem writing `data/interim/` as UID 10001) and manual sections 1 and 13, which were not exercised; the report, slides, demo script, finished manual and submission zip (Phase 5; the zip must exclude `backups/`); and the follow-up in the 4.4 entry on passwords in the `Settings` repr.
+- Next: Phase 5 drafts, on Ahsanul's go.
+
 ## 2026-10-29 Task 4.4 user manual draft and fresh-clone test
 
 - `docs/user_manual.md` is the draft (Phase 5 completes it with screenshots). Every command is for Git Bash and needs no host Python. It starts the stack with `docker compose up -d --build --wait web` rather than the foreground `docker compose up --build`, so the same terminal carries on. The snapshot is verified with `docker compose run --rm etl python -m etl.download` (no options checks `data/raw` against the manifest); `--from` must name a folder inside `data/`, as the `etl` service mounts only `./data`.
@@ -180,7 +191,7 @@ Decisions and next actions only (README rule). Newest first.
 
 ## Blocked, needs Ahsanul
 
-- No GitHub Release `snapshot-2026-09` exists, so `python -m etl.download --release` (the manifest's default tag) cannot fetch the snapshot; only `--from DIR` works. Publishing the three source files as a release would put them on the repository, which is still public (next point). Decide whether to create the release; until then the user manual and the fresh-clone test use `--from` with the files from the submission zip.
+- No GitHub Release `snapshot-2026-09` exists, so `python -m etl.download --release` (the manifest's default tag) cannot fetch the snapshot; only `--from DIR` works. Publishing the three source files as a release would put them on the repository, which is still public (next point). Decide whether to create the release; until then the user manual and the fresh-clone test copy the three files from the submission zip into `data/raw/` and verify them with `python -m etl.download` (no options); `--from DIR` is the alternative.
 - The repository is still public, although Gate 0 decided it would be made private by its owner. Changing visibility is a repository setting, so it is left to you.
 - The Phase 4 fresh-clone test can only run on the development machine; the clean Windows machine BUILD_PLAN section 13 asks for needs a teammate.
 
