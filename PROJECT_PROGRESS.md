@@ -2,19 +2,26 @@
 
 Decisions and next actions only (README rule). Newest first.
 
-## Run state (paused 2026-10-28)
+## Run state (paused 2026-10-28, during task 4.3)
 
-- Phase 4. Phase 3 closed with tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20), 3.3 (PR #22), 3.4 (PR #23), 3.5a (PR #24), 3.5b (PR #25) and the gate (PR #26). Phase 4: tasks 4.1a (PR #27), 4.1b (PR #28) and 4.2 (PR #29) are merged; `main` is at the merge of PR #29. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
-- No feature branch is in progress, and there are no open PRs.
-- Approved specs are kept locally outside version control in `.claude/specs/`:
-  - 3.3 admin sales: `p3_3_spec.md`, plus `phase3_notes.md`. That note says to quantize the admin sale price to 0.01 and the area to 0.1 before writing Decimal128.
-  - 3.4 food access: `p3_4_spec.md`;
-  - 3.5a integrity matrix and 3.5b privilege audit: `p3_5_spec.md`;
-  - Phase 4 (4.1a, 4.1b, 4.2, 4.3, 4.4, revision 4): `p4_spec.md`.
+- Phase 4, task 4.3 backup and restore, on branch `ops/backup-restore`. Its last commit is "WIP: 4.3 backup and restore (paused)", on top of `main` at 2eb405f (merge of PR #29). There are no open PRs; this branch has none yet.
+- Merged so far in Phase 4: 4.1a (PR #27), 4.1b (PR #28) and 4.2 (PR #29). Phase 3 closed with PRs #18 to #20 and #22 to #26.
+- What the implementer finished before it was stopped: `db/tools/Dockerfile` and `db/tools/dbtool.sh` (the `dbtools` service, MongoDB Database Tools 100.20.0 with pinned SHA-256), `scripts/backup.sh`, `scripts/restore.sh`, `scripts/check_backup_roundtrip.sh`, `db/state.py` (state fingerprint), `db/roundtrip_mutate.py`, `tests/unit/test_backup_restore.py` (13 tests), `tests/integration/test_db_state.py` (4 tests), the README "Backup and restore" section, and the `compose.yaml`, `.gitignore`, `.dockerignore`, `.gitattributes` and `tests/unit/test_section9.py` changes. Its decisions are in the "Task 4.3 backup and restore" entry below.
+- Untested or unverified: the implementer was stopped as it began the round trip on the sample, so `scripts/check_backup_roundtrip.sh` has not run to completion, and the full suite and ruff have not been run on this branch. Its claims (a wrong checksum fails the `dbtools` build, `ps` during a backup and a restore shows no secret, both refusals of `restore.sh`) are not yet checked by the orchestrator. The arm64 path (Ubuntu 22.04 build of the tools, a deviation from the spec's Debian 12) was never built. `.gitattributes` now has a duplicate `Dockerfile text eol=lf` line.
+- Local state: the databases hold the sample (6,275 sales, no admin sales, 200 buyers, 948 saved blocks); `backups/` is empty and git-ignored; `web` is running; the `.env` cache sizes are the defaults.
+- Approved specs are kept locally outside version control in `.claude/specs/`: Phase 4 tasks 4.1a to 4.4 in `p4_spec.md` (approved; do not re-plan or re-review), and the Phase 4 gate checks in `p4_gate_spec.md`.
+- Next action: send the 4.3 diff (`git diff main...HEAD`) to the reviewer against the 4.3 section of `p4_spec.md`, fix any REVISE through the implementer; then verify it yourself (run `scripts/check_backup_roundtrip.sh` on the sample, the two refusals, a wrong-checksum build, `ps` during a run, the full suite the CI way and ruff); then open the PR, wait for CI and merge it. After that: 4.4, then the Phase 4 gate per `p4_gate_spec.md`, and stop.
 
-  They are approved; do not re-plan or re-review them.
-- The local `.env` has `DEMO_BUYER_PASSWORD` and `DEMO_ADMIN_PASSWORD` set; the databases hold the full snapshot plus the synthetic buyers, with the default cache sizes.
-- Next action: create `ops/backup-restore` from `main` and send task 4.3 of `.claude/specs/p4_spec.md` to the implementer, then 4.4, then the Phase 4 gate, and stop.
+## 2026-10-28 Task 4.3 backup and restore
+
+- Scripts: `scripts/backup.sh` and `scripts/restore.sh` (POSIX `sh`, run from Git Bash on Windows), and `scripts/check_backup_roundtrip.sh`, which backs up, changes both databases (`db/roundtrip_mutate.py`: a saved block deleted, an admin sale recorded in both, one profile's stats altered), restores, compares the fingerprint, and checks both refusals (one changed byte in a dump file, a different `db/postgres/*.sql` set). It deletes only the backup folders it made; `--keep` leaves them and says where.
+- Tools image: new service `dbtools` (profile `tools`, `db/tools/Dockerfile`) on `postgres:18.6-bookworm` with MongoDB Database Tools 100.20.0 (the latest on `fastdl.mongodb.org`). The SHA-256 of each archive is in the Dockerfile and checked during the build; a wrong value fails the build. The image ends as `postgres` and the service runs as the host user (`HOST_UID`, `HOST_GID`).
+- Deviation from the spec: MongoDB publishes no Debian 12 build for arm64 (every Debian archive is x86_64 only), so arm64 uses the Ubuntu 22.04 arm64 build. The Go binaries need glibc 2.35 or older and Debian 12 has 2.36. The arm64 path was not run, as the machine is x86_64; the pinned checksum was verified against the downloaded file.
+- Secrets: PostgreSQL gets `PGPASSWORD` from the container environment. MongoDB gets the password from a `--config` YAML written inside the container at mode 600 and removed by `trap` on any exit; the user name, host and database are on the command line, as they are not secrets. The host scripts never read `.env`. `ps` inside the containers during a backup and a restore showed no secret.
+- `db.state` (run in the `etl` service as the owner and the ETL user) is the state fingerprint. It reports a NULL ACL as the default ACL of the object, because a restore turns the explicit owner-only ACL of `schema_migration` back into NULL (same meaning). It compares constraints by type and validity, not by deparsed text, because `pg_dump` rewrites a CHECK on a `varchar` column as `ANY (ARRAY[...])`. Sequence positions are part of the fingerprint. Both normalisations were needed after the first round trip showed those two false differences.
+- `restore.sh` verifies checksums and the schema file set before any change, stops `web` only after the confirmation, and starts it only after the fingerprint matches; on failure `web` stays stopped and the script says so. `backup.sh` refuses while `web` runs unless `--stop-web`, and removes a half-written backup folder.
+- The Phase 5 submission zip script must exclude `backups/`: a backup is a full copy of both databases, with account hashes.
+- CI is unchanged: `db.state` is covered by `tests/integration/test_db_state.py` in the existing full-suite step; the round trip needs Docker on the host and stays a manual check (orchestrator repeats it on the sample).
 
 ## 2026-10-28 Task 4.2 formal benchmark
 

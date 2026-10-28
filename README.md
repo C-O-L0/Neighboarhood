@@ -65,6 +65,7 @@ mongodb   MongoDB 8.3.11 as a single-node replica set (needed for transactions),
 migrate   one-shot: initiates the replica set, creates least-privilege roles and users, applies schema files, then exits
 web       FastAPI application at http://localhost:8000 (bound to localhost only), starts after migrate succeeds
 etl       on demand only (profile "tools"): verifies the snapshot, cleans it, loads both databases
+dbtools   on demand only (profile "tools"): pg_dump, pg_restore, mongodump and mongorestore for scripts/backup.sh and scripts/restore.sh
 ```
 
 Compose gives the services a private network, lets the application use service names such as `postgres` and `mongodb`, and starts the full stack with one command:
@@ -107,6 +108,22 @@ docker compose run --rm --no-deps -e NEIGHBOAR_URL=http://web:8000 -e PG_APP_RO_
 Use named volumes so normal restarts retain local database data. `docker compose down` removes containers but retains named volumes. Only `docker compose down -v` deletes local database data.
 
 Commit `compose.yaml`, the Dockerfile, `.env.example`, schema migrations, import scripts, and dependency lock files. Do not commit `.env`, database volumes, generated downloads, or passwords. Each teammate copies `.env.example` to `.env` and uses their own local development credentials. Docker recommends Compose for managing a multi-service application and supports health checks and named volumes for reliable startup and persistence. [Docker Compose quickstart](https://docs.docker.com/compose/gettingstarted/)
+
+### Backup and restore
+
+Two scripts copy both databases to a folder and put them back. Run them from the repository root in Git Bash on Windows or any POSIX shell, with the stack up. Docker must be on the host; nothing else is needed (no Python, no database client). Passwords come from `.env` through Compose and are never typed into a command, printed, or written to a backup.
+
+```bash
+sh scripts/backup.sh --stop-web          # writes backups/<UTC timestamp>/
+sh scripts/restore.sh backups/<UTC timestamp>
+```
+
+- `backup.sh` refuses while `web` is running, because the app could write during the dump. `--stop-web` stops it and starts it again at the end. It refreshes the town figures, then writes `postgres.dump` (`pg_dump -Fc`), `mongo.archive.gz` (`mongodump --archive --gzip`) and `manifest.json`. The manifest holds the UTC time, the git commit, the SHA-256 of every `db/postgres/*.sql` file, the SHA-256 of each dump file, and a fingerprint of both databases (row counts and hashes, owners, grants, default privileges, function settings, constraints, triggers, MongoDB collection options and indexes).
+- `restore.sh` first checks, before changing anything, that each dump file still matches its checksum and that the `db/postgres/*.sql` files in your working tree are the ones the backup was taken with. If either check fails it stops and says which file differs. Then it asks you to type `yes` (or use `--yes`), stops `web`, runs the migrate step so roles and users exist, restores PostgreSQL (`pg_restore --clean --if-exists --single-transaction`, then `ANALYZE`) and MongoDB (`mongorestore --drop`), recomputes the fingerprint and compares it with the manifest. Any difference fails loudly and leaves `web` stopped. Only a clean match starts `web` again.
+- A restore replaces all data in both databases, including accounts and admin sales made since the backup.
+- Both tools run in the `dbtools` service (profile `tools`), built from `db/tools/Dockerfile`: the PostgreSQL 18.6 client tools plus MongoDB Database Tools 100.20.0, whose download is checked against a SHA-256 written in the Dockerfile. MongoDB publishes a Debian 12 build for x86_64 only, so on arm64 the image uses the Ubuntu 22.04 arm64 build. The service runs as your own user, so the files in `backups/` belong to you. The MongoDB password reaches the tools through a mode 600 file inside the container that is removed on any exit. PostgreSQL uses `PGPASSWORD` in the container environment.
+- `python -m db.state` prints the fingerprint; it runs in the `etl` service. `sh scripts/check_backup_roundtrip.sh` runs the whole round trip (back up, change both databases, restore, compare, and the two refusals) and deletes the backup folders it made; add `--keep` to keep them.
+- `backups/` is git-ignored and Docker-ignored. A backup is a full copy of the data, so do not share it or put it in a submission zip.
 
 ## Suggested five-person split
 

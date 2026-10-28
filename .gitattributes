@@ -19,3 +19,4 @@ Dockerfile text eol=lf
 data/raw/** -text
 
 app/static/vendor/** -text
+Dockerfile text eol=lf
