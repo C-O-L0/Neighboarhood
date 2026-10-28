@@ -109,9 +109,9 @@ def test_cookie_alone_decides_the_mode_and_default_is_pg(ids):
 
 
 @pytest.mark.parametrize("db,name", [("pg", "PostgreSQL"), ("mongo", "MongoDB")])
-def test_footer_has_one_timing_line_naming_the_database(ids, db, name):
+def test_footer_has_one_timing_line_per_repo_call_naming_the_database(ids, db, name):
     timings = TIMING.findall(get(f"/building/{ids['normal']}?db={db}").text)
-    assert timings == [("building page", name)]
+    assert timings == [("building page", name), ("food access", name)]  # the normal block is geocoded
 
 
 def test_header_links_keep_other_parameters_and_encode_them():

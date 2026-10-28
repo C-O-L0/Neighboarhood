@@ -20,12 +20,14 @@ from typing import Any
 from app.repos.dto import NewSale
 from app.repos.mongo.accounts import MongoAccountRepo
 from app.repos.mongo.building import MongoBuildingRepo
+from app.repos.mongo.food import MongoFoodRepo
 from app.repos.mongo.rankings import MongoRankingRepo
 from app.repos.mongo.saved import MongoSavedRepo
 from app.repos.mongo.search import MongoSearchRepo
 from app.repos.mongo.trends import MongoTrendRepo
 from app.repos.pg.accounts import PgAccountRepo
 from app.repos.pg.building import PgBuildingRepo
+from app.repos.pg.food import PgFoodRepo
 from app.repos.pg.rankings import PgRankingRepo
 from app.repos.pg.saved import PgSavedRepo
 from app.repos.pg.search import PgSearchRepo
@@ -376,6 +378,39 @@ def admin_sale(plan: AdminPlan, building_id: int, price: str, *, month: date | N
     )  # fmt: skip
 
 
+# Food access (task 3.4). Block view: every geocoded block on the sample (including the stub); on full data every
+# FULL_DATA_STEP-th geocoded block id in id order plus the stub. Town view: every town with a geocoded block on the
+# sample (5); on full data 3 towns, the ones with the fewest, the median number and the most geocoded blocks
+# (ties by name).
+FOOD_FULL_TOWNS = 3
+
+
+def food_block_params(conn) -> list[dict]:
+    ids = [r[0] for r in conn.execute(
+        "SELECT building_id FROM building WHERE latitude IS NOT NULL ORDER BY building_id"
+    ).fetchall()]  # fmt: skip
+    if not is_sample(conn):
+        stub = [r[0] for r in conn.execute(
+            "SELECT building_id FROM building WHERE NOT in_property_dataset AND latitude IS NOT NULL"
+        ).fetchall()]  # fmt: skip
+        ids = sorted({*ids[::FULL_DATA_STEP], *stub})
+    return [{"building_id": i} for i in ids]
+
+
+def food_town_params(conn) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT tw.name, count(*) FROM building b JOIN town tw USING (town_id)
+        WHERE b.latitude IS NOT NULL
+        GROUP BY tw.name ORDER BY count(*), tw.name COLLATE "C"
+        """
+    ).fetchall()
+    names = [r[0] for r in rows]
+    if not is_sample(conn):
+        names = [names[0], names[len(names) // 2], names[-1]]
+    return [{"town": n} for n in sorted(names)]
+
+
 CASES: list[Case] = [
     Case(
         name="building",
@@ -393,5 +428,17 @@ CASES: list[Case] = [
         pg_call=lambda conn, p: PgSavedRepo(conn).list(p["buyer_id"]),
         mongo_call=lambda db, p: MongoSavedRepo(db).list(p["buyer_id"]),
         params=buyer_params,
+    ),
+    Case(
+        name="food_block",
+        pg_call=lambda conn, p: PgFoodRepo(conn).block(p["building_id"]),
+        mongo_call=lambda db, p: MongoFoodRepo(db).block(p["building_id"]),
+        params=food_block_params,
+    ),
+    Case(
+        name="food_town",
+        pg_call=lambda conn, p: PgFoodRepo(conn).town(p["town"]),
+        mongo_call=lambda db, p: MongoFoodRepo(db).town(p["town"]),
+        params=food_town_params,
     ),
 ]

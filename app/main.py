@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
 from app.db import Databases
-from app.routers import admin, auth, building, health, rankings, saved, search, trends
+from app.routers import admin, auth, building, food, health, rankings, saved, search, trends
 from app.services.admin import AdminState
 from app.services.auth import LoginThrottle
 from app.services.dbmode import COOKIE, COOKIE_MAX_AGE, MODES, requested_mode, resolve_mode
@@ -70,6 +70,7 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
     app.include_router(health.router)
     app.include_router(building.router)
+    app.include_router(food.router)
     app.include_router(search.router)
     app.include_router(trends.router)
     app.include_router(rankings.router)

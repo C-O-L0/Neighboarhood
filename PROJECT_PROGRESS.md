@@ -4,7 +4,7 @@ Decisions and next actions only (README rule). Newest first.
 
 ## Run state (paused 2026-10-28)
 
-- Phase 3. Tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20) and 3.3 (PR #22) are merged; `main` is at the merge of PR #22. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
+- Phase 3. Tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20), 3.3 (PR #22) and 3.4 (PR #23) are merged; `main` is at the merge of PR #23. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
 - No feature branch is in progress, and there are no open PRs.
 - Approved specs are kept locally outside version control in `.claude/specs/`:
   - 3.3 admin sales: `p3_3_spec.md`, plus `phase3_notes.md`. That note says to quantize the admin sale price to 0.01 and the area to 0.1 before writing Decimal128.
@@ -14,7 +14,16 @@ Decisions and next actions only (README rule). Newest first.
 
   They are approved; do not re-plan or re-review them.
 - The local `.env` has `DEMO_BUYER_PASSWORD` and `DEMO_ADMIN_PASSWORD` set; the databases hold the sample plus the synthetic buyers.
-- Next action: create `app/food-access` from `main` and send `.claude/specs/p3_4_spec.md` to the implementer. Then run 3.5a and 3.5b the same way, then the Phase 3 gate. The gate includes a full-data load that regenerates `docs/import_report.md` with buyer and saved-block counts. Then run Phase 4 and stop after its gate.
+- Next action: create `app/integrity-matrix` from `main` and send task 3.5a of `.claude/specs/p3_5_spec.md` to the implementer. Then run 3.5b the same way, then the Phase 3 gate. The gate includes a full-data load that regenerates `docs/import_report.md` with buyer and saved-block counts. Then run Phase 4 and stop after its gate.
+
+## 2026-10-28 Task 3.4 food access
+
+- Distances: PostgreSQL computes Haversine in SQL with R = 6378100 m (MongoDB's radius) on `double precision` casts of the coordinates; MongoDB uses `$geoNear` spherical on `geometry`. Both sort and test the 1 km radius (inclusive) on the unrounded distance, and the DTO rounds to 0.1 m with one shared function (`round_metres`, half up). `distance_m` is the only tolerant field (`tol` 1 m, BUILD_PLAN section 6); ids, order and `within_1km` are exact.
+- The status filter (`Under Construction`) sits in the `$geoNear` `query` and in the PostgreSQL `WHERE`, so a closed centre never counts towards the five nearest or the 1 km total. Order is distance, then hawker id (block view) and distance, then building id (town view). The data has no exact ties, so a test checks the statement text and the pipeline `$sort` stages.
+- Block view: PostgreSQL is one statement (two lateral subqueries for the five nearest and the count). MongoDB reads the block's `location`, then runs one `$geoNear` into a `$facet` (`$geoNear` may not appear inside `$facet`). A block without coordinates returns `None` from both repos and the page shows "Unknown" without calling the food repo; the stub (82 MACPHERSON LANE) is geocoded and shows real results. The building page footer now has two timing lines for a geocoded block ("building page" and "food access").
+- Town view (`GET /food?town=...`): PostgreSQL is one statement with two `CROSS JOIN LATERAL`s; MongoDB is one aggregate on `building_profiles` with two `$lookup` stages whose pipelines start with `$geoNear` (`near: "$$loc"`). The town is validated against the 27 names (422 otherwise). A "Food" link was added to the main menu.
+- Equivalence cases `food_block` (every geocoded block on the sample, 326, including the stub; every 25th geocoded id plus the stub on full data) and `food_town` (all 5 sample towns with geocoded blocks; on full data 3 towns: fewest, median and most geocoded blocks) are in the registry.
+- Measurement for the report: on the sample, the maximum PostgreSQL vs MongoDB difference over all 42,054 block and centre pairs is 5.9e-10 m (1 m is the limit). To be re-done at the Phase 3 gate on full data before the figure is quoted.
 
 ## 2026-10-28 Task 3.3 admin sales
 

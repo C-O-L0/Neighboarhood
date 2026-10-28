@@ -6,6 +6,7 @@ from typing import Protocol
 
 from app.repos.dto import (
     Account,
+    BlockFoodAccess,
     BuildingDetail,
     Duplicate,
     Outcome,
@@ -87,4 +88,14 @@ class SavedRepo(Protocol):
 
     def remove(self, buyer_id: int, building_id: int) -> Outcome:
         """Unsave a block (ok or not_saved); a not_saved call changes nothing."""
+        ...
+
+
+class FoodRepo(Protocol):
+    def block(self, building_id: int) -> BlockFoodAccess | None:
+        """The 5 nearest open hawker centres (distance, then id) and the count within 1 km; None without coordinates."""
+        ...
+
+    def town(self, town: str) -> list[BlockFoodAccess]:
+        """Each geocoded block of the town with its nearest open centre, ordered by distance then building id."""
         ...
