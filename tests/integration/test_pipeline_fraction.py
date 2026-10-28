@@ -6,6 +6,10 @@ always loads from a temporary folder inside the container, so data/interim, whic
 never written. The test reloads the full sample in a `finally`, so the databases end as they started.
 
 It replaces the loaded data twice, so it runs alone (the whole suite is run one copy at a time).
+
+It runs on the sample only. When the loaded sales are 0.1 or more of the import report's 241,357 (the sample is about
+0.026; the benchmark fractions are 0.25 and above), it skips before touching any data, because the `finally` below
+would otherwise replace the full data with the sample.
 """
 
 import hashlib
@@ -54,6 +58,8 @@ def test_fraction_loads_the_txn_id_subset_in_both_databases_and_bench_run_checks
     report_path = ROOT / "docs" / "import_report.md"
     report_before = hashlib.sha256(report_path.read_bytes()).hexdigest()
     full_pg, full_mongo = sale_ids(settings, mongo_app)
+    if len(full_pg) / bench_run.import_report_sales() >= 0.1:
+        pytest.skip("runs on the sample only; the full data (or a fraction of it) is loaded")
     assert full_pg == full_mongo and len(full_pg) > 100, "load the sample first (etl.pipeline --sample)"
     wanted = {i for i in full_pg if i % 4 == 0}
     assert 0 < len(wanted) < len(full_pg)

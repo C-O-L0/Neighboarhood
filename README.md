@@ -48,6 +48,8 @@ The rules every Phase 2 feature follows (repository layout, DTO types, DB-mode s
 
 Needs Docker Desktop (Windows or macOS) or Docker Engine with the Compose plugin (Linux).
 
+A step-by-step guide from a fresh clone to the loaded app, tests, backup and benchmark is in the [user manual](docs/user_manual.md) (draft).
+
 ```bash
 cp .env.example .env        # then replace every change-me value (Windows: copy .env.example .env)
 docker compose up --build   # first run pulls images and builds, a few minutes
