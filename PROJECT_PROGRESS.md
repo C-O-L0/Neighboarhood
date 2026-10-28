@@ -16,6 +16,15 @@ Decisions and next actions only (README rule). Newest first.
 - The local `.env` has `DEMO_BUYER_PASSWORD` and `DEMO_ADMIN_PASSWORD` set; the databases hold the sample plus the synthetic buyers.
 - Next action: create `bench/results` from `main` and run task 4.2 of `.claude/specs/p4_spec.md` (charts module by the implementer, formal run on the full data), then 4.3 and 4.4 in that order, then the Phase 4 gate, and stop.
 
+## 2026-10-28 Task 4.2 benchmark tooling
+
+- `bench/README.md` holds the formal procedure (steps 1 to 6) as Git Bash commands. The label allowlist now accepts one optional slash (`2026-11-full/f100`, each part starting with a letter or digit), in both `bench.run` and `bench.explain`; the results folder is created with parents. `.gitignore` excludes `bench/results/**/tmp/` so the scratch rule also covers the nested labels.
+- `bench.scaling` takes the fraction from each folder's `env.json` (rounded to two decimals), never from the folder name, requires exactly three different fractions and rebuilds `scaling.csv` (summary columns plus `fraction` and `source`).
+- `bench.charts` reads only the committed CSVs. Per case and database it plots the median of the three parameter sets' medians, with the largest p95 as the whisker; the `refresh` half of `admin_record_delete` is left out; `scaling.png` shows only cases present at all three fractions. The log axis is used only above a 100x range and then says "log scale". One legend per chart sits below the plots, so it never covers a bar or a label. Line charts (throughput, scaling) carry no value labels, because the labelling rule is for bars; MongoDB lines are dashed with square markers so they also read apart in greyscale.
+- The `bench` service runs as `HOST_UID`/`HOST_GID` (default 1000), so `bench.scaling` and `bench.charts` are run after `export HOST_UID=$(id -u) HOST_GID=$(id -g)`; otherwise the container cannot write into the results folder created by `run.sh`.
+- `matplotlib` 3.11.2 was added to `requirements.in` and compiled into `requirements.lock` with the lock's own command (`uv pip compile --python-version 3.12 --python-platform linux`), run inside `neighboar-app:local` with uv installed there; existing pins did not change.
+- `bench.explain` writes no `fraction` to `env.json`; the read invocation of the same label does, so run the explain step after the reads, as the procedure does.
+
 ## 2026-10-28 Task 4.1b index on and off, and fractions
 
 - `bench/explain.py` runs `search_price_sort`, `search_type_month` and `median_exact` with and without their index, one method for both arms, each database compared only with itself. Run it with `sh bench/run.sh explain --label NAME` (the wrapper now picks the module from a leading `explain`). It writes `index_on_off.csv` (a plan signature and an `index_in_plan` flag per arm, matching the index name as a whole token so `type_month` is not `town_type_month`) and `explain/<case>/{pg,mongo}-index-{on,off}-<param set>.{json,txt}`, and adds an `index_on_off` entry to `env.json`.

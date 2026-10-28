@@ -24,10 +24,16 @@ charset-normalizer==3.5.2
     # via requests
 click==8.5.0
     # via uvicorn
+contourpy==1.4.0
+    # via matplotlib
+cycler==0.12.1
+    # via matplotlib
 dnspython==2.9.0
     # via pymongo
 fastapi==0.143.5
     # via -r requirements.in
+fonttools==4.68.0
+    # via matplotlib
 h11==0.16.0
     # via
     #   httpcore
@@ -49,16 +55,27 @@ itsdangerous==2.2.0
     # via -r requirements.in
 jinja2==3.1.6
     # via -r requirements.in
+kiwisolver==1.5.1
+    # via matplotlib
 markupsafe==3.0.4
     # via jinja2
+matplotlib==3.11.2
+    # via -r requirements.in
 numpy==2.5.4
-    # via pandas
+    # via
+    #   contourpy
+    #   matplotlib
+    #   pandas
 opentelemetry-api==1.45.1
     # via fastapi
 packaging==26.3
-    # via pytest
+    # via
+    #   matplotlib
+    #   pytest
 pandas==3.0.6
     # via -r requirements.in
+pillow==13.0.0
+    # via matplotlib
 pluggy==1.7.0
     # via pytest
 psycopg==3.3.6
@@ -83,10 +100,14 @@ pygments==2.21.0
     # via pytest
 pymongo==4.19.0
     # via -r requirements.in
+pyparsing==3.3.3
+    # via matplotlib
 pytest==9.1.1
     # via -r requirements.in
 python-dateutil==2.9.0.post0
-    # via pandas
+    # via
+    #   matplotlib
+    #   pandas
 python-dotenv==1.2.4
     # via
     #   pydantic-settings

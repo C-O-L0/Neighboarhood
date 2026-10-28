@@ -42,7 +42,8 @@ RESULTS_ROOT = ROOT / "bench" / "results"
 IMPORT_REPORT = ROOT / "docs" / "import_report.md"
 PG_INDEX_FILE = ROOT / "db" / "postgres" / "004_indexes.sql"
 FRACTION_TOLERANCE = 0.001
-LABEL_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+# One or two path segments (for example 2026-11-full/f100); each starts with a letter or digit (no "..", no "/x").
+LABEL_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)?")
 
 README = f"""{capture.SERVER_TIME_RULE}
 
@@ -417,7 +418,7 @@ def run(args: argparse.Namespace, log: Callable[[str], None] = print) -> int:
         raise Refusal("--include-writes and --throughput are separate invocations; run them one after the other")
     label = args.label or f"run-{datetime.now(UTC):%Y%m%dT%H%M%SZ}"
     if not LABEL_PATTERN.fullmatch(label):
-        raise Refusal(f"label {label!r} must be letters, digits, '.', '_' or '-'")
+        raise Refusal(f"label {label!r} must be letters, digits, '.', '_' or '-', with at most one '/'")
     res = Results(args.results_root / label)
 
     all_cases = load_cases()
