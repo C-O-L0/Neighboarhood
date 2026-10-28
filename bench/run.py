@@ -62,6 +62,8 @@ Files
                  rows is the rows or documents the call returned (precomputed summaries have a different grain).
                  median_ms is the usual median, p95_ms is nearest rank.
   throughput.csv {", ".join(THROUGHPUT_COLUMNS)}
+  index_on_off.csv  each indexed case with and without its index, per database (bench.explain); compare a database
+                 only with itself
   env.json       software, settings and the list of invocations
   explain/       the captured statements and their plans (text and JSON)
 """

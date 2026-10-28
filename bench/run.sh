@@ -3,6 +3,7 @@
 #
 #   sh bench/run.sh --label NAME [--cases id,...] [--include-writes] [--throughput] [--expect-fraction F]
 #                   [--runs N --warmup N] [--replace]
+#   sh bench/run.sh explain --label NAME [--cases id,...] [--runs N --warmup N]     (index on and off, task 4.1b)
 #
 # It collects the host facts the container cannot see, passes them as BENCH_* variables, and runs the bench service
 # as the host user so writes to the bind-mounted bench/results work on Linux as well as Docker Desktop.
@@ -49,4 +50,10 @@ BENCH_MONGO_CACHE=$mongo_cache
 BENCH_MEM_LIMITS=$(printf '{"postgres": %s, "mongodb": %s}' "$pg_mem" "$mongo_mem")
 export BENCH_GIT_COMMIT BENCH_IMAGES BENCH_DOCKER_MEM BENCH_MONGO_CACHE BENCH_MEM_LIMITS
 
-exec docker compose run --rm bench python -m bench.run "$@"
+module=bench.run
+if [ "${1:-}" = "explain" ]; then
+    module=bench.explain
+    shift
+fi
+
+exec docker compose run --rm bench python -m "$module" "$@"
