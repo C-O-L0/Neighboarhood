@@ -95,13 +95,23 @@ def _copy_params(params):
     return list(params)
 
 
-def explain_pg(conn: psycopg.Connection, statements: list[PgStatement]) -> None:
-    """EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) every captured SELECT with its own params, rolling each back."""
+def explain_pg(conn: psycopg.Connection, statements: list[PgStatement], in_transaction: bool = False) -> None:
+    """EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) every captured SELECT with its own params, rolling each back.
+
+    in_transaction=True is for a caller that already holds an open transaction (the index on/off arms, task 4.1b):
+    the EXPLAINs then run inside it and the caller's rollback ends them.
+    """
     prefix = sql.SQL("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ")
     for st in statements:
         if not st.select:
             continue
         body = st.query if isinstance(st.query, sql.Composable) else sql.SQL(st.query)
+        if in_transaction:
+            row = conn.execute(prefix + body, st.params).fetchone()
+            st.plan = row[0][0]
+            st.explained = True
+            st.explain_params = _copy_params(st.params)
+            continue
         with conn.transaction():
             conn.execute("SET TRANSACTION READ ONLY")
             row = conn.execute(prefix + body, st.params).fetchone()
