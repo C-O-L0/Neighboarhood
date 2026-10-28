@@ -4,7 +4,7 @@ Decisions and next actions only (README rule). Newest first.
 
 ## Run state (paused 2026-10-28)
 
-- Phase 3. Tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20) and 3.3 (PR #22) are merged; `main` is at the merge of PR #22. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
+- Phase 3. Tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20), 3.3 (PR #22) and 3.4 (PR #23) are merged; `main` is at the merge of PR #23. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
 - No feature branch is in progress, and there are no open PRs.
 - Approved specs are kept locally outside version control in `.claude/specs/`:
   - 3.3 admin sales: `p3_3_spec.md`, plus `phase3_notes.md`. That note says to quantize the admin sale price to 0.01 and the area to 0.1 before writing Decimal128.
@@ -14,7 +14,7 @@ Decisions and next actions only (README rule). Newest first.
 
   They are approved; do not re-plan or re-review them.
 - The local `.env` has `DEMO_BUYER_PASSWORD` and `DEMO_ADMIN_PASSWORD` set; the databases hold the sample plus the synthetic buyers.
-- Next action: create `app/food-access` from `main` and send `.claude/specs/p3_4_spec.md` to the implementer. Then run 3.5a and 3.5b the same way, then the Phase 3 gate. The gate includes a full-data load that regenerates `docs/import_report.md` with buyer and saved-block counts. Then run Phase 4 and stop after its gate.
+- Next action: create `app/integrity-matrix` from `main` and send task 3.5a of `.claude/specs/p3_5_spec.md` to the implementer. Then run 3.5b the same way, then the Phase 3 gate. The gate includes a full-data load that regenerates `docs/import_report.md` with buyer and saved-block counts. Then run Phase 4 and stop after its gate.
 
 ## 2026-10-28 Task 3.4 food access
 
