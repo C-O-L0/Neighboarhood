@@ -4,7 +4,7 @@ Decisions and next actions only (README rule). Newest first.
 
 ## Run state (paused 2026-10-28)
 
-- Phase 4. Phase 3 closed with tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20), 3.3 (PR #22), 3.4 (PR #23), 3.5a (PR #24), 3.5b (PR #25) and the gate (PR #26); `main` is at the merge of PR #26. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
+- Phase 4. Phase 3 closed with tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20), 3.3 (PR #22), 3.4 (PR #23), 3.5a (PR #24), 3.5b (PR #25) and the gate (PR #26). Phase 4: task 4.1a (PR #27) is merged; `main` is at the merge of PR #27. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
 - No feature branch is in progress, and there are no open PRs.
 - Approved specs are kept locally outside version control in `.claude/specs/`:
   - 3.3 admin sales: `p3_3_spec.md`, plus `phase3_notes.md`. That note says to quantize the admin sale price to 0.01 and the area to 0.1 before writing Decimal128.
@@ -14,7 +14,21 @@ Decisions and next actions only (README rule). Newest first.
 
   They are approved; do not re-plan or re-review them.
 - The local `.env` has `DEMO_BUYER_PASSWORD` and `DEMO_ADMIN_PASSWORD` set; the databases hold the sample plus the synthetic buyers.
-- Next action: create `app/bench` from `main` and send task 4.1a of `.claude/specs/p4_spec.md` to the implementer, then 4.1b, 4.2, 4.3 and 4.4 in that order, then the Phase 4 gate, and stop.
+- Next action: create `app/bench-explain` from `main` and send task 4.1b of `.claude/specs/p4_spec.md` to the implementer, then 4.2, 4.3 and 4.4 in that order, then the Phase 4 gate, and stop.
+
+## 2026-10-28 Task 4.1a benchmark harness
+
+- The harness lives in `bench/`: `run.py` (checks, timing, results), `verify.py`, `capture.py`, `stats.py`, `connect.py`, `cases.yaml` and `run.sh`, plus three small modules the spec did not list: `cases.py` (the typed YAML loader), `calls.py` (the repo wrappers and the bench-only statements) and `throughput.py` (the spawn workers). `Case` in `tests/equivalence/cases.py` has a `writes` flag, false for every registered case, and `bench.verify` skips any case that sets it.
+- Test-only hooks are hidden command-line options: `--force-mismatch` (verify compares one result against nothing), `--throughput-seconds` and `--throughput-warmup` (short throughput), and `--results-root` (tests write to a temporary folder, never `bench/results`). A run made with a hook records it under `test_hooks` in its `env.json` entry.
+- Timed reads run as PG `app_ro` and Mongo `app`; the runner reads `current_user` and `connectionStatus` on the timed connections themselves and refuses to time as anyone else. `app` has no `listIndexes` or `createIndex`, so the index check and the idempotent `create_indexes(INDEXES)` use the ETL Mongo user; write cases use PG `app_admin` and Mongo `app_admin`. The bench service has no `app_rw` credential.
+- Capture, then warm-up, then timed runs, then EXPLAIN. The capture call goes through the recorders and is untimed; the warm-up and timed calls use bare connections (each raw timing records its connection type); the EXPLAINs run last on a second `app_ro` connection, each SELECT inside a read-only transaction that is rolled back. MongoDB `executionTimeMillis` has 1 ms resolution, which `README.txt` in each results folder says next to the server-time rule.
+- The summary has a `part` column: `call` for reads, and `write` and `refresh` for an admin write. One PG run is record plus delete (the two spans summed as `write`) and then one `refresh_town_stats()` (`refresh`); MongoDB has no refresh. The median is the usual one (mean of the two middle timings when n is even), unlike the lower median used for prices; p95 is nearest rank.
+- `stats_rebuild` takes no parameters, so its three sets are repetitions (`rep-1` to `rep-3`) with the default 50 runs and 5 warm-up. Every case has exactly three sets and the loader refuses anything else. Sets in BISHAN, MARINE PARADE and BUKIT TIMAH also return rows on the sample; the TAMPINES sets return nothing there, and the sample runs accept that.
+- Each `env.json` invocation entry has `verify: {ok, checks}`. A writes run repairs an interrupted rebuild by comparing the profiles with `stats.txn_count > 0` against the distinct `building_id` count in `resale_transactions` (`rebuild_all_stats` first resets every profile to empty stats, so a missing `stats` field is not the failure mode).
+- A writes run records the state first (db_counts, the three affected building pages in both databases, every `mv_town_month_stats` row), settles afterwards and fails if any of it changed. It also puts the MongoDB `txn` counter back, because `test_database` compares it with the largest loaded id. The PostgreSQL sequence cannot be put back and is not.
+- The fraction is PG snapshot sales over the `Sales: N read` figure in `docs/import_report.md`, so admin sales do not move it. The sample is 0.026. `--expect-fraction` defaults to 1 and the label plays no part.
+- `run.sh` also passes `BENCH_MEM_LIMITS` (the `mem_limit` of the postgres and mongodb containers from `docker inspect`) beyond the four host facts the spec names; `BENCH_IMAGES` is a JSON object of the three image ids. Tests read the PG `shared_buffers` from the server and the Mongo cache from `BENCH_MONGO_CACHE`, and the value is `null` when `run.sh` did not set it.
+- The bench integration tests need `PG_APP_RO_PASSWORD` and `MONGO_ETL_PASSWORD`, which the CI test step and the README command already pass; the web service supplies the admin and app passwords. No CI or README change was needed, and the tests skip cleanly if one of the five passwords is missing.
 
 ## 2026-10-28 Phase 3 gate passed
 
