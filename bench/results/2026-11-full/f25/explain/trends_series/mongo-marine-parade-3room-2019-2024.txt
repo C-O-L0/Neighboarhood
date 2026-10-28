@@ -1,0 +1,9 @@
+-- call 1
+aggregate on resale_transactions: 1.0 ms
+stage $cursor: nReturned=75 estimate=1 ms
+stage $set: nReturned=75 estimate=1 ms
+stage $sort: nReturned=75 estimate=1 ms
+stage $_internalSetWindowFields: nReturned=75 estimate=1 ms
+stage $match: nReturned=65 estimate=1 ms
+stage $project: nReturned=65 estimate=1 ms
+stage $sort: nReturned=65 estimate=1 ms

@@ -21,4 +21,4 @@ venv/
 Thumbs.db
 
 # Benchmark scratch space (results themselves are committed)
-bench/results/*/tmp/
+bench/results/**/tmp/

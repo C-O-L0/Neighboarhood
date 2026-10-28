@@ -1,0 +1,284 @@
+[
+  {
+    "n": 1,
+    "call": {
+      "kind": "aggregate",
+      "collection": "building_profiles",
+      "pipeline": [
+        {
+          "$match": {
+            "block": "66",
+            "street": "MARINE DR"
+          }
+        },
+        {
+          "$lookup": {
+            "from": "resale_transactions",
+            "localField": "_id",
+            "foreignField": "building_id",
+            "pipeline": [
+              {
+                "$sort": {
+                  "txn_month": -1,
+                  "_id": -1
+                }
+              },
+              {
+                "$limit": 10
+              },
+              {
+                "$project": {
+                  "txn_month": 1,
+                  "flat_type": 1,
+                  "flat_model": 1,
+                  "storey_min": 1,
+                  "storey_max": 1,
+                  "floor_area_sqm": 1,
+                  "resale_price": 1
+                }
+              }
+            ],
+            "as": "recent"
+          }
+        }
+      ],
+      "options": {}
+    },
+    "explain": {
+      "explainVersion": "1",
+      "stages": [
+        {
+          "$cursor": {
+            "queryPlanner": {
+              "namespace": "neighboar.building_profiles",
+              "parsedQuery": {
+                "$and": [
+                  {
+                    "block": {
+                      "$eq": "66"
+                    }
+                  },
+                  {
+                    "street": {
+                      "$eq": "MARINE DR"
+                    }
+                  }
+                ]
+              },
+              "indexFilterSet": false,
+              "queryHash": "6CBCCEC4",
+              "planCacheShapeHash": "6CBCCEC4",
+              "planCacheKey": "33EB81E0",
+              "optimizationTimeMillis": 0,
+              "cursorType": "regular",
+              "maxIndexedOrSolutionsReached": false,
+              "maxIndexedAndSolutionsReached": false,
+              "maxScansToExplodeReached": false,
+              "prunedSimilarIndexes": false,
+              "winningPlan": {
+                "isCached": false,
+                "stage": "FETCH",
+                "nss": "neighboar.building_profiles",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nss": "neighboar.building_profiles",
+                  "keyPattern": {
+                    "block": 1,
+                    "street": 1
+                  },
+                  "indexName": "block_street_unique",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "block": [],
+                    "street": []
+                  },
+                  "isUnique": true,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "block": [
+                      "[\"66\", \"66\"]"
+                    ],
+                    "street": [
+                      "[\"MARINE DR\", \"MARINE DR\"]"
+                    ]
+                  }
+                }
+              },
+              "rejectedPlans": []
+            },
+            "executionStats": {
+              "executionSuccess": true,
+              "nReturned": 1,
+              "executionTimeMillis": 0,
+              "totalKeysExamined": 1,
+              "totalDocsExamined": 1,
+              "executionStages": {
+                "isCached": false,
+                "stage": "FETCH",
+                "nReturned": 1,
+                "executionTimeMillisEstimate": 0,
+                "works": 2,
+                "advanced": 1,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 2,
+                "restoreState": 1,
+                "isEOF": 1,
+                "nss": "neighboar.building_profiles",
+                "docsExamined": 1,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 1,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 2,
+                  "advanced": 1,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 2,
+                  "restoreState": 1,
+                  "isEOF": 1,
+                  "nss": "neighboar.building_profiles",
+                  "keyPattern": {
+                    "block": 1,
+                    "street": 1
+                  },
+                  "indexName": "block_street_unique",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "block": [],
+                    "street": []
+                  },
+                  "isUnique": true,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "block": [
+                      "[\"66\", \"66\"]"
+                    ],
+                    "street": [
+                      "[\"MARINE DR\", \"MARINE DR\"]"
+                    ]
+                  },
+                  "keysExamined": 1,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0,
+                  "peakTrackedMemBytes": 0
+                }
+              }
+            }
+          },
+          "nReturned": 1,
+          "executionTimeMillisEstimate": 0
+        },
+        {
+          "$lookup": {
+            "from": "resale_transactions",
+            "as": "recent",
+            "localField": "_id",
+            "foreignField": "building_id",
+            "let": {},
+            "pipeline": [
+              {
+                "$sort": {
+                  "txn_month": -1,
+                  "_id": -1
+                }
+              },
+              {
+                "$limit": 10
+              },
+              {
+                "$project": {
+                  "txn_month": 1,
+                  "flat_type": 1,
+                  "flat_model": 1,
+                  "storey_min": 1,
+                  "storey_max": 1,
+                  "floor_area_sqm": 1,
+                  "resale_price": 1
+                }
+              }
+            ]
+          },
+          "nReturned": 1,
+          "executionTimeMillisEstimate": 0,
+          "totalDocsExamined": 57,
+          "totalKeysExamined": 57,
+          "collectionScans": 0,
+          "indexesUsed": [
+            "building_month"
+          ]
+        }
+      ],
+      "queryShapeHash": "BE959869DE08CA7B3EF3085CE14E51FD7ADDC9005EF5C7E8A0EF0623BCA95BF2",
+      "serverInfo": {
+        "host": "35fc6b4ee753",
+        "port": 27017,
+        "version": "8.3.11",
+        "gitVersion": "b8b83d6e6e1aed495578ad8c6f9234ad329c9955"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      },
+      "command": {
+        "aggregate": "building_profiles",
+        "pipeline": [
+          {
+            "$match": {
+              "block": "66",
+              "street": "MARINE DR"
+            }
+          },
+          {
+            "$lookup": {
+              "from": "resale_transactions",
+              "localField": "_id",
+              "foreignField": "building_id",
+              "pipeline": [
+                {
+                  "$sort": {
+                    "txn_month": -1,
+                    "_id": -1
+                  }
+                },
+                {
+                  "$limit": 10
+                },
+                {
+                  "$project": {
+                    "txn_month": 1,
+                    "flat_type": 1,
+                    "flat_model": 1,
+                    "storey_min": 1,
+                    "storey_max": 1,
+                    "floor_area_sqm": 1,
+                    "resale_price": 1
+                  }
+                }
+              ],
+              "as": "recent"
+            }
+          }
+        ],
+        "cursor": {},
+        "$db": "neighboar"
+      }
+    }
+  }
+]

@@ -1,0 +1,5 @@
+-- call 1
+find on building_profiles: 0.0 ms
+winning plan:
+  EXPRESS_IXSCAN index=_id_
+executionStats: nReturned=1 keysExamined=1 docsExamined=1 time=0 ms

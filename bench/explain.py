@@ -365,7 +365,7 @@ def run(args: argparse.Namespace, log: Callable[[str], None] = print) -> int:
         raise Refusal(f"not an index on/off case: {', '.join(unknown)} (choose from {', '.join(INDEX_CASES)})")
     label = args.label or f"run-{utc_now().replace(':', '').replace('-', '')}"
     if not LABEL_PATTERN.fullmatch(label):
-        raise Refusal(f"label {label!r} must be letters, digits, '.', '_' or '-'")
+        raise Refusal(f"label {label!r} must be letters, digits, '.', '_' or '-', with at most one '/'")
     s = connect.settings()
     if not s.pg_owner_password or not s.mongo_etl_password:
         raise Refusal("PG_OWNER_PASSWORD and MONGO_ETL_PASSWORD are needed")

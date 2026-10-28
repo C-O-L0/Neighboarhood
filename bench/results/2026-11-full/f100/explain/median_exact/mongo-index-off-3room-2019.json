@@ -1,0 +1,390 @@
+[
+  {
+    "n": 1,
+    "call": {
+      "kind": "aggregate",
+      "collection": "resale_transactions",
+      "pipeline": [
+        {
+          "$match": {
+            "flat_type": "3 ROOM",
+            "txn_month": {
+              "$gte": "2019-01-01 00:00:00+00:00",
+              "$lt": "2020-01-01 00:00:00+00:00"
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": null,
+            "n": {
+              "$sum": 1
+            },
+            "prices": {
+              "$push": "$resale_price"
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "median": {
+              "$arrayElemAt": [
+                {
+                  "$sortArray": {
+                    "input": "$prices",
+                    "sortBy": 1
+                  }
+                },
+                {
+                  "$floor": {
+                    "$divide": [
+                      {
+                        "$subtract": [
+                          "$n",
+                          1
+                        ]
+                      },
+                      2
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "options": {}
+    },
+    "explain": {
+      "explainVersion": "2",
+      "stages": [
+        {
+          "$cursor": {
+            "queryPlanner": {
+              "namespace": "neighboar.resale_transactions",
+              "parsedQuery": {
+                "$and": [
+                  {
+                    "flat_type": {
+                      "$eq": "3 ROOM"
+                    }
+                  },
+                  {
+                    "txn_month": {
+                      "$lt": "2020-01-01 00:00:00"
+                    }
+                  },
+                  {
+                    "txn_month": {
+                      "$gte": "2019-01-01 00:00:00"
+                    }
+                  }
+                ]
+              },
+              "indexFilterSet": false,
+              "queryHash": "B641DD7E",
+              "planCacheShapeHash": "B641DD7E",
+              "planCacheKey": "D73C0424",
+              "optimizationTimeMillis": 0,
+              "cursorType": "regular",
+              "maxIndexedOrSolutionsReached": false,
+              "maxIndexedAndSolutionsReached": false,
+              "maxScansToExplodeReached": false,
+              "prunedSimilarIndexes": false,
+              "winningPlan": {
+                "isCached": false,
+                "queryPlan": {
+                  "stage": "GROUP",
+                  "planNodeId": 4,
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "planNodeId": 2,
+                    "filter": {
+                      "$and": [
+                        {
+                          "txn_month": {
+                            "$lt": "2020-01-01 00:00:00"
+                          }
+                        },
+                        {
+                          "txn_month": {
+                            "$gte": "2019-01-01 00:00:00"
+                          }
+                        }
+                      ]
+                    },
+                    "nss": "neighboar.resale_transactions",
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "planNodeId": 1,
+                      "nss": "neighboar.resale_transactions",
+                      "keyPattern": {
+                        "flat_type": 1,
+                        "resale_price": 1,
+                        "_id": 1
+                      },
+                      "indexName": "type_price",
+                      "isMultiKey": false,
+                      "multiKeyPaths": {
+                        "flat_type": [],
+                        "resale_price": [],
+                        "_id": []
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "flat_type": [
+                          "[\"3 ROOM\", \"3 ROOM\"]"
+                        ],
+                        "resale_price": [
+                          "[MinKey, MaxKey]"
+                        ],
+                        "_id": [
+                          "[MinKey, MaxKey]"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "slotBasedPlan": {
+                  "slots": "$$RESULT=s15 env: { s5 = {\"flat_type\" : 1, \"resale_price\" : 1, \"_id\" : 1} }",
+                  "stages": "[4] project [s15 = newObj(\"_id\", s14, \"n\", s10, \"prices\", s12)] \n[4] project [s14 = null] \n[4] group [] [s10 = _internalCount::accumulate(s10, 1), s12 = _internalPush::accumulate(s12, s8)] spillSlots[s11, s13] mergingExprs[_internalCount::merge(s11), _internalPush::merge(s13)] \n[2] filter {(traverseF(s9, lambda(l3.0) { ((move(l3.0) < Date(1577836800000)) ?: false) }, false) && traverseF(s9, lambda(l4.0) { ((move(l4.0) >= Date(1546300800000)) ?: false) }, false))} \n[2] fetch s1 = seek, s6 = result, s7 = recordId, s4 = inSnapshotId, s2 = inIndexIdent, s3 = inIndexKey, s5 = inIndexKeyPattern [s8 = resale_price, s9 = txn_month] @\"ae3e7302-8a44-4cbb-bf4d-097af1f9b450\" \n[1] ixseek seekKeyLow = KS(3C3320524F4F4D000A0A01) seekKeyHigh = KS(3C3320524F4F4D00F0F0FE) [s3 = indexKey, s1 = recordId, s4 = snapshotId, s2 = indexIdent] [] @\"ae3e7302-8a44-4cbb-bf4d-097af1f9b450\" @\"type_price\" forward "
+                }
+              },
+              "rejectedPlans": []
+            },
+            "executionStats": {
+              "executionSuccess": true,
+              "nReturned": 1,
+              "executionTimeMillis": 39,
+              "totalKeysExamined": 57319,
+              "totalDocsExamined": 57319,
+              "executionStages": {
+                "stage": "project",
+                "planNodeId": 4,
+                "nReturned": 1,
+                "executionTimeMillisEstimate": 36,
+                "opens": 1,
+                "closes": 1,
+                "saveState": 4,
+                "restoreState": 3,
+                "isEOF": 1,
+                "projections": {
+                  "15": "newObj(\"_id\", s14, \"n\", s10, \"prices\", s12) "
+                },
+                "inputStage": {
+                  "stage": "project",
+                  "planNodeId": 4,
+                  "nReturned": 1,
+                  "executionTimeMillisEstimate": 36,
+                  "opens": 1,
+                  "closes": 1,
+                  "saveState": 4,
+                  "restoreState": 3,
+                  "isEOF": 1,
+                  "projections": {
+                    "14": "null "
+                  },
+                  "inputStage": {
+                    "stage": "group",
+                    "planNodeId": 4,
+                    "nReturned": 1,
+                    "executionTimeMillisEstimate": 36,
+                    "opens": 1,
+                    "closes": 1,
+                    "saveState": 4,
+                    "restoreState": 3,
+                    "isEOF": 1,
+                    "groupBySlots": [],
+                    "expressions": {
+                      "10": "_internalCount::accumulate(s10, 1) ",
+                      "12": "_internalPush::accumulate(s12, s8) ",
+                      "initExprs": {
+                        "10": null,
+                        "12": null,
+                        "mergingExprs": {
+                          "11": "_internalCount::merge(s11) ",
+                          "13": "_internalPush::merge(s13) "
+                        }
+                      }
+                    },
+                    "usedDisk": false,
+                    "spills": 0,
+                    "spilledBytes": 0,
+                    "spilledRecords": 0,
+                    "spilledDataStorageSize": 0,
+                    "peakTrackedMemBytes": 0,
+                    "inputStage": {
+                      "stage": "filter",
+                      "planNodeId": 2,
+                      "nReturned": 5423,
+                      "executionTimeMillisEstimate": 36,
+                      "opens": 1,
+                      "closes": 1,
+                      "saveState": 4,
+                      "restoreState": 3,
+                      "isEOF": 1,
+                      "numTested": 57319,
+                      "filter": "(traverseF(s9, lambda(l3.0) { ((move(l3.0) < Date(1577836800000)) ?: false) }, false) && traverseF(s9, lambda(l4.0) { ((move(l4.0) >= Date(1546300800000)) ?: false) }, false)) ",
+                      "inputStage": {
+                        "stage": "fetch",
+                        "planNodeId": 2,
+                        "nReturned": 57319,
+                        "executionTimeMillisEstimate": 36,
+                        "opens": 1,
+                        "closes": 1,
+                        "saveState": 4,
+                        "restoreState": 3,
+                        "isEOF": 1,
+                        "numReads": 57319,
+                        "inputStage": {
+                          "stage": "ixseek",
+                          "planNodeId": 1,
+                          "nReturned": 57319,
+                          "executionTimeMillisEstimate": 0,
+                          "opens": 1,
+                          "closes": 1,
+                          "saveState": 4,
+                          "restoreState": 3,
+                          "isEOF": 1,
+                          "indexName": "type_price",
+                          "keysExamined": 57319,
+                          "seeks": 1,
+                          "numReads": 57320,
+                          "indexKeySlot": 3,
+                          "recordIdSlot": 1,
+                          "snapshotIdSlot": 4,
+                          "indexIdentSlot": 2,
+                          "outputSlots": [],
+                          "indexKeysToInclude": "00000000000000000000000000000000",
+                          "seekKeyLow": "KS(3C3320524F4F4D000A0A01) ",
+                          "seekKeyHigh": "KS(3C3320524F4F4D00F0F0FE) "
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "nReturned": 1,
+          "executionTimeMillisEstimate": 37
+        },
+        {
+          "$project": {
+            "median": {
+              "$arrayElemAt": [
+                {
+                  "$sortArray": {
+                    "input": "$prices",
+                    "sortBy": 1
+                  }
+                },
+                {
+                  "$floor": [
+                    {
+                      "$divide": [
+                        {
+                          "$subtract": [
+                            "$n",
+                            {
+                              "$const": 1
+                            }
+                          ]
+                        },
+                        {
+                          "$const": 2
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "_id": false
+          },
+          "nReturned": 1,
+          "executionTimeMillisEstimate": 37
+        }
+      ],
+      "queryShapeHash": "0A139ACC6A2FFD26349CA4F250B669940FD28DBDB6D475C4F15C55C14FAA73F9",
+      "serverInfo": {
+        "host": "35fc6b4ee753",
+        "port": 27017,
+        "version": "8.3.11",
+        "gitVersion": "b8b83d6e6e1aed495578ad8c6f9234ad329c9955"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      },
+      "command": {
+        "aggregate": "resale_transactions",
+        "pipeline": [
+          {
+            "$match": {
+              "flat_type": "3 ROOM",
+              "txn_month": {
+                "$gte": "2019-01-01 00:00:00",
+                "$lt": "2020-01-01 00:00:00"
+              }
+            }
+          },
+          {
+            "$group": {
+              "_id": null,
+              "n": {
+                "$sum": 1
+              },
+              "prices": {
+                "$push": "$resale_price"
+              }
+            }
+          },
+          {
+            "$project": {
+              "_id": 0,
+              "median": {
+                "$arrayElemAt": [
+                  {
+                    "$sortArray": {
+                      "input": "$prices",
+                      "sortBy": 1
+                    }
+                  },
+                  {
+                    "$floor": {
+                      "$divide": [
+                        {
+                          "$subtract": [
+                            "$n",
+                            1
+                          ]
+                        },
+                        2
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "cursor": {},
+        "$db": "neighboar"
+      }
+    }
+  }
+]

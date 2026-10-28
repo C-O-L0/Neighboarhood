@@ -1,0 +1,29 @@
+-- statement 1 (explained)
+SELECT m.month, m.n, m.median_price, m.avg_psm, p.median_price, r.n, r.median_price
+FROM mv_town_month_stats m
+LEFT JOIN mv_town_month_stats p
+       ON p.town_id = m.town_id AND p.flat_type_id = m.flat_type_id
+      AND p.month = (m.month - interval '12 months')::date
+CROSS JOIN LATERAL (
+    SELECT count(*)::int AS n, percentile_disc(0.5) WITHIN GROUP (ORDER BY t.resale_price) AS median_price
+    FROM resale_transaction t
+    JOIN building b USING (building_id)
+    WHERE b.town_id = m.town_id AND t.flat_type_id = m.flat_type_id
+      AND t.txn_month BETWEEN (m.month - interval '11 months')::date AND m.month
+) r
+WHERE m.town_id = %s AND m.flat_type_id = %s AND m.month >= %s AND m.month <= %s ORDER BY m.month
+-- params: [16, 3, "2019-01-01", "2024-12-01"]
+Nested Loop (actual time=0.387..21.151 rows=69.0 loops=1) buffers: shared hit=9999 read=0
+  -> Nested Loop (actual time=0.383..21.038 rows=69.0 loops=1) buffers: shared hit=9796 read=0
+    -> Index Scan using mv_town_month_stats_key on mv_town_month_stats (actual time=0.018..0.034 rows=69.0 loops=1) buffers: shared hit=17 read=0
+    -> Memoize (actual time=0.304..0.304 rows=1.0 loops=69) buffers: shared hit=9779 read=0
+      -> Aggregate (actual time=0.303..0.303 rows=1.0 loops=69) buffers: shared hit=9779 read=0
+        -> Hash Join (actual time=0.083..0.298 rows=37.51 loops=69) buffers: shared hit=9779 read=0
+          -> Bitmap Heap Scan on resale_transaction (actual time=0.033..0.178 rows=3024.2 loops=69) buffers: shared hit=9503 read=0
+            -> Bitmap Index Scan using resale_transaction_type_month_idx (actual time=0.025..0.025 rows=3024.2 loops=69) buffers: shared hit=395 read=0
+          -> Hash (actual time=0.01..0.01 rows=78.0 loops=69) buffers: shared hit=276 read=0
+            -> Bitmap Heap Scan on building (actual time=0.002..0.006 rows=78.0 loops=69) buffers: shared hit=276 read=0
+              -> Bitmap Index Scan using building_town_idx (actual time=0.001..0.001 rows=78.0 loops=69) buffers: shared hit=138 read=0
+  -> Index Scan using mv_town_month_stats_key on mv_town_month_stats (actual time=0.001..0.001 rows=0.94 loops=69) buffers: shared hit=203 read=0
+Planning Time: 0.23 ms
+Execution Time: 21.185 ms

@@ -1,0 +1,14 @@
+-- call 1
+count_documents on resale_transactions: 22.0 ms
+winning plan:
+  GROUP
+    GROUP
+      COLLSCAN
+executionStats: nReturned=1 keysExamined=0 docsExamined=241357 time=22 ms
+
+-- call 2
+find on resale_transactions: 78.0 ms
+winning plan:
+  SORT
+    COLLSCAN
+executionStats: nReturned=50 keysExamined=0 docsExamined=241357 time=78 ms

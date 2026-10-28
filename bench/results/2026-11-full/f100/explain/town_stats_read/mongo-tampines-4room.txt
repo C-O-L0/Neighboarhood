@@ -1,0 +1,7 @@
+-- call 1
+find on building_profiles: 0.0 ms
+winning plan:
+  PROJECTION_DEFAULT
+    FETCH
+      IXSCAN index=town_name
+executionStats: nReturned=1089 keysExamined=1089 docsExamined=1089 time=0 ms

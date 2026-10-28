@@ -1,0 +1,40 @@
+-- statement 1 (explained)
+SELECT b.building_id, b.block, b.street,
+       n.hawker_id, n.name, n.address, n.status, n.stall_count, n.dist, c.within_1km
+FROM building b
+JOIN town tw ON tw.town_id = b.town_id
+CROSS JOIN LATERAL (
+    SELECT h.hawker_id, h.name, h.address, h.status, h.stall_count, 2 * 6378100 * asin(sqrt(
+    sin((radians(h.latitude::double precision) - radians(b.latitude::double precision)) / 2) ^ 2
+    + cos(radians(b.latitude::double precision)) * cos(radians(h.latitude::double precision))
+      * sin((radians(h.longitude::double precision) - radians(b.longitude::double precision)) / 2) ^ 2)) AS dist
+    FROM hawker_centre h
+    WHERE h.status <> %(status)s
+    ORDER BY dist, h.hawker_id
+    LIMIT 1
+) n
+CROSS JOIN LATERAL (
+    SELECT count(*)::int AS within_1km
+    FROM hawker_centre h
+    WHERE h.status <> %(status)s AND 2 * 6378100 * asin(sqrt(
+    sin((radians(h.latitude::double precision) - radians(b.latitude::double precision)) / 2) ^ 2
+    + cos(radians(b.latitude::double precision)) * cos(radians(h.latitude::double precision))
+      * sin((radians(h.longitude::double precision) - radians(b.longitude::double precision)) / 2) ^ 2)) <= 1000
+) c
+WHERE tw.name = %(town)s AND b.latitude IS NOT NULL
+ORDER BY n.dist, b.building_id
+-- params: {"town": "MARINE PARADE", "status": "Under Construction"}
+Sort (actual time=12.496..12.498 rows=59.0 loops=1) buffers: shared hit=359 read=0
+  -> Nested Loop (actual time=0.235..12.477 rows=59.0 loops=1) buffers: shared hit=359 read=0
+    -> Nested Loop (actual time=0.14..6.989 rows=59.0 loops=1) buffers: shared hit=182 read=0
+      -> Nested Loop (actual time=0.014..0.03 rows=59.0 loops=1) buffers: shared hit=5 read=0
+        -> Seq Scan on town (actual time=0.004..0.005 rows=1.0 loops=1) buffers: shared hit=1 read=0
+        -> Bitmap Heap Scan on building (actual time=0.01..0.019 rows=59.0 loops=1) buffers: shared hit=4 read=0
+          -> Bitmap Index Scan using building_town_idx (actual time=0.005..0.005 rows=78.0 loops=1) buffers: shared hit=2 read=0
+      -> Limit (actual time=0.118..0.118 rows=1.0 loops=59) buffers: shared hit=177 read=0
+        -> Sort (actual time=0.117..0.117 rows=1.0 loops=59) buffers: shared hit=177 read=0
+          -> Seq Scan on hawker_centre (actual time=0.002..0.101 rows=123.0 loops=59) buffers: shared hit=177 read=0
+    -> Aggregate (actual time=0.093..0.093 rows=1.0 loops=59) buffers: shared hit=177 read=0
+      -> Seq Scan on hawker_centre (actual time=0.003..0.092 rows=1.8 loops=59) buffers: shared hit=177 read=0
+Planning Time: 0.199 ms
+Execution Time: 12.526 ms

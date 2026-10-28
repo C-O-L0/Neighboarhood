@@ -1,0 +1,47 @@
+-- statement 1 (recorded, not explained)
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY
+-- params: null
+
+-- statement 2 (explained)
+SELECT count(*) FROM v_transaction_detail WHERE flat_type_id = %s AND txn_month >= %s AND txn_month <= %s
+-- params: [4, "2022-01-01", "2022-03-01"]
+Aggregate (actual time=6.93..8.241 rows=1.0 loops=1) buffers: shared hit=2596 read=0
+  -> Gather (actual time=6.827..8.237 rows=2.0 loops=1) buffers: shared hit=2596 read=0
+    -> Aggregate (actual time=5.668..5.671 rows=1.0 loops=2) buffers: shared hit=2596 read=0
+      -> Hash Join (actual time=3.018..5.628 rows=1396.5 loops=2) buffers: shared hit=2596 read=0
+        -> Nested Loop (actual time=3.006..5.52 rows=1396.5 loops=2) buffers: shared hit=2594 read=0
+          -> Hash Join (actual time=2.985..5.298 rows=1396.5 loops=2) buffers: shared hit=2592 read=0
+            -> Hash Join (actual time=2.973..5.184 rows=1396.5 loops=2) buffers: shared hit=2590 read=0
+              -> Seq Scan on resale_transaction (actual time=1.47..3.505 rows=1396.5 loops=2) buffers: shared hit=2304 read=0
+              -> Hash (actual time=1.464..1.464 rows=13358.0 loops=2) buffers: shared hit=286 read=0
+                -> Seq Scan on building (actual time=0.006..0.669 rows=13358.0 loops=2) buffers: shared hit=286 read=0
+            -> Hash (actual time=0.007..0.008 rows=27.0 loops=2) buffers: shared hit=2 read=0
+              -> Seq Scan on town (actual time=0.003..0.004 rows=27.0 loops=2) buffers: shared hit=2 read=0
+          -> Materialize (actual time=0.0..0.0 rows=1.0 loops=2793) buffers: shared hit=2 read=0
+            -> Seq Scan on flat_type (actual time=0.017..0.017 rows=1.0 loops=2) buffers: shared hit=2 read=0
+        -> Hash (actual time=0.008..0.009 rows=21.0 loops=2) buffers: shared hit=2 read=0
+          -> Seq Scan on flat_model (actual time=0.005..0.006 rows=21.0 loops=2) buffers: shared hit=2 read=0
+Planning Time: 0.264 ms
+Execution Time: 8.267 ms
+
+-- statement 3 (explained)
+SELECT txn_id, txn_month, town, block, street, building_id, flat_type, flat_model, storey_min, storey_max, floor_area_sqm, lease_commence_year, remaining_lease_months, resale_price FROM v_transaction_detail WHERE flat_type_id = %s AND txn_month >= %s AND txn_month <= %s ORDER BY "txn_month" DESC, txn_id DESC LIMIT %s OFFSET %s
+-- params: [4, "2022-01-01", "2022-03-01", 50, 0]
+Limit (actual time=4.787..6.063 rows=50.0 loops=1) buffers: shared hit=2487 read=0
+  -> Nested Loop (actual time=4.787..6.06 rows=50.0 loops=1) buffers: shared hit=2487 read=0
+    -> Nested Loop (actual time=4.783..6.044 rows=50.0 loops=1) buffers: shared hit=2479 read=0
+      -> Nested Loop (actual time=4.778..6.029 rows=50.0 loops=1) buffers: shared hit=2478 read=0
+        -> Nested Loop (actual time=4.774..6.014 rows=50.0 loops=1) buffers: shared hit=2476 read=0
+          -> Gather Merge (actual time=4.759..5.953 rows=50.0 loops=1) buffers: shared hit=2350 read=0
+            -> Sort (actual time=3.779..3.791 rows=512.5 loops=2) buffers: shared hit=2350 read=0
+              -> Seq Scan on resale_transaction (actual time=1.543..3.505 rows=1396.5 loops=2) buffers: shared hit=2304 read=0
+          -> Memoize (actual time=0.001..0.001 rows=1.0 loops=50) buffers: shared hit=126 read=0
+            -> Index Scan using building_pkey on building (actual time=0.001..0.001 rows=1.0 loops=42) buffers: shared hit=126 read=0
+        -> Memoize (actual time=0.0..0.0 rows=1.0 loops=50) buffers: shared hit=2 read=0
+          -> Index Scan using town_pkey on town (actual time=0.002..0.002 rows=1.0 loops=1) buffers: shared hit=2 read=0
+      -> Materialize (actual time=0.0..0.0 rows=1.0 loops=50) buffers: shared hit=1 read=0
+        -> Seq Scan on flat_type (actual time=0.003..0.004 rows=1.0 loops=1) buffers: shared hit=1 read=0
+    -> Memoize (actual time=0.0..0.0 rows=1.0 loops=50) buffers: shared hit=8 read=0
+      -> Index Scan using flat_model_pkey on flat_model (actual time=0.001..0.001 rows=1.0 loops=4) buffers: shared hit=8 read=0
+Planning Time: 0.361 ms
+Execution Time: 6.093 ms
