@@ -74,7 +74,7 @@ def test_env_example_holds_only_placeholders():
 # --------------------------------------------------------------------------------------------------- non-root
 
 
-@pytest.mark.parametrize("dockerfile", ["Dockerfile", "db/mongo/Dockerfile"])
+@pytest.mark.parametrize("dockerfile", ["Dockerfile", "db/mongo/Dockerfile", "db/tools/Dockerfile"])
 def test_images_end_with_a_non_root_user(dockerfile):
     users = re.findall(r"^\s*USER\s+(\S+)", read(dockerfile), flags=re.M | re.I)
     assert users, f"{dockerfile} has no USER instruction"

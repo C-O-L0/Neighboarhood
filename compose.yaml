@@ -136,6 +136,31 @@ services:
     command: ["python", "-m", "bench.run"]
     restart: "no"
 
+  dbtools:
+    # Backup and restore tools, not started by "up". Run through scripts/backup.sh and scripts/restore.sh, which export
+    # HOST_UID and HOST_GID so the files written to ./backups belong to the host user.
+    # It holds the PostgreSQL superuser and MongoDB root credentials (a dump and a restore need them) and nothing else.
+    build: ./db/tools
+    image: neighboar-dbtools:local
+    profiles: ["tools"]
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      MONGODB_INITDB_ROOT_USERNAME: ${MONGODB_INITDB_ROOT_USERNAME}
+      MONGODB_INITDB_ROOT_PASSWORD: ${MONGODB_INITDB_ROOT_PASSWORD}
+      MONGO_DB: ${MONGO_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backups:/backups
+      - ./db/postgres:/work/postgres:ro
+    restart: "no"
+
   web:
     <<: *app
     environment:

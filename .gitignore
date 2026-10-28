@@ -22,3 +22,6 @@ Thumbs.db
 
 # Benchmark scratch space (results themselves are committed)
 bench/results/**/tmp/
+
+# Backups (full copies of the databases; never committed or zipped)
+backups/
