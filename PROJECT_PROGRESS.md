@@ -4,7 +4,7 @@ Decisions and next actions only (README rule). Newest first.
 
 ## Run state (paused 2026-10-28)
 
-- Phase 3. Tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20), 3.3 (PR #22), 3.4 (PR #23), 3.5a (PR #24) and 3.5b (PR #25) are merged; `main` is at the merge of PR #25. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
+- Phase 4. Phase 3 closed with tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20), 3.3 (PR #22), 3.4 (PR #23), 3.5a (PR #24), 3.5b (PR #25) and the gate (PR #26); `main` is at the merge of PR #26. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
 - No feature branch is in progress, and there are no open PRs.
 - Approved specs are kept locally outside version control in `.claude/specs/`:
   - 3.3 admin sales: `p3_3_spec.md`, plus `phase3_notes.md`. That note says to quantize the admin sale price to 0.01 and the area to 0.1 before writing Decimal128.
@@ -14,7 +14,16 @@ Decisions and next actions only (README rule). Newest first.
 
   They are approved; do not re-plan or re-review them.
 - The local `.env` has `DEMO_BUYER_PASSWORD` and `DEMO_ADMIN_PASSWORD` set; the databases hold the sample plus the synthetic buyers.
-- Next action: run the Phase 3 gate. The gate includes a full-data load that regenerates `docs/import_report.md` with buyer and saved-block counts. Then run Phase 4 and stop after its gate.
+- Next action: create `app/bench` from `main` and send task 4.1a of `.claude/specs/p4_spec.md` to the implementer, then 4.1b, 4.2, 4.3 and 4.4 in that order, then the Phase 4 gate, and stop.
+
+## 2026-10-28 Phase 3 gate passed
+
+- On main 4da5671, the full clean and load of both databases took 30 s. Every count in "Database counts" matches, now including 200 buyers and 1,002 saved blocks in each database. `docs/import_report.md` was regenerated with `python -m etl.report`; only the buyer and saved-block rows and the timestamp changed. The `etl` service mounts only `./data`, so the report is regenerated with `./docs` mounted as well (`docker compose run --rm -v ./docs:/srv/neighboar/docs etl python -m etl.report`).
+- The whole suite gives 1273 passed and 7 skipped on the full data. The skips are facts that only hold on the sample (two food cases with sample building ids, three rankings cases, two rankings page cases). This includes full CRUD for saved blocks and admin sales in both modes, trigger (a), the MV refresh and stale flag, the `$merge` rebuild, all rollback demos, the integrity matrix and every negative test, the privilege grids and the route identity spy.
+- Food access on the full data: over all 10,797 geocoded blocks and 1,328,031 block and open-centre pairs, the largest difference between the PostgreSQL Haversine and MongoDB `$geoNear` is 6.7e-10 m (building 5293, centre 119473), so the 1 m tolerance holds with a wide margin.
+- CI shows PID 1 runs as UID 999 (`postgres`), 1000 (`mongodb`) and 10001 (`web`). An HTTP smoke check of every page in both modes gave the expected codes (200 for pages, 422 for an unknown town, 403 for a signed-out `/admin`, 303 to sign-in for `/saved`).
+- Deferred to Phase 5: BUILD_PLAN section 13 asks for the database implementation sections at this gate, but the report is drafted in one pass in Phase 5 (as at the Phase 2 gate). Stretch items are not started; the orchestrator prompt allows them only on Ahsanul's go at this checkpoint, and the run instructions go straight to Phase 4.
+- Next: Phase 4 (4.1a bench harness, 4.1b index on and off and fractions, 4.2 formal benchmark, 4.3 backup and restore, 4.4 user manual draft and fresh-clone test on the development machine). The Phase 4 gate: results and charts committed, backup and restore scripts work, and the user manual passes a fresh clone.
 
 ## 2026-10-28 Task 3.5b privilege audit
 
