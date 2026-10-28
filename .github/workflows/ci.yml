@@ -40,6 +40,21 @@ jobs:
       - name: Start the web app
         run: docker compose up -d --wait --wait-timeout 300 web
 
+      - name: Servers run as non-root (PID 1 of postgres, mongodb and web)
+        # Reads the real and effective UID of PID 1. "exec ... id -u" is not used: it runs as the image's
+        # default user (root for postgres), although the server itself runs as UID 999. The MongoDB image
+        # has no grep, so the file is read inside the container and filtered on the host.
+        run: |
+          for svc in postgres mongodb web; do
+            line=$(docker compose exec -T "$svc" cat /proc/1/status | grep Uid)
+            echo "$svc: $line"
+            set -- $line
+            if [ -z "$3" ] || [ "$2" = 0 ] || [ "$3" = 0 ]; then
+              echo "$svc: PID 1 runs as root (real $2, effective $3)"
+              exit 1
+            fi
+          done
+
       - name: Tests (unit + integration against the running stack)
         run: |
           set -a; . ./.env; set +a

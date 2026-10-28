@@ -32,3 +32,8 @@ def test_mongo_uri_escapes_and_uses_replica_set():
 def test_mongo_uri_direct_for_root():
     uri = make().mongo_uri("root", direct=True)
     assert "directConnection=true" in uri and "authSource=admin" in uri
+
+
+def test_pg_dsn_application_name_defaults_to_neighboar_and_can_be_set():
+    assert "application_name=neighboar " in make().pg_dsn("app_rw") + " "
+    assert "application_name=neighboar-web" in make().pg_dsn("app_rw", "neighboar-web")

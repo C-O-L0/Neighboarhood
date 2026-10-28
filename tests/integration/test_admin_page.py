@@ -76,6 +76,7 @@ def make_user(app, pg_owner, mongo_etl):
             else:
                 mongo_etl.buyers.update_one({"email": email}, {"$set": {"is_admin": True}})
         assert session.post("/login", mode, email=email, password=PASSWORD).status_code == 303
+        session.email = email
         made.append(email)
         return session
 

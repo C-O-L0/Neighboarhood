@@ -4,7 +4,7 @@ Decisions and next actions only (README rule). Newest first.
 
 ## Run state (paused 2026-10-28)
 
-- Phase 3. Tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20), 3.3 (PR #22), 3.4 (PR #23) and 3.5a (PR #24) are merged; `main` is at the merge of PR #24. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
+- Phase 3. Tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20), 3.3 (PR #22), 3.4 (PR #23), 3.5a (PR #24) and 3.5b (PR #25) are merged; `main` is at the merge of PR #25. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
 - No feature branch is in progress, and there are no open PRs.
 - Approved specs are kept locally outside version control in `.claude/specs/`:
   - 3.3 admin sales: `p3_3_spec.md`, plus `phase3_notes.md`. That note says to quantize the admin sale price to 0.01 and the area to 0.1 before writing Decimal128.
@@ -14,7 +14,16 @@ Decisions and next actions only (README rule). Newest first.
 
   They are approved; do not re-plan or re-review them.
 - The local `.env` has `DEMO_BUYER_PASSWORD` and `DEMO_ADMIN_PASSWORD` set; the databases hold the sample plus the synthetic buyers.
-- Next action: create `app/privilege-audit` from `main` and send task 3.5b of `.claude/specs/p3_5_spec.md` to the implementer. Then run then the Phase 3 gate. The gate includes a full-data load that regenerates `docs/import_report.md` with buyer and saved-block counts. Then run Phase 4 and stop after its gate.
+- Next action: run the Phase 3 gate. The gate includes a full-data load that regenerates `docs/import_report.md` with buyer and saved-block counts. Then run Phase 4 and stop after its gate.
+
+## 2026-10-28 Task 3.5b privilege audit
+
+- The PostgreSQL grid is an allowlist written out in `tests/negative/test_privileges.py` from `005_grants.sql`, `db/migrate.py` and BUILD_PLAN section 4, not read back from the catalogue. It covers every table, view, materialised view, sequence and function in `public`, all eight table privileges, the three sequence privileges, EXECUTE, and USAGE and CREATE on the schema, for `app_rw`, `app_admin` and `app_ro`. A new object in `public` fails until it is listed, as does an extra or a missing privilege. The two trigger functions are listed with no EXECUTE for anyone, because a trigger needs no grant. The roles are also checked to be plain login roles with no membership, since an inherited role would add privileges the grid does not show.
+- The MongoDB grid compares `connectionStatus` with `showPrivileges` against `MONGO_ROLES`, using the role names each user holds, which the test pins itself so a change to `MONGO_USERS` is caught. Real refused writes are PostgreSQL 42501 and MongoDB code 13. The MongoDB probes for `collMod`, `drop` and `createIndex` use a collection that does not exist (and a no-op `collMod` on the app's own collections), so a widened privilege could not damage data.
+- Runtime identities are checked through a spy that replaces the four pools and clients on `Databases` and records each checkout. `ROUTES` in `tests/integration/test_runtime_identities.py` holds a request and a signed-in role for every route, keyed by method and template, and a test fails on a route without an entry or an entry without a route. Routes come from `iter_route_contexts(app.routes)` (FastAPI 0.143), so the OpenAPI and docs routes and the `/static` mount are in the table too. Ordinary routes may check out only `pg_rw` and `mongo_app`; admin routes must check out something and only `pg_admin` and `mongo_admin`. Sign-in and CSRF token fetches happen before the spy is installed.
+- The web pools set `application_name = 'neighboar-web'` (`WEB_APPLICATION_NAME` in `app/db.py`, passed to `Settings.pg_dsn`); every other tool keeps `neighboar`, so `pg_stat_activity` separates the web sessions by role for the report.
+- The section 9 file checks are unit tests (`tests/unit/test_section9.py`): `web` publishes only on `127.0.0.1`, `postgres` and `mongodb` publish nothing, `.env` is in `.gitignore` and `.dockerignore`, every `*_PASSWORD` and `SECRET_KEY` in `.env.example` starts with `change-me`, both Dockerfiles end with a non-root `USER` with no build step after it, and `create_app` refuses an empty key, one under 32 characters and one starting with `change-me`. The repo already satisfied all of these, so no Dockerfile or compose change was needed.
+- The CI non-root step runs after the web app is up and reads the real and effective UID of PID 1 for `postgres`, `mongodb` and `web`, failing on 0 or on no value. The MongoDB image (UBI 8 slim) has no `grep` and no package manager, so `docker compose exec -T <svc> grep Uid /proc/1/status` fails there. The step runs `docker compose exec -T <svc> cat /proc/1/status | grep Uid` instead, with the filter on the host. The UIDs seen locally are 999 (`postgres`), 1000 (`mongodb`) and 10001 (`web`).
 
 ## 2026-10-28 Task 3.5a integrity matrix
 
