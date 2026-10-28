@@ -189,3 +189,59 @@ class RolledBack:
     insert: int | None = None
     update: int | None = None
     matched: int | None = None
+
+
+class SaleOutcome(StrEnum):
+    """Result of an admin sale write. Both repos return the same value for the same situation."""
+
+    OK = "ok"
+    NO_SUCH_BUILDING = "no_such_building"
+    REJECTED = "rejected"
+    NOT_FOUND = "not_found"
+
+
+@dataclass(frozen=True)
+class NewSale:
+    """A validated sale to record. Price has scale 2 and area scale 1 (the app quantizes before either database)."""
+
+    building_id: int
+    txn_month: date
+    flat_type: str
+    flat_model: str
+    storey_min: int
+    storey_max: int
+    floor_area_sqm: Decimal
+    remaining_lease_months: int
+    resale_price: Decimal
+
+
+@dataclass(frozen=True)
+class BuildingRef:
+    building_id: int
+    block: str
+    street: str
+
+
+@dataclass(frozen=True)
+class Figures:
+    """What the forced-failure demo compares before and after: island-wide sales and one block's figures.
+
+    PostgreSQL derives the block figures live from resale_transaction; MongoDB reads the profile's stored stats.
+    """
+
+    total_sales: int
+    block_sales: int
+    block_median: Decimal | None
+
+
+@dataclass(frozen=True)
+class SaleResult:
+    outcome: SaleOutcome
+    txn_id: int | None = None
+    reason: str | None = None  # the database's own rejection message, for REJECTED
+    before: Figures | None = None  # set only when the forced-failure demo ran
+    after: Figures | None = None
+
+    @property
+    def rolled_back(self) -> bool:
+        return self.before is not None

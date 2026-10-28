@@ -13,8 +13,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, replace
+from datetime import date
+from decimal import Decimal
 from typing import Any
 
+from app.repos.dto import NewSale
 from app.repos.mongo.accounts import MongoAccountRepo
 from app.repos.mongo.building import MongoBuildingRepo
 from app.repos.mongo.rankings import MongoRankingRepo
@@ -308,6 +311,69 @@ def run_step(repo, buyer_id: int, step: SavedStep):
     if op == "edit":
         return repo.edit_note(buyer_id, building_id, note)
     return repo.remove(buyer_id, building_id)
+
+
+# Admin sale script (task 3.3). Like the saved-block script it writes, so it is not in CASES: it picks two blocks in one
+# town (A has at least two loaded sales and a completion year, B has sales) and a flat type and month that A already
+# has, so recorded sales land in an existing trends series. tests/equivalence/test_admin_sales.py runs it in both DBs.
+@dataclass(frozen=True)
+class AdminPlan:
+    a_id: int
+    a_block: str
+    a_street: str
+    a_year_completed: int
+    b_id: int
+    b_block: str
+    b_street: str
+    town: str
+    flat_type: str
+    flat_model: str
+    month: date
+    snapshot_txn_id: int  # A's oldest loaded sale, the one the script deletes
+
+
+def admin_plan(conn) -> AdminPlan:
+    candidates = conn.execute(
+        """
+        SELECT b.building_id, b.block, b.street, b.year_completed, tw.name
+        FROM building b JOIN town tw USING (town_id)
+        WHERE b.in_property_dataset
+          AND (SELECT count(*) FROM resale_transaction t WHERE t.building_id = b.building_id) >= 2
+        ORDER BY b.building_id
+        """
+    ).fetchall()
+    for a_id, block, street, year, town in candidates:
+        latest = conn.execute(
+            "SELECT flat_type, flat_model, txn_month FROM v_transaction_detail WHERE building_id = %s"
+            " ORDER BY txn_month DESC, txn_id DESC LIMIT 1",
+            (a_id,),
+        ).fetchone()
+        other = conn.execute(
+            """
+            SELECT b.building_id, b.block, b.street FROM building b JOIN town tw USING (town_id)
+            WHERE tw.name = %s AND b.building_id <> %s
+              AND (b.year_completed IS NULL OR b.year_completed <= %s)
+              AND EXISTS (SELECT 1 FROM resale_transaction t WHERE t.building_id = b.building_id)
+            ORDER BY b.building_id LIMIT 1
+            """,
+            (town, a_id, latest[2].year),
+        ).fetchone()
+        if other is None:
+            continue
+        oldest = conn.execute(
+            "SELECT txn_id FROM resale_transaction WHERE building_id = %s AND source = 'snapshot'"
+            " ORDER BY txn_month, txn_id LIMIT 1",
+            (a_id,),
+        ).fetchone()
+        return AdminPlan(a_id, block, street, year, *other, town, latest[0], latest[1], latest[2], oldest[0])
+    raise AssertionError("the loaded data has no block pair for the admin script")
+
+
+def admin_sale(plan: AdminPlan, building_id: int, price: str, *, month: date | None = None) -> NewSale:
+    return NewSale(
+        building_id, month or plan.month, plan.flat_type, plan.flat_model, 3, 5,
+        Decimal("93.5"), 700, Decimal(price),
+    )  # fmt: skip
 
 
 CASES: list[Case] = [

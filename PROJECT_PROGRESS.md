@@ -4,7 +4,7 @@ Decisions and next actions only (README rule). Newest first.
 
 ## Run state (paused 2026-10-28)
 
-- Phase 3. Tasks 3.1a (PR #18), 3.1b (PR #19) and 3.2 (PR #20) are merged; `main` is at 4192ee4 (PR #20) before this note. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
+- Phase 3. Tasks 3.1a (PR #18), 3.1b (PR #19), 3.2 (PR #20) and 3.3 (PR #22) are merged; `main` is at the merge of PR #22. Phase 2 closed with PR #16 (task 2.5) and PR #17 (gate).
 - No feature branch is in progress, and there are no open PRs.
 - Approved specs are kept locally outside version control in `.claude/specs/`:
   - 3.3 admin sales: `p3_3_spec.md`, plus `phase3_notes.md`. That note says to quantize the admin sale price to 0.01 and the area to 0.1 before writing Decimal128.
@@ -14,7 +14,20 @@ Decisions and next actions only (README rule). Newest first.
 
   They are approved; do not re-plan or re-review them.
 - The local `.env` has `DEMO_BUYER_PASSWORD` and `DEMO_ADMIN_PASSWORD` set; the databases hold the sample plus the synthetic buyers.
-- Next action: create `app/admin-sales` from `main` and send `.claude/specs/p3_3_spec.md` to the implementer. Then run 3.4, 3.5a and 3.5b the same way, then the Phase 3 gate. The gate includes a full-data load that regenerates `docs/import_report.md` with buyer and saved-block counts. Then run Phase 4 and stop after its gate.
+- Next action: create `app/food-access` from `main` and send `.claude/specs/p3_4_spec.md` to the implementer. Then run 3.5a and 3.5b the same way, then the Phase 3 gate. The gate includes a full-data load that regenerates `docs/import_report.md` with buyer and saved-block counts. Then run Phase 4 and stop after its gate.
+
+## 2026-10-28 Task 3.3 admin sales
+
+- Admin routes read the signed-in account as `app_admin` too: `load_account` switches pools and clients for paths under `/admin`, so an admin request never touches `app_rw` or `app`. The routes get their connection from the dependencies `admin_pg` and `admin_mongo` (each yields only in its own DB mode); `rw_pg` and `app_mongo` are the normal pair. A signed-out visitor gets 403 on `/admin`, like a non-admin buyer. The flag counts only in the mode the buyer signed in under.
+- A write redirects (303) to `/admin`, and the page shows the last action's message and its timings (write and refresh as separate lines). That last action is held in process, like the stale flag and the lock, so it is shared by admins and lost on restart.
+- The month must fall in 1900 to 2100 (the building year bounds). Block and street are normalised with `normalise_key` and must match a building exactly; the lookup runs inside the lock, with the write.
+- The list of admin-recorded sales is newest first by `txn_id`, at most 20, and each row has its own delete button; the delete form accepts any id.
+- The refresh button exists in PostgreSQL mode only and the rebuild button in MongoDB mode only; the other mode gets 400. A rolled-back write is never followed by a refresh. A failed refresh keeps the earliest stale time; any successful refresh (after a write or from the button) clears it. A rolled-back or rejected write leaves the flag alone.
+- Rejections: the PostgreSQL message of trigger (a) is shown as it is, and MongoDB builds the identical text (`sale in YYYY-MM predates block completion in YYYY`). A MongoDB validator rejection (code 121) shows a fixed message. The app rejects non-resale flat types before either database, so only direct writes reach trigger (a)'s flat-type rule and the `flat_type` enum.
+- The rollback demo compares island sales, the block's sales and its median before and after. PostgreSQL derives the block figures live; MongoDB reads the profile's stored `stats`. Deleting a missing id with the demo ticked reports `not_found`, as without it.
+- The MongoDB `txn` counter is bumped inside the transaction, so an abort or rejection leaves it unchanged. A committed admin write advances it for good, as the PostgreSQL sequence is advanced by rollbacks too. `test_database` compares the counter with the largest loaded id, so the admin test cleanup (`tests/admin_support.py`) restores the counter to its pre-test value. It does not restore the PostgreSQL sequence.
+- Page and identity tests create the app in the test process (real databases) so they can patch the refresh to fail and swap the normal pool and client for tripwires. They need `PG_OWNER_PASSWORD` and `MONGO_ETL_PASSWORD`.
+- Report note: `$merge` runs outside a transaction, so an admin write committing during a rebuild could be overwritten by stats from an older read. Record, delete and both rebuild actions therefore share one `threading.Lock` in the single uvicorn worker; a test holds a rebuild open and shows a write waits for it. With more than one worker the lock would not hold.
 
 ## 2026-10-28 Task 3.2 saved blocks
 

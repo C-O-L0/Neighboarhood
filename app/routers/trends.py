@@ -28,6 +28,8 @@ def trends(request: Request):
         "flat_types": RESALE_TYPES,
         "errors": [],
         "points": None,
+        # Set after a failed refresh of the town-month view; only PostgreSQL reads that view.
+        "stale_since": request.app.state.admin.stale_since if request.state.db_mode == "pg" else None,
     }
     if not raw:  # first visit: the empty form, no error
         return templates.TemplateResponse(request, "trends.html", context)
