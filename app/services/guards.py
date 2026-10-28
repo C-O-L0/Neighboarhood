@@ -12,6 +12,7 @@ import logging
 from fastapi import HTTPException, Request
 
 from app.services.auth import ensure_session, session_uid
+from app.services.identities import is_admin_path, mongo_db, pg_conn
 from app.services.repos import REPOS
 
 log = logging.getLogger(__name__)
@@ -49,13 +50,14 @@ def load_account(request: Request) -> None:
     if uid is None:
         return
     try:
-        dbs = request.app.state.dbs
+        # Admin routes never touch app_rw or app, so the account behind them is read as app_admin.
+        admin = is_admin_path(request.url.path)
         pg_cls, mongo_cls = REPOS["accounts"]
         if mode == "pg":
-            with dbs.pg_rw.connection(timeout=5) as conn:
+            with pg_conn(request, admin=admin) as conn:
                 account = pg_cls(conn).by_id(uid)
         else:
-            account = mongo_cls(dbs.mongo()).by_id(uid)
+            account = mongo_cls(mongo_db(request, admin=admin)).by_id(uid)
     except Exception as exc:
         # A database outage must not break every page (health reports it as 503). Keep the uid so the
         # user is still signed in when the database returns; log the error type only, never the session.
@@ -64,3 +66,10 @@ def load_account(request: Request) -> None:
     if account is None:  # the account was deleted since sign-in
         del request.session["uid"][mode]
     request.state.account = account
+
+
+def require_admin(request: Request) -> None:
+    """403 unless the account signed in under this request's DB mode is an administrator (signed out included)."""
+    account = getattr(request.state, "account", None)
+    if account is None or not account.is_admin:
+        raise HTTPException(status_code=403, detail="Administrator access required")

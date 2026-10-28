@@ -16,6 +16,7 @@
       <a href="/rankings">Rankings</a>
       <a href="/health">Health</a>
       {% if account %}<a href="/saved?db={{ db_mode }}">Saved</a>{% endif %}
+      {% if account and account.is_admin %}<a href="/admin?db={{ db_mode }}">Admin</a>{% endif %}
     </nav>
     <nav class="account" aria-label="Account">
       {% if account %}

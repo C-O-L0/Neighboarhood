@@ -2,6 +2,9 @@
 {% block title %}Price trends · Neighboar{% endblock %}
 {% block content %}
 <h1>Price trends</h1>
+{% if stale_since %}
+<div class="bad notice stale" role="alert">Town figures are stale since {{ stale_since|stamp }}: the refresh after an admin change failed, so the monthly figures may miss recent sales. They update at the next successful refresh.</div>
+{% endif %}
 {% if errors %}
 <div class="bad" role="alert">
   <p>Please correct the following.</p>

@@ -83,3 +83,21 @@ def new_buyers(pg_conn, mongo_db, owner_conn, etl_db):
     for pg_id, mongo_id in made:
         owner_conn.execute("DELETE FROM buyer WHERE buyer_id = %s", (pg_id,))
         etl_db.buyers.delete_one({"_id": mongo_id})
+
+
+@pytest.fixture(scope="session")
+def admin_mongo_db(settings, settle):
+    """The app_admin MongoDB client, as the admin routes use it (transactions need the replica set)."""
+    client = MongoClient(settings.mongo_uri("app_admin", direct=True), serverSelectionTimeoutMS=5000, tz_aware=True)
+    yield client[settings.mongo_db]
+    client.close()
+
+
+@pytest.fixture
+def admin_cleanup(settings, settle):
+    """Records the state before an admin test and puts both databases back after it, pass or fail."""
+    from tests.admin_support import AdminCleanup
+
+    cleanup = AdminCleanup(settings)
+    yield cleanup
+    cleanup.finish()
