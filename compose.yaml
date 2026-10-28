@@ -104,6 +104,38 @@ services:
     command: ["python", "-m", "etl.pipeline"]
     restart: "no"
 
+  bench:
+    # Benchmark harness, not started by "up". Run it through the wrapper, which sets the host facts and the user:
+    #   sh bench/run.sh --label NAME [options]
+    # It holds the benchmark identities only: app_ro, app_admin, app and app_admin (MongoDB), plus the owner and ETL
+    # passwords the later tasks need. It has no app_rw credential.
+    <<: *app
+    profiles: ["tools"]
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      MONGO_DB: ${MONGO_DB}
+      PG_APP_RO_PASSWORD: ${PG_APP_RO_PASSWORD}
+      PG_APP_ADMIN_PASSWORD: ${PG_APP_ADMIN_PASSWORD}
+      PG_OWNER_PASSWORD: ${PG_OWNER_PASSWORD}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
+      MONGO_APP_ADMIN_PASSWORD: ${MONGO_APP_ADMIN_PASSWORD}
+      MONGO_ETL_PASSWORD: ${MONGO_ETL_PASSWORD}
+      # Host facts collected by bench/run.sh (empty when the service is started by hand).
+      BENCH_GIT_COMMIT: ${BENCH_GIT_COMMIT:-}
+      BENCH_IMAGES: ${BENCH_IMAGES:-}
+      BENCH_DOCKER_MEM: ${BENCH_DOCKER_MEM:-}
+      BENCH_MONGO_CACHE: ${BENCH_MONGO_CACHE:-}
+      BENCH_MEM_LIMITS: ${BENCH_MEM_LIMITS:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - ./bench/results:/srv/neighboar/bench/results
+      - ./docs:/srv/neighboar/docs:ro
+    command: ["python", "-m", "bench.run"]
+    restart: "no"
+
   web:
     <<: *app
     environment:

@@ -46,6 +46,7 @@ class Case:
     pg_call: Callable[[Any, dict], Any]
     mongo_call: Callable[[Any, dict], Any]
     params: Callable[[Any], list[dict]]
+    writes: bool = False  # True for a case that writes; bench/verify.py never runs those on benchmark data
 
 
 def is_sample(conn) -> bool:

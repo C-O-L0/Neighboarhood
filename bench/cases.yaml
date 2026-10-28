@@ -1,0 +1,195 @@
+# Benchmark cases (task 4.1a). Each case has exactly 3 parameter sets fixed for the full data (stats_rebuild takes
+# no parameters, so its three sets are repetitions). Sets named after the sample towns (BISHAN, MARINE PARADE, BUKIT TIMAH) also
+# return rows on the committed sample; sets in other towns return nothing there, which the sample runs accept.
+#
+# pg / mongo name the function on each side:
+#   {module, name}            a callable fn(connection_or_database, args) in bench/calls.py that calls the repo
+#   {sql, bind, scalar}       bench-only SQL with %(name)s placeholders bound from args (never string-built)
+#   {collection, pipeline|find, projection, scalar}
+#                             bench-only MongoDB statement; {"$param": name} is replaced by the typed argument and
+#                             dates and decimals are converted to datetime (UTC) and Decimal128 by the loader
+# runs / warmup default to 50 / 5. writes: true cases run only with --include-writes.
+
+cases:
+  - id: search_filtered
+    pair: live
+    pg: {module: bench.calls, name: pg_search}
+    mongo: {module: bench.calls, name: mongo_search}
+    params:
+      - {label: bishan-4room-2019-2021, args: {town: BISHAN, flat_type: 4 ROOM, month_from: "2019-01", month_to: "2021-12"}}
+      - {label: marine-parade-3room-2017-2026, args: {town: MARINE PARADE, flat_type: 3 ROOM, month_from: "2017-01", month_to: "2026-09"}}
+      - {label: tampines-4room-2022-2024, args: {town: TAMPINES, flat_type: 4 ROOM, month_from: "2022-01", month_to: "2024-12"}}
+
+  - id: search_type_month
+    pair: live
+    pg: {module: bench.calls, name: pg_search}
+    mongo: {module: bench.calls, name: mongo_search}
+    params:
+      - {label: 4room-2022-q1, args: {flat_type: 4 ROOM, month_from: "2022-01", month_to: "2022-03"}}
+      - {label: 5room-2023-h2, args: {flat_type: 5 ROOM, month_from: "2023-07", month_to: "2023-12"}}
+      - {label: 3room-2017-h1, args: {flat_type: 3 ROOM, month_from: "2017-01", month_to: "2017-06"}}
+
+  - id: search_price_sort
+    pair: live
+    pg: {module: bench.calls, name: pg_search}
+    mongo: {module: bench.calls, name: mongo_search}
+    params:
+      - {label: 4room-price-desc, args: {flat_type: 4 ROOM, sort: price, order: desc}}
+      - {label: 5room-price-asc, args: {flat_type: 5 ROOM, sort: price, order: asc}}
+      - {label: executive-price-desc, args: {flat_type: EXECUTIVE, sort: price, order: desc}}
+
+  - id: search_unfiltered
+    pair: live
+    pg: {module: bench.calls, name: pg_search}
+    mongo: {module: bench.calls, name: mongo_search}
+    params:
+      - {label: default-sort, args: {}}
+      - {label: month-asc, args: {sort: month, order: asc}}
+      - {label: area-desc, args: {sort: area, order: desc}}
+
+  - id: trends_series
+    pair: live
+    pg: {module: bench.calls, name: pg_trends}
+    mongo: {module: bench.calls, name: mongo_trends}
+    params:
+      - {label: bishan-4room, args: {town: BISHAN, flat_type: 4 ROOM}}
+      - {label: marine-parade-3room-2019-2024, args: {town: MARINE PARADE, flat_type: 3 ROOM, month_from: "2019-01", month_to: "2024-12"}}
+      - {label: tampines-4room, args: {town: TAMPINES, flat_type: 4 ROOM}}
+
+  - id: rankings_year
+    pair: live
+    pg: {module: bench.calls, name: pg_rankings}
+    mongo: {module: bench.calls, name: mongo_rankings}
+    params:
+      - {label: 2022-all-types, args: {year: "2022"}}
+      - {label: 2019-4room, args: {year: "2019", flat_type: 4 ROOM}}
+      - {label: 2025-all-types, args: {year: "2025"}}
+
+  - id: building_page
+    pair: embedded_vs_join
+    note: PostgreSQL joins live tables; MongoDB reads one building_profiles document.
+    resolve: building
+    pg: {module: bench.calls, name: pg_building}
+    mongo: {module: bench.calls, name: mongo_building}
+    params:
+      - {label: 275A-bishan-st-24, args: {block: 275A, street: BISHAN ST 24}}
+      - {label: 66-marine-dr, args: {block: "66", street: MARINE DR}}
+      - {label: 4-queens-rd, args: {block: "4", street: "QUEEN'S RD"}}
+
+  - id: building_recent_lookup
+    pair: embedded_vs_lookup
+    note: Bench-only. The latest 10 sales of a block by $lookup from building_profiles to resale_transactions, against the embedded recent_sales.
+    pg: null
+    mongo:
+      collection: building_profiles
+      scalar: recent
+      pipeline:
+        - {"$match": {block: {"$param": block}, street: {"$param": street}}}
+        - "$lookup":
+            from: resale_transactions
+            localField: _id
+            foreignField: building_id
+            pipeline:
+              - {"$sort": {txn_month: -1, _id: -1}}
+              - {"$limit": 10}
+              - {"$project": {txn_month: 1, flat_type: 1, flat_model: 1, storey_min: 1, storey_max: 1, floor_area_sqm: 1, resale_price: 1}}
+            as: recent
+    params:
+      - {label: 275A-bishan-st-24, args: {block: 275A, street: BISHAN ST 24}}
+      - {label: 66-marine-dr, args: {block: "66", street: MARINE DR}}
+      - {label: 4-queens-rd, args: {block: "4", street: "QUEEN'S RD"}}
+
+  - id: town_stats_read
+    pair: precomputed
+    note: Precomputed summaries, not result-equivalent. PostgreSQL returns one row per month of the town and flat type; MongoDB returns one document per block of the town.
+    pg:
+      bind: [town, flat_type]
+      sql: |
+        SELECT m.month, m.n, m.median_price, m.avg_psm
+        FROM mv_town_month_stats m
+        JOIN town tw ON tw.town_id = m.town_id
+        JOIN flat_type ft ON ft.flat_type_id = m.flat_type_id
+        WHERE tw.name = %(town)s AND ft.name = %(flat_type)s
+        ORDER BY m.month
+    mongo:
+      collection: building_profiles
+      find: {"town.name": {"$param": town}}
+      projection: {"stats.by_flat_type": 1}
+    params:
+      - {label: bishan-4room, args: {town: BISHAN, flat_type: 4 ROOM}}
+      - {label: marine-parade-3room, args: {town: MARINE PARADE, flat_type: 3 ROOM}}
+      - {label: tampines-4room, args: {town: TAMPINES, flat_type: 4 ROOM}}
+
+  - id: food_town
+    pair: geo
+    pg: {module: bench.calls, name: pg_food_town}
+    mongo: {module: bench.calls, name: mongo_food_town}
+    params:
+      - {label: bishan, args: {town: BISHAN}}
+      - {label: marine-parade, args: {town: MARINE PARADE}}
+      - {label: tampines, args: {town: TAMPINES}}
+
+  - id: median_exact
+    pair: median
+    note: Both sides return the lower median, an observed price (percentile_disc(0.5) and a $sortArray element).
+    pg:
+      bind: [flat_type, start, end]
+      scalar: true
+      sql: |
+        SELECT percentile_disc(0.5) WITHIN GROUP (ORDER BY t.resale_price)
+        FROM resale_transaction t
+        WHERE t.flat_type_id = (SELECT flat_type_id FROM flat_type WHERE name = %(flat_type)s)
+          AND t.txn_month >= %(start)s AND t.txn_month < %(end)s
+    mongo:
+      collection: resale_transactions
+      scalar: median
+      pipeline:
+        - {"$match": {flat_type: {"$param": flat_type}, txn_month: {"$gte": {"$param": start}, "$lt": {"$param": end}}}}
+        - {"$group": {_id: null, n: {"$sum": 1}, prices: {"$push": "$resale_price"}}}
+        - "$project":
+            _id: 0
+            median:
+              "$arrayElemAt":
+                - {"$sortArray": {input: "$prices", sortBy: 1}}
+                - {"$floor": {"$divide": [{"$subtract": ["$n", 1]}, 2]}}
+    params:
+      - {label: 4room-2022, args: {flat_type: 4 ROOM, start: 2022-01-01, end: 2023-01-01}}
+      - {label: 5room-2023, args: {flat_type: 5 ROOM, start: 2023-01-01, end: 2024-01-01}}
+      - {label: 3room-2019, args: {flat_type: 3 ROOM, start: 2019-01-01, end: 2020-01-01}}
+
+  - id: median_approx
+    pair: median
+    note: Labelled extra. MongoDB $median with method approximate, same filter as median_exact. Not result-equivalent.
+    pg: null
+    mongo:
+      collection: resale_transactions
+      scalar: median
+      pipeline:
+        - {"$match": {flat_type: {"$param": flat_type}, txn_month: {"$gte": {"$param": start}, "$lt": {"$param": end}}}}
+        - {"$group": {_id: null, median: {"$median": {input: "$resale_price", method: approximate}}}}
+    params:
+      - {label: 4room-2022, args: {flat_type: 4 ROOM, start: 2022-01-01, end: 2023-01-01}}
+      - {label: 5room-2023, args: {flat_type: 5 ROOM, start: 2023-01-01, end: 2024-01-01}}
+      - {label: 3room-2019, args: {flat_type: 3 ROOM, start: 2019-01-01, end: 2020-01-01}}
+
+  - id: stats_rebuild
+    pair: precomputed
+    note: Precomputed summaries, not result-equivalent. refresh_town_stats() (one materialised view) against rebuild_all_stats ($merge into every block). Takes no parameters, so its three sets are repetitions (rep-1 to rep-3).
+    writes: true
+    pg: {module: bench.calls, name: pg_stats_rebuild}
+    mongo: {module: bench.calls, name: mongo_stats_rebuild}
+    params:
+      - {label: rep-1, args: {}}
+      - {label: rep-2, args: {}}
+      - {label: rep-3, args: {}}
+
+  - id: admin_record_delete
+    pair: write
+    note: Each timed run records one sale and then deletes it. PostgreSQL times the write and the materialised view refresh separately; MongoDB records and deletes in transactions that recompute the block stats.
+    writes: true
+    pg: {module: bench.calls, name: pg_admin_record_delete}
+    mongo: {module: bench.calls, name: mongo_admin_record_delete}
+    params:
+      - {label: 275A-bishan-st-24, args: {block: 275A, street: BISHAN ST 24, month: 2024-06-01, flat_type: 4 ROOM, flat_model: Improved, storey_min: 4, storey_max: 6, floor_area_sqm: {"$decimal": "92.0"}, remaining_lease_months: 900, resale_price: {"$decimal": "650000.00"}}}
+      - {label: 66-marine-dr, args: {block: "66", street: MARINE DR, month: 2024-06-01, flat_type: 3 ROOM, flat_model: New Generation, storey_min: 7, storey_max: 9, floor_area_sqm: {"$decimal": "67.0"}, remaining_lease_months: 600, resale_price: {"$decimal": "480000.00"}}}
+      - {label: 4-queens-rd, args: {block: "4", street: "QUEEN'S RD", month: 2024-06-01, flat_type: 5 ROOM, flat_model: Standard, storey_min: 1, storey_max: 3, floor_area_sqm: {"$decimal": "110.0"}, remaining_lease_months: 700, resale_price: {"$decimal": "900000.00"}}}
