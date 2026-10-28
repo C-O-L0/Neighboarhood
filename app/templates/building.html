@@ -88,6 +88,26 @@
 </table>
 {% endif %}
 
+<h2>Food access</h2>
+{% if food is none %}
+<p>Unknown</p>
+{% elif not food.nearest %}
+<p>No open hawker centres</p>
+{% else %}
+<p>{{ food.within_1km }} open hawker {{ 'centre' if food.within_1km == 1 else 'centres' }} within 1 km. The 5 nearest are listed; centres under construction are left out.</p>
+<div class="table-wrap">
+<table class="food">
+  <caption>Nearest open hawker centres</caption>
+  <thead><tr><th>Name</th><th>Address</th><th>Status</th><th>Stalls</th><th>Distance (m)</th></tr></thead>
+  <tbody>
+    {% for h in food.nearest %}
+    <tr><td>{{ h.name }}</td><td>{{ h.address|unknown }}</td><td>{{ h.status }}</td><td>{{ h.stall_count|unknown }}</td><td>{{ h.distance_m }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
 <h2>Resale statistics</h2>
 {% if b.stats.txn_count == 0 %}
 <p>No sales yet</p>

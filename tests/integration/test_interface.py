@@ -16,7 +16,7 @@ pytestmark = pytest.mark.integration
 
 TIMING = re.compile(r"<li>([^<]+): [\d.]+ ms on (PostgreSQL|MongoDB) \(query and fetch\)</li>")
 FOOTNOTE = "* median: the lower of the two middle prices when n is even"
-NAV = ["/", "/search", "/trends", "/rankings", "/health"]
+NAV = ["/", "/search", "/trends", "/rankings", "/food", "/health"]
 JSON_TAG = re.compile(r'<script type="application/json" id="([\w-]+)">(.*?)</script>', re.S)
 
 
@@ -51,6 +51,7 @@ def pages(building_path, gap_query):
         ("/search?town=BISHAN", True),
         (gap_query, True),
         ("/rankings?year=2022", True),
+        ("/food?town=BISHAN", True),
         (building_path, True),
         ("/health", False),
     ]

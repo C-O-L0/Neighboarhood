@@ -245,3 +245,29 @@ class SaleResult:
     @property
     def rolled_back(self) -> bool:
         return self.before is not None
+
+
+DISTANCE_TOL = Decimal("1")  # metres: PostgreSQL Haversine (R = 6378100 m) vs MongoDB $geoNear (BUILD_PLAN section 6)
+
+
+@dataclass(frozen=True)
+class HawkerDistance:
+    """One hawker centre and its distance from a block, in metres rounded to 0.1 (sorted on the unrounded value)."""
+
+    hawker_id: int
+    name: str
+    address: str | None
+    status: str
+    stall_count: int | None
+    distance_m: Decimal = field(metadata={"tol": DISTANCE_TOL})
+
+
+@dataclass(frozen=True)
+class BlockFoodAccess:
+    """A geocoded block with its nearest open hawker centres (the town view uses a list of length 1)."""
+
+    building_id: int
+    block: str
+    street: str
+    nearest: list[HawkerDistance]
+    within_1km: int

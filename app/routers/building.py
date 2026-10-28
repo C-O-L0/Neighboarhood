@@ -50,9 +50,13 @@ def building_page(request: Request, building_id: int):
         detail = call_repo(request, "building", "get", building_id, label="building page")
     if detail is None:
         return _not_found(request, f"Building {building_id}")
+    food = None  # a block without coordinates has no food access ("Unknown" on the page)
+    if detail.latitude is not None:
+        food = call_repo(request, "food", "block", building_id, label="food access")
     saved = None
     if request.state.account is not None:
         blocks = call_repo(request, "saved", "list", request.state.account.buyer_id, label="saved list")
         saved = next((s for s in blocks if s.building_id == building_id), None)
     notice = notice_from(request.query_params, request.state.db_mode)
-    return templates.TemplateResponse(request, "building.html", {"b": detail, "saved": saved, "notice": notice})
+    context = {"b": detail, "food": food, "saved": saved, "notice": notice}
+    return templates.TemplateResponse(request, "building.html", context)
