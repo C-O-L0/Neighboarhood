@@ -13,9 +13,10 @@ x-app-env: &app-env
   MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
   MONGO_APP_ADMIN_PASSWORD: ${MONGO_APP_ADMIN_PASSWORD}
 
+# NEIGHBOAR_IMAGE_TAG (default local) lets a second checkout build its own images beside the working stack's.
 x-app: &app
   build: .
-  image: neighboar-app:local
+  image: neighboar-app:${NEIGHBOAR_IMAGE_TAG:-local}
   depends_on:
     postgres:
       condition: service_healthy
@@ -47,7 +48,7 @@ services:
 
   mongodb:
     build: ./db/mongo
-    image: neighboar-mongo:local
+    image: neighboar-mongo:${NEIGHBOAR_IMAGE_TAG:-local}
     environment:
       MONGODB_INITDB_ROOT_USERNAME: ${MONGODB_INITDB_ROOT_USERNAME}
       MONGODB_INITDB_ROOT_PASSWORD: ${MONGODB_INITDB_ROOT_PASSWORD}
@@ -141,7 +142,7 @@ services:
     # HOST_UID and HOST_GID so the files written to ./backups belong to the host user.
     # It holds the PostgreSQL superuser and MongoDB root credentials (a dump and a restore need them) and nothing else.
     build: ./db/tools
-    image: neighboar-dbtools:local
+    image: neighboar-dbtools:${NEIGHBOAR_IMAGE_TAG:-local}
     profiles: ["tools"]
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     environment:

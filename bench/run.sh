@@ -32,7 +32,7 @@ if [ -z "$pg_cid" ] || [ -z "$mongo_cid" ]; then
     exit 1
 fi
 
-app_image=$(docker image inspect --format '{{.Id}}' neighboar-app:local)
+app_image=$(docker image inspect --format '{{.Id}}' neighboar-app:${NEIGHBOAR_IMAGE_TAG:-local})
 pg_image=$(docker inspect --format '{{.Image}}' "$pg_cid")
 mongo_image=$(docker inspect --format '{{.Image}}' "$mongo_cid")
 
