@@ -36,7 +36,7 @@ from app.repos.pg.rankings import PgRankingRepo
 from app.repos.pg.saved import PgSavedRepo
 from app.repos.pg.search import PgSearchRepo
 from app.repos.pg.trends import PgTrendRepo
-from app.services.explore import FitQuery, window_ending
+from app.services.explore import BlocksQuery, FitQuery, block_filter, window_ending
 from app.services.places import RADII_M, SUGGESTIONS, parse_place
 from app.services.rankings import RankingQuery
 from app.services.search import RESALE_TYPES, SearchQuery
@@ -475,6 +475,40 @@ def place_near_params(conn) -> list[dict]:
     return [{"building_id": i, "radius_m": r} for i in ids for r in RADII_M]
 
 
+# Blocks that fit (task T5): every resale type at three budgets, then filter variants for two common types, on
+# the latest window. Towns are the first, middle and last with sales; places the first, middle and last located
+# blocks with sales. A page past the end must still report the total. The same list runs on full data.
+BLOCK_BUDGETS = ("500000", "800000", "1500000")
+
+
+def block_fit_params(conn) -> list[dict]:
+    end = PgExploreRepo(conn).latest_month()
+    towns = [r[0] for r in conn.execute(
+        "SELECT town FROM v_transaction_detail GROUP BY town ORDER BY town COLLATE \"C\""
+    ).fetchall()]  # fmt: skip
+    places = [r[0] for r in conn.execute(
+        """
+        SELECT DISTINCT b.building_id FROM building b JOIN resale_transaction t USING (building_id)
+        WHERE b.latitude IS NOT NULL ORDER BY 1
+        """
+    ).fetchall()]  # fmt: skip
+    towns, places = [towns[0], towns[len(towns) // 2], towns[-1]], [places[0], places[len(places) // 2], places[-1]]
+    out = [{"end": end, "flat_type": t, "budget": b} for t in RESALE_TYPES for b in BLOCK_BUDGETS]
+    for flat_type, budget in (("4 ROOM", "800000"), ("5 ROOM", "1000000")):
+        base = {"end": end, "flat_type": flat_type, "budget": budget}
+        out += [{**base, "town": t} for t in towns]
+        out += [{**base, "min_lease": "50"}, {**base, "min_lease": "70"}, {**base, "min_area": "95"}]
+        out += [{**base, "place": str(pl), "radius": str(r)} for pl in places for r in RADII_M]
+        out += [{**base, "place": str(places[1]), "radius": "5000", "town": towns[1]}]
+        out += [{**base, "page": "2"}, {**base, "page": "999"}]
+    return out
+
+
+def _blocks_fit(repo, p):
+    q = BlocksQuery.model_validate({k: v for k, v in p.items() if k != "end"})
+    return repo.blocks_fit(block_filter(q, window_ending(p["end"])))
+
+
 CASES: list[Case] = [
     Case(
         name="building",
@@ -534,6 +568,12 @@ CASES: list[Case] = [
         pg_call=lambda conn, p: PgExploreRepo(conn).baselines(p["flat_type"], window_ending(p["end"])),
         mongo_call=lambda db, p: MongoExploreRepo(db).baselines(p["flat_type"], window_ending(p["end"])),
         params=lambda conn: [{**w, "flat_type": t} for w in explore_window_params(conn) for t in RESALE_TYPES],
+    ),
+    Case(
+        name="explore_blocks",
+        pg_call=lambda conn, p: _blocks_fit(PgExploreRepo(conn), p),
+        mongo_call=lambda db, p: _blocks_fit(MongoExploreRepo(db), p),
+        params=block_fit_params,
     ),
     Case(
         name="explore_towns",

@@ -2,6 +2,15 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-30 UI overhaul, task T5 blocks that fit
+
+- `blocks_fit(BlockFilter)` in both databases: blocks whose typical (lower median) price for the flat type over the recent window is at or under the budget, with optional town, place and radius, least lease left and least typical floor area. Pages of 20 with the total. Without a place, cheapest first; with a place, located blocks within the radius (the place itself included), nearest first; ties by building id.
+- PostgreSQL returns the total and the page from one statement: the count row always exists and the page is `LEFT JOIN LATERAL`ed to it, so a page past the end still knows the total.
+- MongoDB has two shapes. Without a place it groups the window's sales by block (type and month index, or town, type and month with a town). With a place it starts from `$geoNear` on `building_profiles` and `$lookup`s each block's sales by `building_id` (`building_month` index, no collection scan). `$facet` gives the total and the page.
+- "Lease left" is whole years in the window's last year (`lease_start + 99 - year`); only the lease start year is known.
+- Each row carries the block's typical storey band, floor area and lease start, which T3's tags compare with the town baseline.
+- Full suite on the sample: 1584 passed, 0 skipped.
+
 ## 2026-10-30 UI overhaul, task T4 places and street abbreviations
 
 - Street abbreviations: every stored street is in HDB's abbreviated form (checked against all 632 streets in `data/cache/block_coordinates.csv`), so the typed text is abbreviated before it reaches either database (`etl.streets.abbreviate_street`, the reverse of `ABBREVIATIONS`; "SAINT" becomes "ST."). Used by search, the home block lookup and the new place picker. "marine terrace" now finds MARINE TER. Not handled: punctuation ("st georges" still misses ST. GEORGE'S RD).

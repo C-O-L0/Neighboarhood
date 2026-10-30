@@ -16,18 +16,35 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, ValidationError, field_validator, model_validator
 
 from app.repos.dto import TownFit
+from app.services.places import RADII_M, parse_radius
 from app.services.search import RESALE_TYPES
 from app.services.trends import add_months
+from etl.clean import TOWN_IDS
 
 WINDOW_MONTHS = 12
 FEW_SALES = 5  # a typical price from fewer recent sales is flagged as less reliable (R3)
 CLOSEST_TOWNS = 3  # shown when no town fits the budget (UC1 A1)
 MAX_BUDGET = Decimal("10000000")
-FIELDS = ("flat_type", "budget")
-LABELS = {"flat_type": "Flat type", "budget": "Budget"}
+PAGE_SIZE = 20  # blocks per page of results
+MAX_PAGE = 10000
+LEASE_YEARS = 99  # every HDB lease
+MAX_AREA = Decimal("300")
+MAX_ID = 2**31 - 1  # building ids are PostgreSQL INT
+FIELDS = ("flat_type", "budget", "town", "place", "radius", "min_lease", "min_area", "page")
+LABELS = {
+    "flat_type": "Flat type",
+    "budget": "Budget",
+    "town": "Town",
+    "place": "Place",
+    "radius": "Distance",
+    "min_lease": "Lease left",
+    "min_area": "Floor area",
+    "page": "Page",
+}
 
 # "650000", "650,000", "$650,000", "650,000.50"; commas only between groups of three digits.
 _MONEY = re.compile(r"\$?\s*(\d{1,3}(,\d{3})+|\d+)(\.\d{1,2})?", re.ASCII)
+_AREA = re.compile(r"\d{1,3}(\.\d)?", re.ASCII)  # square metres, as HDB records them (one decimal place)
 
 
 @dataclass(frozen=True)
@@ -112,3 +129,107 @@ def best_fit(towns: list[TownFit], budget: Decimal) -> TownFit | None:
 def closest(towns: list[TownFit], budget: Decimal) -> list[TownFit]:
     """When nothing fits: the towns least over budget (repos return towns cheapest first)."""
     return [t for t in towns if not fits(t, budget)][:CLOSEST_TOWNS]
+
+
+def lease_left_years(lease_year: int, on: date) -> int:
+    """Whole years of lease left in the year of `on`. Only the lease start year is known, so this is approximate."""
+    return lease_year + LEASE_YEARS - on.year
+
+
+class BlocksQuery(FitQuery):
+    """Blocks whose typical recent price for the flat type is within budget (UC1 step 6, UC9).
+
+    place is a building id chosen in the place picker; radius (metres) applies only with it. min_lease is the
+    least lease left in whole years, min_area the least typical floor area in sqm.
+    """
+
+    town: str | None = None
+    place: int | None = None
+    radius: int = 2000
+    min_lease: int | None = None
+    min_area: Decimal | None = None
+    page: int = 1
+
+    @field_validator("town", mode="before")
+    @classmethod
+    def _town(cls, v):
+        if not isinstance(v, str) or v.strip() not in TOWN_IDS:
+            raise ValueError("Town must be one of the listed towns.")
+        return v.strip()
+
+    @field_validator("place", mode="before")
+    @classmethod
+    def _place(cls, v):
+        if isinstance(v, str) and v.strip().isascii() and v.strip().isdigit() and len(v.strip()) <= 10:
+            v = int(v.strip())
+        if not isinstance(v, int) or isinstance(v, bool) or not 1 <= v <= MAX_ID:
+            raise ValueError("Choose the place from the list of blocks.")
+        return v
+
+    @field_validator("radius", mode="before")
+    @classmethod
+    def _radius(cls, v):
+        r = parse_radius(v) if isinstance(v, str) else v if v in RADII_M else None
+        if r is None:
+            raise ValueError("Distance must be 1, 2 or 5 km.")
+        return r
+
+    @field_validator("min_lease", mode="before")
+    @classmethod
+    def _min_lease(cls, v):
+        if isinstance(v, str) and v.strip().isascii() and v.strip().isdigit() and len(v.strip()) <= 2:
+            v = int(v.strip())
+        if not isinstance(v, int) or isinstance(v, bool) or not 1 <= v < LEASE_YEARS:
+            raise ValueError("Lease left must be a whole number of years from 1 to 98.")
+        return v
+
+    @field_validator("min_area", mode="before")
+    @classmethod
+    def _min_area(cls, v):
+        area = Decimal(v.strip()) if isinstance(v, str) and _AREA.fullmatch(v.strip()) else v
+        if not isinstance(area, Decimal) or not Decimal(0) < area <= MAX_AREA:
+            raise ValueError("Floor area must be a number of square metres from 1 to 300.")
+        return area
+
+    @field_validator("page", mode="before")
+    @classmethod
+    def _page(cls, v):
+        if isinstance(v, str) and v.strip().isascii() and v.strip().isdigit() and len(v.strip()) <= 5:
+            v = int(v.strip())
+        if not isinstance(v, int) or isinstance(v, bool) or not 1 <= v <= MAX_PAGE:
+            raise ValueError(f"Page must be a whole number from 1 to {MAX_PAGE}.")
+        return v
+
+
+@dataclass(frozen=True)
+class BlockFilter:
+    """Typed values both repos filter blocks on, worked out once from a BlocksQuery and the window."""
+
+    flat_type: str
+    budget: Decimal
+    window: Window
+    town: str | None = None
+    place: int | None = None
+    radius_m: int = 2000
+    min_lease_year: int | None = None  # the block's lease must start in this year or later
+    min_area: Decimal | None = None
+    page: int = 1
+
+    @property
+    def offset(self) -> int:
+        return (self.page - 1) * PAGE_SIZE
+
+
+def block_filter(q: BlocksQuery, window: Window) -> BlockFilter:
+    min_year = None if q.min_lease is None else window.end.year + q.min_lease - LEASE_YEARS
+    return BlockFilter(
+        flat_type=q.flat_type,
+        budget=q.budget,
+        window=window,
+        town=q.town,
+        place=q.place,
+        radius_m=q.radius,
+        min_lease_year=min_year,
+        min_area=q.min_area,
+        page=q.page,
+    )

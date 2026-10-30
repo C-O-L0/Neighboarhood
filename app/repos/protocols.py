@@ -8,6 +8,7 @@ from typing import Protocol
 
 from app.repos.dto import (
     Account,
+    BlockFitPage,
     BlockFoodAccess,
     BuildingDetail,
     Duplicate,
@@ -23,7 +24,7 @@ from app.repos.dto import (
     TownRank,
     TrendPoint,
 )
-from app.services.explore import Window
+from app.services.explore import BlockFilter, Window
 from app.services.rankings import RankingQuery
 from app.services.search import SearchQuery
 from app.services.trends import TrendQuery
@@ -125,6 +126,15 @@ class ExploreRepo(Protocol):
         """Per town with sales of the flat type in the window: count, typical price and sales within budget.
 
         Ordered by typical price, then town name.
+        """
+        ...
+
+    def blocks_fit(self, f: BlockFilter) -> BlockFitPage:
+        """Blocks with sales of the flat type in the window whose typical price is within the budget, after the
+        optional town, place and radius, lease and floor area filters. One page of PAGE_SIZE and the total.
+
+        Without a place: cheapest typical price first, then building id. With a place: located blocks within the
+        radius (the place itself included), nearest first, then building id.
         """
         ...
 

@@ -22,8 +22,8 @@ ORDER BY b.street COLLATE "C", length(b.block), b.block COLLATE "C", b.building_
 LIMIT %(limit)s
 """
 
-# Haversine between the place o and block b (fixed text, no request values).
-_DIST = f"""2 * {EARTH_RADIUS_M} * asin(sqrt(
+# Haversine between the place o and block b (fixed text, no request values); also used by the explore repo.
+DISTANCE = f"""2 * {EARTH_RADIUS_M} * asin(sqrt(
     sin((radians(b.latitude::double precision) - radians(o.latitude::double precision)) / 2) ^ 2
     + cos(radians(o.latitude::double precision)) * cos(radians(b.latitude::double precision))
       * sin((radians(b.longitude::double precision) - radians(o.longitude::double precision)) / 2) ^ 2))"""
@@ -48,7 +48,7 @@ LEFT JOIN LATERAL (
 ) n ON true
 ORDER BY n.dist, n.building_id
 """
-).format(dist=sql.SQL(_DIST))
+).format(dist=sql.SQL(DISTANCE))
 
 
 class PgPlaceRepo:
