@@ -13,6 +13,13 @@ from app.repos.dto import NearBlock, Place
 from app.repos.pg.search import like_escape
 from app.services.food import EARTH_RADIUS_M, round_metres
 
+_GET = """
+SELECT b.building_id, b.block, b.street, tw.name, b.latitude IS NOT NULL
+FROM building b
+JOIN town tw ON tw.town_id = b.town_id
+WHERE b.building_id = %(building_id)s
+"""
+
 _FIND = """
 SELECT b.building_id, b.block, b.street, tw.name, b.latitude IS NOT NULL
 FROM building b
@@ -56,6 +63,10 @@ class PgPlaceRepo:
 
     def __init__(self, conn: Connection):
         self.conn = conn
+
+    def get(self, building_id: int) -> Place | None:
+        row = self.conn.execute(_GET, {"building_id": building_id}).fetchone()
+        return Place(*row) if row else None
 
     def find(self, block: str | None, street: str, limit: int) -> list[Place]:
         params = {"street": f"%{like_escape(street)}%", "block": block, "limit": limit}

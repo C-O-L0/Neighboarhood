@@ -146,6 +146,10 @@ class ExploreRepo(Protocol):
 
 
 class PlaceRepo(Protocol):
+    def get(self, building_id: int) -> Place | None:
+        """One block as a place, or None when the id is unknown."""
+        ...
+
     def find(self, block: str | None, street: str, limit: int) -> list[Place]:
         """Blocks whose street contains the text (and with that block number, when given), at most limit.
 

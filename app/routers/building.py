@@ -1,10 +1,11 @@
-"""Home page, block lookup and the building page."""
+"""Block lookup and the building page. Home, where the lookup form sits, is in app/routers/explore.py."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.routers.explore import render_home
 from app.services.repos import call_repo
 from app.services.saved import notice_from
 from app.templating import templates
@@ -18,18 +19,8 @@ MAX_STREET = 40  # building.street VARCHAR(40)
 MAX_ID = 2**31 - 1  # building.building_id is INT
 
 
-def _home(request: Request, status: int = 200, **ctx):
-    context = {"block": "", "street": "", "message": None, **ctx}
-    return templates.TemplateResponse(request, "home.html", context, status_code=status)
-
-
 def _not_found(request: Request, what: str):
     return templates.TemplateResponse(request, "not_found.html", {"what": what}, status_code=404)
-
-
-@router.get("/", response_class=HTMLResponse)
-def home(request: Request):
-    return _home(request)
 
 
 @router.get("/building/find")
@@ -37,7 +28,7 @@ def find_building(request: Request, block: str = "", street: str = ""):
     nb, ns = normalise_key(block), abbreviate_street(street)  # "17 marine terrace" finds 17 MARINE TER
     if not 1 <= len(nb) <= MAX_BLOCK or not 1 <= len(ns) <= MAX_STREET:
         message = f"Enter a block of 1 to {MAX_BLOCK} characters and a street of 1 to {MAX_STREET} characters."
-        return _home(request, 422, block=nb[:100], street=ns[:100], message=message)
+        return render_home(request, 422, block=nb[:100], street=ns[:100], message=message)
     building_id = call_repo(request, "building", "find_id", nb, ns, label="block lookup")
     if building_id is None:
         return _not_found(request, f"Block {nb} {ns}")

@@ -170,7 +170,96 @@ dl.facts dd ul, dl.details dd ul { margin: 0; padding: 0; list-style: none; font
 .glossary dt:target { color: var(--accent-ink); }
 .glossary dd { margin: 4px 0 0; color: var(--ink-soft); }
 
+/* Shared page pieces */
+.lede { font-size: 18px; color: var(--muted); max-width: 46rem; }
+.hint { font-size: 14px; color: var(--muted); }
+.card > h2:first-child { margin-top: 0; }
+.card { margin: 0 0 1.5rem; padding: 20px 24px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.section-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 2rem 0 0.75rem; }
+.section-head h2 { margin: 0; }
+.tags { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.tag { padding: 2px 10px; border-radius: 999px; background: var(--line-soft); color: var(--ink-soft); font-size: 13px; font-weight: 500; white-space: nowrap; }
+.tag.typical { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.few { margin-left: 2px; padding: 0 6px; border-radius: 999px; background: var(--warm-soft); color: var(--warm-ink); font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+
+/* Home: the guided start */
+.home { display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; }
+.home-main { flex: 999 1 600px; min-width: 0; }
+.home-main h1 { font-size: 44px; line-height: 1.1; }
+.home-side { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding-top: 120px; }
+.guide { display: flex; flex-direction: column; gap: 4px; padding: 8px 28px 28px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.step { margin: 0; padding: 20px 0; border: 0; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.step > legend { float: left; width: 100%; padding: 0; display: flex; align-items: center; gap: 12px; font-size: 22px; font-weight: 700; }
+.step > legend + * { clear: both; }
+.step-no { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #ffffff; font-size: 14px; font-weight: 700; flex: none; }
+.optional { font-size: 14px; font-weight: 500; color: var(--muted); }
+.choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 12px; }
+.choice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.choice:hover { border-color: var(--field); }
+.choice:has(input:checked) { border: 2px solid var(--accent); padding: 13px 15px; background: var(--accent-soft); }
+.choice input { margin-top: 3px; flex: none; }
+.choice > span { display: flex; flex-direction: column; gap: 2px; }
+.choice strong { font-size: 17px; }
+.money-input { display: flex; align-items: center; max-width: 18rem; border: 1px solid var(--field); border-radius: var(--radius-s); background: var(--surface); }
+.money-input:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.money-input span { padding-left: 12px; color: var(--muted); font-weight: 600; }
+.money-input input:not([type="checkbox"]):not([type="radio"]) { flex: 1; min-width: 0; border: 0; background: none; font-size: 18px; }
+.money-input input:focus-visible { outline: none; }
+.radius { margin: 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+.radius legend { float: left; margin-right: 8px; padding: 0; font-size: 14px; font-weight: 600; }
+.radius label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+.guide-actions { display: flex; justify-content: flex-end; padding-top: 20px; }
+.side-card { display: flex; flex-direction: column; gap: 6px; padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); text-decoration: none; }
+a.side-card:hover { border-color: var(--field); color: var(--ink); }
+.side-card strong, .side-card h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--accent); }
+.lookup { display: grid; grid-template-columns: 5rem 1fr; gap: 10px; align-items: end; }
+.lookup input:not([type="hidden"]) { width: 100%; min-width: 0; }
+.lookup button { grid-column: 1 / -1; justify-self: start; }
+.side-note { margin: 0; padding: 16px 20px; border-radius: var(--radius); background: var(--warm-soft); color: #5a2a08; font-size: 14px; }
+
+/* Explore: towns and blocks that fit */
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 20px; }
+.chip { padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-weight: 600; }
+.chip.muted { color: var(--muted); font-weight: 500; }
+.chips a { font-weight: 600; }
+.results-head h1 { font-size: 32px; line-height: 1.2; }
+.choose ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.town-grid { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 16px; }
+.town-card { height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 18px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); text-decoration: none; }
+.town-card:hover { border-color: var(--field); color: var(--ink); }
+.town-card.selected { border: 2px solid var(--accent); padding: 17px 19px; }
+.town-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.town-top strong { font-size: 18px; }
+.badge { padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.badge.fit { background: var(--accent-soft); color: var(--accent-ink); }
+.badge.over { background: var(--warm-soft); color: var(--warm-ink); }
+.town-price { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.bar { display: block; height: 8px; border-radius: 999px; background: #e6eae6; overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--accent); }
+.share { font-size: 14px; color: var(--ink-soft); }
+.more-towns { margin-bottom: 12px; }
+.more-towns > summary { margin-bottom: 12px; font-weight: 600; color: var(--accent); cursor: pointer; }
+.filters { margin-bottom: 16px; }
+.filters > summary { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--field); border-radius: var(--radius-s); background: var(--surface); font-size: 14px; font-weight: 600; cursor: pointer; list-style: none; }
+.filters > summary::-webkit-details-marker { display: none; }
+.filter-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); align-items: end; gap: 16px; margin-top: 12px; padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.filter-form button { justify-self: start; }
+.block-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.block-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 16px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.block-name { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; }
+.block-name > a { font-size: 17px; font-weight: 700; color: var(--ink); }
+.block-name > a:hover { color: var(--accent); }
+.block-price { min-width: 7rem; text-align: right; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.empty { padding: 20px; background: var(--surface); border: 1px dashed var(--field); border-radius: var(--radius); }
+
 @media (max-width: 640px) {
+  .home-main h1 { font-size: 30px; }
+  .home-side { padding-top: 0; }
+  .guide { padding: 4px 16px 20px; }
+  .step > legend { font-size: 19px; }
+  .guide-actions button { width: 100%; }
+  .results-head h1 { font-size: 26px; }
+  .block-price { min-width: 0; text-align: left; }
   :root { --gutter: 16px; }
   h1 { font-size: 28px; }
   h2 { font-size: 20px; }

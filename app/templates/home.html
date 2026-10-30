@@ -1,21 +1,97 @@
 {% extends "base.html" %}
-{% block title %}Neighboar{% endblock %}
+{% block title %}Find a resale flat · Neighboar{% endblock %}
 {% block content %}
-<h1>Neighbourhood explorer for HDB resale flats</h1>
-<p>Look up a block to see its flats, completion year, lease start, resale statistics and latest sales. Every figure comes from HDB resale sales that were registered, not from flats for sale today.</p>
+<div class="home">
+  <section class="home-main">
+    <h1>Find a resale flat that fits</h1>
+    <p class="lede">Tell us what you need. We compare it with real HDB resale sales{% if data_month %} registered up to {{ data_month|month }}{% endif %}.</p>
+    {% if errors %}
+    <div class="bad" role="alert">
+      <p>Please correct the following.</p>
+      <ul>
+        {% for e in errors %}<li>{{ e }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    <form method="get" action="/explore" class="guide">
+      <input type="hidden" name="db" value="{{ db_mode }}">
+      <fieldset class="step">
+        <legend><span class="step-no" aria-hidden="true">1</span> How many rooms?</legend>
+        <div class="choices">
+          {% for t in flat_types if not ranges or t in ranges %}
+          {% set r = ranges.get(t) %}
+          <label class="choice" for="ft-{{ loop.index }}">
+            <input type="radio" id="ft-{{ loop.index }}" name="flat_type" value="{{ t }}"{% if values.flat_type == t %} checked{% endif %} required>
+            <span>
+              <strong>{{ t|flat_label }}</strong>
+              <span class="hint">
+                {% if r and r.n >= few_sales %}About {{ r.area_median|round|int }} sqm · usually {{ r.price_low|money_short }} to {{ r.price_high|money_short }}
+                {% elif r %}About {{ r.area_median|round|int }} sqm · too few recent sales to show a range
+                {% else %}No sales in the last 12 months{% endif %}
+              </span>
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+        <p class="hint">"Usually" is the middle 80% of sales in the <a href="/glossary#last-12-months">last 12 months</a>. <a href="/glossary#flat-type">What do flat types mean?</a></p>
+      </fieldset>
 
-<h2>Find a block</h2>
-{% if message %}<p class="bad" role="alert">{{ message }}</p>{% endif %}
-<form method="get" action="/building/find" class="searchform">
-  <input type="hidden" name="db" value="{{ db_mode }}">
-  <div class="field">
-    <label for="block">Block</label>
-    <input id="block" name="block" value="{{ block }}" maxlength="5" required>
-  </div>
-  <div class="field">
-    <label for="street">Street</label>
-    <input id="street" name="street" value="{{ street }}" maxlength="40" required>
-  </div>
-  <button type="submit">Look up</button>
-</form>
+      <fieldset class="step">
+        <legend><span class="step-no" aria-hidden="true">2</span> What is your budget?</legend>
+        <div class="field budget">
+          <label for="budget">Highest price you would pay</label>
+          <div class="money-input">
+            <span aria-hidden="true">$</span>
+            <input id="budget" name="budget" value="{{ values.budget or '' }}" inputmode="numeric" placeholder="650,000" maxlength="20" required>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="step-no" aria-hidden="true">3</span> Want to be near somewhere? <span class="optional">Optional</span></legend>
+        <div class="field">
+          <label for="place_text">Block and street, for example your parents' block</label>
+          <input id="place_text" name="place_text" value="{{ values.place_text or '' }}" placeholder="186 Bishan St 13" maxlength="60">
+        </div>
+        <fieldset class="radius">
+          <legend>Within</legend>
+          {% for r in radii %}
+          <label for="radius-{{ r }}"><input type="radio" id="radius-{{ r }}" name="radius" value="{{ r }}"{% if (values.radius or default_radius|string) == r|string %} checked{% endif %}> {{ r // 1000 }} km</label>
+          {% endfor %}
+        </fieldset>
+      </fieldset>
+
+      <div class="guide-actions">
+        <button type="submit">Show what fits</button>
+      </div>
+    </form>
+  </section>
+
+  <aside class="home-side" aria-label="Other ways in">
+    <a class="side-card" href="/trends">
+      <span class="hint">Know the town already?</span>
+      <strong>See its price trend</strong>
+      <span class="hint">Are prices rising or flat, month by month.</span>
+    </a>
+    <section class="side-card" aria-labelledby="lookup-h">
+      <span class="hint">Have a block in mind?</span>
+      <h2 id="lookup-h">Look up a block</h2>
+      {% if message %}<p class="bad" role="alert">{{ message }}</p>{% endif %}
+      <form method="get" action="/building/find" class="lookup">
+        <input type="hidden" name="db" value="{{ db_mode }}">
+        <div class="field">
+          <label for="block">Block</label>
+          <input id="block" name="block" value="{{ block }}" maxlength="5" placeholder="17" required>
+        </div>
+        <div class="field">
+          <label for="street">Street</label>
+          <input id="street" name="street" value="{{ street }}" maxlength="60" placeholder="Marine Terrace" required>
+        </div>
+        <button type="submit" class="secondary">Look up</button>
+      </form>
+    </section>
+    <p class="side-note">These are past sales, not flats for sale today. Use them to judge prices and places, then look for listings.</p>
+  </aside>
+</div>
 {% endblock %}

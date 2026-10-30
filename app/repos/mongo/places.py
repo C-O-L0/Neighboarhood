@@ -42,6 +42,14 @@ class MongoPlaceRepo:
     def __init__(self, db: Database):
         self.db = db
 
+    def get(self, building_id: int) -> Place | None:
+        d = self.db.building_profiles.find_one(
+            {"_id": building_id}, {"block": 1, "street": 1, "town": 1, "location": 1}
+        )
+        if d is None:
+            return None
+        return Place(d["_id"], d["block"], d["street"], d["town"]["name"], isinstance(d.get("location"), dict))
+
     def find(self, block: str | None, street: str, limit: int) -> list[Place]:
         docs = self.db.building_profiles.aggregate(find_pipeline(block, street, limit))
         return [Place(d["_id"], d["block"], d["street"], d["town"], d["located"]) for d in docs]
