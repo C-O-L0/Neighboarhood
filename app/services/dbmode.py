@@ -1,4 +1,9 @@
-"""DB-mode resolution (?db=pg|mongo, then the db_mode cookie, then pg) and timing records."""
+"""DB-mode resolution, demo mode and timing records.
+
+The database is ?db=pg|mongo when given, then the db_mode cookie while demo mode is on, otherwise pg. Demo mode
+(the demo cookie) is what a presenter turns on to switch databases and see timings; buyers never see it, so they
+always use PostgreSQL unless a link names the database (docs/conventions.md, 6).
+"""
 
 from __future__ import annotations
 
@@ -12,6 +17,7 @@ MODES = ("pg", "mongo")
 DEFAULT_MODE = "pg"
 COOKIE = "db_mode"
 COOKIE_MAX_AGE = 30 * 24 * 3600
+DEMO_COOKIE = "demo"
 # Header links only reuse a path of plain segments. Anything else (//host, /\host, control characters)
 # could be read by a browser as another origin, so those pages link to "/" instead.
 # The (?!/) stops an empty first segment: //host/x would otherwise match the segment rules.
@@ -35,17 +41,26 @@ def requested_mode(request: Request) -> str | None:
     return request.query_params.get("db")
 
 
+def demo_on(request: Request) -> bool:
+    return request.cookies.get(DEMO_COOKIE) == "1"
+
+
 def resolve_mode(request: Request) -> str:
-    """Mode for a request whose ?db= is absent or valid."""
+    """Mode for a request whose ?db= is absent or valid. The db_mode cookie counts only in demo mode."""
     param = requested_mode(request)
     if param in MODES:
         return param
     cookie = request.cookies.get(COOKIE)
-    return cookie if cookie in MODES else DEFAULT_MODE
+    return cookie if demo_on(request) and cookie in MODES else DEFAULT_MODE
+
+
+def safe_return_path(path: str, query: str = "") -> str:
+    """A local path and query to send the browser to. A path that is not plain segments becomes "/" (_SAFE_PATH)."""
+    path = path if _SAFE_PATH.fullmatch(path) else "/"
+    return f"{path}?{query}" if query else path
 
 
 def mode_links(request: Request) -> dict[str, str]:
     """Current path and query with db replaced, other parameters kept (URL-encoded)."""
     others = [(k, v) for k, v in request.query_params.multi_items() if k != "db"]
-    path = request.url.path if _SAFE_PATH.fullmatch(request.url.path) else "/"
-    return {m: f"{path}?{urlencode([*others, ('db', m)])}" for m in MODES}
+    return {m: safe_return_path(request.url.path, urlencode([*others, ("db", m)])) for m in MODES}

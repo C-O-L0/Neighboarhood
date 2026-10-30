@@ -79,9 +79,7 @@ class MongoFoodRepo:
 
     def block(self, building_id: int) -> BlockFoodAccess | None:
         """The block's 5 nearest open centres and the number within 1 km; None if it has no coordinates."""
-        profile = self.db.building_profiles.find_one(
-            {"_id": building_id}, {"block": 1, "street": 1, "location": 1}
-        )
+        profile = self.db.building_profiles.find_one({"_id": building_id}, {"block": 1, "street": 1, "location": 1})
         if profile is None or profile.get("location") is None:
             return None
         doc = next(iter(self.db.hawker_centres.aggregate(block_pipeline(profile["location"]))), None)

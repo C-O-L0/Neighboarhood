@@ -16,4 +16,5 @@ requests
 # dev and test
 pytest
 httpx
+httpx2
 ruff

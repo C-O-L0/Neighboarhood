@@ -2,16 +2,20 @@
 {% block title %}Neighboar{% endblock %}
 {% block content %}
 <h1>Neighbourhood explorer for HDB resale flats</h1>
-<p>Look up a block to see its flats, completion year, lease start, resale statistics and latest sales. Every page can be served from PostgreSQL or MongoDB: switch with the links in the header and compare the query time in the footer.</p>
+<p>Look up a block to see its flats, completion year, lease start, resale statistics and latest sales. Every figure comes from HDB resale sales that were registered, not from flats for sale today.</p>
 
 <h2>Find a block</h2>
 {% if message %}<p class="bad" role="alert">{{ message }}</p>{% endif %}
-<form method="get" action="/building/find">
+<form method="get" action="/building/find" class="searchform">
   <input type="hidden" name="db" value="{{ db_mode }}">
-  <label for="block">Block</label>
-  <input id="block" name="block" value="{{ block }}" maxlength="5" required>
-  <label for="street">Street</label>
-  <input id="street" name="street" value="{{ street }}" maxlength="40" required>
+  <div class="field">
+    <label for="block">Block</label>
+    <input id="block" name="block" value="{{ block }}" maxlength="5" required>
+  </div>
+  <div class="field">
+    <label for="street">Street</label>
+    <input id="street" name="street" value="{{ street }}" maxlength="40" required>
+  </div>
   <button type="submit">Look up</button>
 </form>
 {% endblock %}

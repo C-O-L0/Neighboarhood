@@ -149,6 +149,8 @@ ROUTES: dict[str, tuple[str, Callable[[SimpleNamespace], Req]]] = {
     "POST /saved": ("buyer", lambda c: Req("/saved", form={"building_id": str(c.plan.a_id), "note": "probe"})),
     "POST /saved/note": ("buyer", lambda c: Req("/saved/note", form={"building_id": str(c.plan.a_id), "note": "x"})),
     "POST /saved/remove": ("buyer", lambda c: Req("/saved/remove", form={"building_id": str(c.plan.a_id)})),
+    "GET /glossary": ("anon", lambda c: Req("/glossary")),
+    "POST /demo": ("anon", lambda c: Req("/demo", form={"on": "1", "next": "/"})),
     "GET /admin": ("admin", lambda c: Req("/admin")),
     "POST /admin/sales": ("admin", lambda c: Req("/admin/sales", form=sale_form(c.plan))),
     "POST /admin/sales/delete": ("admin", lambda c: Req("/admin/sales/delete", form={"txn_id": str(2**63 - 1)})),
@@ -158,7 +160,7 @@ ROUTES: dict[str, tuple[str, Callable[[SimpleNamespace], Req]]] = {
 
 
 def route_keys(application) -> set[str]:
-    """"METHOD path" for every route; included routers are expanded (FastAPI 0.143 app.routes no longer lists them)."""
+    """ "METHOD path" for every route; included routers are expanded (FastAPI 0.143 app.routes no longer lists them)."""
     keys = set()
     for context in iter_route_contexts(application.routes):
         methods = sorted(m for m in (context.methods or ()) if m != "HEAD") or ["MOUNT"]
@@ -208,9 +210,7 @@ def stray_buyers(pg_owner, mongo_etl):
 
 @pytest.mark.parametrize("mode", MODES)
 @pytest.mark.parametrize("key", sorted(ROUTES))
-def test_route_checks_out_only_its_own_identities(
-    key, mode, app, make_user, plan, cleanup, stray_buyers, monkeypatch
-):
+def test_route_checks_out_only_its_own_identities(key, mode, app, make_user, plan, cleanup, stray_buyers, monkeypatch):
     new_email = f"test-identity-{secrets.token_hex(6)}@example.com"
     stray_buyers.append(new_email)
     role, build = ROUTES[key]

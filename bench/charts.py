@@ -221,9 +221,7 @@ def latency_by_case(folder: Path) -> list[Path]:
 def throughput(folder: Path) -> list[Path]:
     rows = read_csv(folder / "f100" / "throughput.csv")
     cases = list(dict.fromkeys(r["case"] for r in rows))
-    fig, axes = plt.subplots(
-        1, len(cases), figsize=(WIDTH_IN, 7.5 / 2.54), layout="constrained", squeeze=False
-    )
+    fig, axes = plt.subplots(1, len(cases), figsize=(WIDTH_IN, 7.5 / 2.54), layout="constrained", squeeze=False)
     for ax, case in zip(axes[0], cases, strict=True):
         _style_axes(ax, "y")
         workers = sorted({int(r["workers"]) for r in rows if r["case"] == case})
@@ -289,7 +287,7 @@ def scaling(folder: Path) -> list[Path]:
         ax.set_title(case, loc="left")
         ax.set_xlabel("Data loaded (% of sales)")
         ax.set_ylabel("Median latency (ms)")
-    for ax in flat[len(cases):]:
+    for ax in flat[len(cases) :]:
         ax.set_visible(False)
     figure_legend(fig, flat[0].get_legend_handles_labels()[0], ncol=2)
     return _save(fig, folder, "scaling")
@@ -299,9 +297,7 @@ def index_on_off(folder: Path) -> list[Path]:
     rows = read_csv(folder / "f100" / "index_on_off.csv")
     agg = collapse(rows, ("case", "db", "arm"))
     cases = list(dict.fromkeys(r["case"] for r in rows))
-    fig, axes = plt.subplots(
-        1, len(cases), figsize=(WIDTH_IN, 8.5 / 2.54), layout="constrained", squeeze=False
-    )
+    fig, axes = plt.subplots(1, len(cases), figsize=(WIDTH_IN, 8.5 / 2.54), layout="constrained", squeeze=False)
     dbs = [d for d in DB_ORDER if any(k[1] == d for k in agg)]
     for ax, case in zip(axes[0], cases, strict=True):
         _style_axes(ax, "y")

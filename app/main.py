@@ -11,10 +11,10 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
 from app.db import Databases
-from app.routers import admin, auth, building, food, health, rankings, saved, search, trends
+from app.routers import admin, auth, building, demo, food, glossary, health, rankings, saved, search, trends
 from app.services.admin import AdminState
 from app.services.auth import LoginThrottle
-from app.services.dbmode import COOKIE, COOKIE_MAX_AGE, MODES, requested_mode, resolve_mode
+from app.services.dbmode import COOKIE, COOKIE_MAX_AGE, MODES, demo_on, requested_mode, resolve_mode
 from app.services.guards import csrf_guard, load_account
 from app.templating import templates
 
@@ -53,6 +53,7 @@ def create_app() -> FastAPI:
         request.state.timings = []
         param = requested_mode(request)
         request.state.db_mode = resolve_mode(request)
+        request.state.demo = demo_on(request)
         if param is not None and param not in MODES:
             return templates.TemplateResponse(
                 request,
@@ -62,9 +63,7 @@ def create_app() -> FastAPI:
             )
         response = await call_next(request)
         if param is not None:
-            response.set_cookie(
-                COOKIE, param, max_age=COOKIE_MAX_AGE, path="/", httponly=True, samesite="lax"
-            )
+            response.set_cookie(COOKIE, param, max_age=COOKIE_MAX_AGE, path="/", httponly=True, samesite="lax")
         return response
 
     app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
@@ -77,4 +76,6 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(saved.router)
     app.include_router(admin.router)
+    app.include_router(glossary.router)
+    app.include_router(demo.router)
     return app

@@ -33,15 +33,16 @@ Every SQL `ORDER BY` (and window `ORDER BY`) on a text column uses `COLLATE "C"`
 
 ## 5. Timing (section 2)
 
-The service layer times only the repo call with `time.perf_counter_ns()`. Connection checkout from the pool is outside the timed span. It records `Timing(label, db, ms)` on `request.state.timings`. The page footer lists each timing as "<label>: <ms> ms on PostgreSQL|MongoDB (query and fetch)".
+The service layer times only the repo call with `time.perf_counter_ns()`. Connection checkout from the pool is outside the timed span. It records `Timing(label, db, ms)` on `request.state.timings`. In demo mode (section 6) the demo bar lists each timing as "<label>: <ms> ms on PostgreSQL|MongoDB (query and fetch)", after the page total.
 
 ## 6. DB mode
 
 - `?db=pg|mongo` selects the database. Any other value is a 400.
-- If the parameter is absent, the `db_mode` cookie decides when it holds a valid value, otherwise `pg`.
-- A request with a valid `?db=` sets `db_mode` on the response (`HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age` 30 days).
-- The header shows the current mode and two links to the current path and query with `db=pg` and `db=mongo`. Other query parameters are kept and URL-encoded.
-- The cookie is a display preference, not account state, so it needs no CSRF token. Section 9 CSRF applies to state-changing forms from Phase 3.
+- Demo mode is on while the `demo` cookie is `1`. It is set and cleared by the footer toggle, `POST /demo` (CSRF as every POST). Turning it off also clears `db_mode` and drops `?db=` from the page the browser returns to. The return path is checked like the mode links below; anything with a scheme or host goes to `/`.
+- If the parameter is absent, the `db_mode` cookie decides in demo mode when it holds a valid value; otherwise the mode is `pg`. A buyer who never turns demo mode on always uses PostgreSQL.
+- A request with a valid `?db=` sets `db_mode` on the response (`HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age` 30 days). The `demo` cookie has the same attributes.
+- Only in demo mode, the demo bar under the header shows the current mode, two links to the current path and query with `db=pg` and `db=mongo` (other query parameters kept and URL-encoded), the page's timings and a link to the health page.
+- The `db_mode` cookie is a display preference, not account state, so switching by link needs no CSRF token.
 
 ## 7. Least privilege
 
@@ -73,7 +74,7 @@ Registered once in `app/templating.py` and used by every page; there is no other
 
 | Filter | Example |
 | --- | --- |
-| `money` | `money(Decimal("1234.5"))` is `$1,234.50`; `money(Decimal("-12500"))` is `-$12,500.00`; `money(None)` is `Unknown` |
+| `money` | `money(Decimal("1234.5"))` is `$1,234.50`; a whole amount drops the cents: `money(Decimal("-12500"))` is `-$12,500`; `money(None)` is `Unknown` |
 | `month` | `month(date(2024, 1, 1))` is `Jan 2024` |
 | `lease` | `lease(733)` is `61 years 01 month`; `lease(732)` is `61 years`; `lease(735)` is `61 years 03 months`; `lease(12)` is `1 year`; `lease(13)` is `1 year 01 month` |
 | `storey` | `storey(7, 9)` is `07 TO 09` |
@@ -85,7 +86,7 @@ Registered once in `app/templating.py` and used by every page; there is no other
 
 ## 12. Labels
 
-A median is always labelled "median*" with the footnote "* median: the lower of the two middle prices when n is even" on the same page (section 6).
+A median is labelled "typical price" (decided 2026-10-30, replacing "median*" and its footnote). Its first use in a table header or summary carries the glossary link (`ui.term('Typical price', 'typical-price')`), and the glossary defines it as the lower of the two middle prices when n is even (section 6). Derived labels follow: "12-month typical price", "Island typical price", "Typical price a year earlier".
 
 ## 13. Accounts, sessions and CSRF (task 3.1b)
 
@@ -93,3 +94,12 @@ A median is always labelled "median*" with the footnote "* median: the lower of 
 - CSRF is enforced by an app-level dependency (`app/services/guards.py`), so every POST route, including later ones, needs the form field `csrf_token` and gets a 403 otherwise, before its own validation runs. Templates read the token from the `csrf_token` context variable; every `<form method="post">` includes it as a hidden field.
 - The login throttle (5 failures per lower-cased email and client IP in a sliding 15 minutes, then HTTP 429) is held in memory per process. The app runs one uvicorn worker, so the state is lost on restart and is not shared if workers are added.
 - Passwords are 10 to 128 characters, checked before hashing, and hashed with argon2id (`argon2.PasswordHasher()`).
+
+## 14. Interface
+
+- Styles live in `app/static/app.css`: colour, radius and spacing tokens on `:root` first, then base elements, layout and components. Pages use the tokens, never their own colours.
+- The font is Figtree, self-hosted from `app/static/vendor/figtree-latin.woff2` (Latin subset, SIL Open Font License); no font or script loads from another site.
+- Every page has the same header (brand, main menu with `aria-current="page"` on the current item, account area) and footer (glossary link, demo toggle). The account menu is a `<details>` element, so it needs no script.
+- Shared pieces are Jinja macros in `app/templates/_ui.html`, imported as `ui`. A component is added there by the first task that uses it, not ahead of its first user.
+- Plain language first: buttons and links name the action, jargon gets a glossary link (`ui.term`), and the glossary at `/glossary` has one anchored entry per term.
+- Months and storey bands in tables do not wrap (`class="nowrap"`). Controls are at least 44 px tall, except compact buttons inside tables (36 px).

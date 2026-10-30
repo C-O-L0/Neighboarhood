@@ -233,9 +233,7 @@ def ranking_years(conn) -> list[int]:
 
 def ranking_params(conn) -> list[dict]:
     return [
-        {"year": str(y), **({"flat_type": t} if t else {})}
-        for y in ranking_years(conn)
-        for t in (None, *RESALE_TYPES)
+        {"year": str(y), **({"flat_type": t} if t else {})} for y in ranking_years(conn) for t in (None, *RESALE_TYPES)
     ]
 
 

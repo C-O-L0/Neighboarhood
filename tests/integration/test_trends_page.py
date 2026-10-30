@@ -6,16 +6,19 @@ import re
 import httpx
 import pytest
 
+from tests.integration.web import DEMO
+
 BASE = os.environ.get("NEIGHBOAR_URL", "http://127.0.0.1:8000")
 pytestmark = pytest.mark.integration
 
-MAIN = re.compile(r'<main class="page">(.*?)</main>', re.S)
+MAIN = re.compile(r'<main id="main" class="page">(.*?)</main>', re.S)
 TIMING = re.compile(r"<li>([^<]+): [\d.]+ ms on (PostgreSQL|MongoDB) \(query and fetch\)</li>")
 ROWS = re.compile(r"<tbody>(.*?)</tbody>", re.S)
 SERIES = "town=BISHAN&flat_type=4+ROOM"
 
 
 def get(path, **kw):
+    kw.setdefault("cookies", DEMO)
     return httpx.get(f"{BASE}{path}", timeout=30, **kw)
 
 
@@ -62,14 +65,14 @@ def test_submitted_values_are_echoed_and_escaped():
 
 
 @pytest.mark.parametrize("db,name", [("pg", "PostgreSQL"), ("mongo", "MongoDB")])
-def test_trends_shows_table_footnote_and_timing_footer(db, name):
+def test_trends_shows_table_labels_and_timings(db, name):
     resp = get(f"/trends?{SERIES}&db={db}")
     assert resp.status_code == 200
     assert TIMING.findall(resp.text) == [("trends", name)]
     page = main_of(resp)
-    assert "Median* price" in page and "12-month median*" in page
-    assert "* median: the lower of the two middle prices when n is even" in page
-    assert re.search(r"<td>[A-Z][a-z]{2} \d{4}</td>", page)
+    assert "Typical price" in page and "12-month typical price" in page and "Typical price a year earlier" in page
+    assert 'href="/glossary#typical-price"' in page and "median*" not in page.lower()
+    assert re.search(r'<td class="nowrap">[A-Z][a-z]{2} \d{4}</td>', page)
     assert re.search(r"\$\d{1,3}(,\d{3})+\.\d{2}", page)
     assert re.search(r"-?\d+\.\d%", page)  # a YoY percentage
 
@@ -86,7 +89,7 @@ def test_both_databases_render_the_same_table():
     q = f"/trends?{SERIES}&month_from=2020-06&month_to=2023-02"
     pg, mongo = get(q + "&db=pg"), get(q + "&db=mongo")
     assert ROWS.search(pg.text).group(1) == ROWS.search(mongo.text).group(1)
-    first = re.search(r"<tr><td>([^<]+)</td>", ROWS.search(pg.text).group(1)).group(1)
+    first = re.search(r"<tr><td[^>]*>([^<]+)</td>", ROWS.search(pg.text).group(1)).group(1)
     assert first == "Jun 2020"
 
 

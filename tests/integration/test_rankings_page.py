@@ -7,16 +7,18 @@ import httpx
 import pytest
 
 from tests.equivalence.cases import is_sample
+from tests.integration.web import DEMO
 
 BASE = os.environ.get("NEIGHBOAR_URL", "http://127.0.0.1:8000")
 pytestmark = pytest.mark.integration
 
-MAIN = re.compile(r'<main class="page">(.*?)</main>', re.S)
+MAIN = re.compile(r'<main id="main" class="page">(.*?)</main>', re.S)
 TIMING = re.compile(r"<li>([^<]+): [\d.]+ ms on (PostgreSQL|MongoDB) \(query and fetch\)</li>")
 ROWS = re.compile(r"<tbody>(.*?)</tbody>", re.S)
 
 
 def get(path, **kw):
+    kw.setdefault("cookies", DEMO)
     return httpx.get(f"{BASE}{path}", timeout=30, **kw)
 
 
@@ -61,13 +63,13 @@ def test_submitted_values_are_echoed_and_escaped():
 
 
 @pytest.mark.parametrize("db,name", [("pg", "PostgreSQL"), ("mongo", "MongoDB")])
-def test_rankings_shows_tables_footnote_and_timing_footer(db, name):
+def test_rankings_shows_tables_labels_and_timings(db, name):
     resp = get(f"/rankings?year=2022&db={db}")
     assert resp.status_code == 200
     assert TIMING.findall(resp.text) == [("rankings", name)]
     page = main_of(resp)
-    assert "Median* price" in page and "Island median*" in page and "Above island median" in page
-    assert "* median: the lower of the two middle prices when n is even" in page
+    assert "Typical price" in page and "Island typical price" in page and "Above island typical price" in page
+    assert 'href="/glossary#typical-price"' in page and "median*" not in page.lower()
     assert page.count("<table") >= 2  # one table per flat type
     assert re.search(r"\$\d{1,3}(,\d{3})+\.\d{2}", page)
     assert "<td>Yes</td>" in page and "<td>No</td>" in page

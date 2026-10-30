@@ -7,17 +7,19 @@ import httpx
 import pytest
 
 from etl.clean import TOWNS
+from tests.integration.web import DEMO
 
 BASE = os.environ.get("NEIGHBOAR_URL", "http://127.0.0.1:8000")
 pytestmark = pytest.mark.integration
 
-MAIN = re.compile(r'<main class="page">(.*?)</main>', re.S)
+MAIN = re.compile(r'<main id="main" class="page">(.*?)</main>', re.S)
 TIMING = re.compile(r"<li>([^<]+): [\d.]+ ms on (PostgreSQL|MongoDB) \(query and fetch\)</li>")
 PANEL = re.compile(r"<h2>Food access</h2>(.*?)<h2>Resale statistics</h2>", re.S)
 MODES = [("pg", "PostgreSQL"), ("mongo", "MongoDB")]
 
 
 def get(path, **kw):
+    kw.setdefault("cookies", DEMO)
     return httpx.get(f"{BASE}{path}", timeout=30, **kw)
 
 

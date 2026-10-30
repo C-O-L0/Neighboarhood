@@ -118,15 +118,11 @@ def test_missing_months_give_no_previous_year_and_a_calendar_rolling_window(pg_c
             assert p.rolling_median == lower_median(in_window), p.month
     # the window counts calendar months, not rows: some window has an interior month without sales
     have = set(months)
-    assert any(
-        add_months(m, -k) > months[0] and add_months(m, -k) not in have for m in months for k in range(1, 12)
-    )
+    assert any(add_months(m, -k) > months[0] and add_months(m, -k) not in have for m in months for k in range(1, 12))
 
 
 def test_bounded_range_keeps_history_before_month_from(pg_conn, mongo_db):
-    (town, flat_type), months = next(
-        ((k, m) for k, m in trend_series(pg_conn).items() if len(m) > 14), (None, None)
-    )
+    (town, flat_type), months = next(((k, m) for k, m in trend_series(pg_conn).items() if len(m) > 14), (None, None))
     assert town, "a series with more than 14 months is needed"
     full_pg, full_mongo = both(pg_conn, mongo_db, town=town, flat_type=flat_type)
     # a start month that has a previous-year month and earlier months in its rolling window

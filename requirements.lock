@@ -7,6 +7,7 @@ annotated-types==0.8.0
 anyio==4.15.1
     # via
     #   httpx
+    #   httpx2
     #   starlette
     #   watchfiles
 argon2-cffi==25.1.0
@@ -37,17 +38,23 @@ fonttools==4.68.0
 h11==0.16.0
     # via
     #   httpcore
+    #   httpcore2
     #   uvicorn
 httpcore==1.0.9
     # via httpx
+httpcore2==2.16.0
+    # via httpx2
 httptools==0.9.0
     # via uvicorn
 httpx==0.28.1
+    # via -r requirements.in
+httpx2==2.16.0
     # via -r requirements.in
 idna==3.20
     # via
     #   anyio
     #   httpx
+    #   httpx2
     #   requests
 iniconfig==2.3.1
     # via pytest
@@ -124,10 +131,15 @@ six==1.17.0
     # via python-dateutil
 starlette==1.8.0
     # via fastapi
+truststore==0.10.5
+    # via
+    #   httpcore2
+    #   httpx2
 typing-extensions==4.16.0
     # via
     #   anyio
     #   fastapi
+    #   httpx2
     #   opentelemetry-api
     #   psycopg
     #   psycopg-pool

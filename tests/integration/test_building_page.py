@@ -6,14 +6,17 @@ import re
 import httpx
 import pytest
 
+from tests.integration.web import DEMO
+
 BASE = os.environ.get("NEIGHBOAR_URL", "http://127.0.0.1:8000")
 pytestmark = pytest.mark.integration
 
-MAIN = re.compile(r'<main class="page">(.*?)</main>', re.S)
+MAIN = re.compile(r'<main id="main" class="page">(.*?)</main>', re.S)
 TIMING = re.compile(r"<li>([^<]+): [\d.]+ ms on (PostgreSQL|MongoDB) \(query and fetch\)</li>")
 
 
 def get(path, **kw):
+    kw.setdefault("cookies", DEMO)
     return httpx.get(f"{BASE}{path}", timeout=15, **kw)
 
 
@@ -68,10 +71,10 @@ def test_teban_lease_year(ids):
         assert "<dt>Lease start year</dt><dd>1966</dd>" in main_of(get(f"/building/{ids['teban']}?db={db}"))
 
 
-def test_median_is_labelled_with_its_footnote(ids):
+def test_typical_price_is_labelled_and_links_to_the_glossary(ids):
     page = get(f"/building/{ids['normal']}").text
-    assert "median*" in page.lower() or "Median*" in page
-    assert "* median: the lower of the two middle prices when n is even" in page
+    assert "Typical price" in page and 'href="/glossary#typical-price"' in page
+    assert "median*" not in page.lower()
 
 
 @pytest.mark.parametrize("db", ["pg", "mongo"])
@@ -97,19 +100,19 @@ def test_valid_db_sets_the_cookie_with_its_attributes():
     assert "max-age=2592000" in cookie
 
 
-def test_cookie_alone_decides_the_mode_and_default_is_pg(ids):
+def test_in_demo_mode_the_cookie_decides_the_mode_and_default_is_pg(ids):
     path = f"/building/{ids['normal']}"
     assert {m[1] for m in TIMING.findall(get(path).text)} == {"PostgreSQL"}
-    with httpx.Client(base_url=BASE, cookies={"db_mode": "mongo"}, timeout=15) as client:
+    with httpx.Client(base_url=BASE, cookies={**DEMO, "db_mode": "mongo"}, timeout=15) as client:
         assert {m[1] for m in TIMING.findall(client.get(path).text)} == {"MongoDB"}
         # the query parameter wins over the cookie
         assert {m[1] for m in TIMING.findall(client.get(path + "?db=pg").text)} == {"PostgreSQL"}
-    with httpx.Client(base_url=BASE, cookies={"db_mode": "bogus"}, timeout=15) as client:
+    with httpx.Client(base_url=BASE, cookies={**DEMO, "db_mode": "bogus"}, timeout=15) as client:
         assert {m[1] for m in TIMING.findall(client.get(path).text)} == {"PostgreSQL"}
 
 
 @pytest.mark.parametrize("db,name", [("pg", "PostgreSQL"), ("mongo", "MongoDB")])
-def test_footer_has_one_timing_line_per_repo_call_naming_the_database(ids, db, name):
+def test_demo_bar_has_one_timing_line_per_repo_call_naming_the_database(ids, db, name):
     timings = TIMING.findall(get(f"/building/{ids['normal']}?db={db}").text)
     assert timings == [("building page", name), ("food access", name)]  # the normal block is geocoded
 
@@ -174,7 +177,7 @@ def test_health_still_works():
 )
 def test_toggle_links_stay_on_this_origin(path):
     # httpx would normalise the path, so send the request line as written
-    resp = httpx.get(httpx.URL(BASE).copy_with(raw_path=path.encode()), timeout=15)
+    resp = httpx.get(httpx.URL(BASE).copy_with(raw_path=path.encode()), headers={"Cookie": "demo=1"}, timeout=15)
     assert resp.status_code == 400
     hrefs = re.findall(r'<nav class="mode".*?</nav>', resp.text, re.S)[0]
     links = re.findall(r'href="([^"]*)"', hrefs)

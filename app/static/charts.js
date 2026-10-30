@@ -29,9 +29,9 @@
       data: {
         labels: data.months,
         datasets: [
-          { type: "line", label: "Median* price", data: data.median.map(num), yAxisID: "y",
+          { type: "line", label: "Typical price", data: data.median.map(num), yAxisID: "y",
             borderColor: BLUE, backgroundColor: BLUE, spanGaps: false, tension: 0, pointRadius: 2, order: 1 },
-          { type: "line", label: "12-month rolling median* price", data: data.rolling_median.map(num), yAxisID: "y",
+          { type: "line", label: "12-month typical price", data: data.rolling_median.map(num), yAxisID: "y",
             borderColor: ORANGE, backgroundColor: ORANGE, borderDash: [6, 3], spanGaps: false, tension: 0,
             pointRadius: 0, order: 2 },
           { type: "bar", label: "Sales (count)", data: data.n, yAxisID: "y1",
@@ -50,7 +50,7 @@
         },
         scales: {
           x: { title: axisTitle("Month (YYYY-MM)") },
-          y: { position: "left", title: axisTitle("Median* price (SGD)"),
+          y: { position: "left", title: axisTitle("Typical price (SGD)"),
                ticks: { callback: function (v) { return dollars(v); } } },
           y1: { position: "right", beginAtZero: true, title: axisTitle("Sales (count per month)"),
                 grid: { drawOnChartArea: false }, ticks: { precision: 0 } }
@@ -66,9 +66,9 @@
       data: {
         labels: data.towns,
         datasets: [
-          { type: "bar", label: "Town median* price", data: data.median.map(num),
+          { type: "bar", label: "Town typical price", data: data.median.map(num),
             backgroundColor: BARS, borderColor: BARS, order: 2 },
-          { type: "line", label: "Island median* price", data: data.towns.map(function () { return Number(data.island_median); }),
+          { type: "line", label: "Island typical price", data: data.towns.map(function () { return Number(data.island_median); }),
             borderColor: ORANGE, backgroundColor: ORANGE, borderWidth: 2, borderDash: [6, 3], pointRadius: 0, order: 1 }
         ]
       },
@@ -81,7 +81,7 @@
           tooltip: { callbacks: { label: function (c) { return c.dataset.label + ": " + dollars(c.parsed.x); } } }
         },
         scales: {
-          x: { beginAtZero: true, title: axisTitle("Median* price (SGD)"),
+          x: { beginAtZero: true, title: axisTitle("Typical price (SGD)"),
                ticks: { callback: function (v) { return dollars(v); } } },
           y: { title: axisTitle("Town (rank order)"), ticks: { autoSkip: false } }
         }

@@ -2,6 +2,15 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-30 UI overhaul, task T1 page shell
+
+- The UI is being rebuilt around buyer use cases (find where we can afford, check a price, judge a block, shortlist and compare as a household); the task list runs T1 to T18. T1 is the shared shell.
+- Demo mode replaces the always-visible database switch: the footer toggle (`POST /demo`) sets a `demo` cookie, and only then does the demo bar show the PostgreSQL/MongoDB switch, the page timings and the health link. Without demo mode the `db_mode` cookie is ignored, so buyers always use PostgreSQL; `?db=` in a link still selects the database. Writes stay per database (no dual writes).
+- "Typical price" replaces "median*" and its footnote on every page and chart, with a glossary link; `/glossary` defines it as the lower middle price. `docs/conventions.md` sections 6, 11, 12 and the new 14 record the rules.
+- Styles are rebuilt on tokens with the self-hosted Figtree font (OFL, hash checked). `money` drops ".00" from whole amounts.
+- `ruff format` is now applied to the whole tree and checked in CI. `httpx2` is installed for Starlette's test client, which removes its deprecation warning.
+- Full suite on the sample: 1461 passed, 0 skipped.
+
 ## 2026-10-29 Phase 4 gate passed
 
 - Phase 4 merged as 4.1a (PR #27), 4.1b (PR #28), 4.2 (PR #29), 4.3 (PR #30) and 4.4 (PR #31). The checks ran on main df34822.

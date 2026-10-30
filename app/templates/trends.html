@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui.html" as ui %}
 {% block title %}Price trends · Neighboar{% endblock %}
 {% block content %}
 <h1>Price trends</h1>
@@ -41,21 +42,20 @@
 <h2>{{ f.flat_type }} in {{ f.town }}</h2>
 {% if points %}
 <figure class="chart">
-  <div class="chartbox"><canvas id="trends-chart" data-chart="trends" data-source="trends-data" aria-label="Line chart of the monthly median* price and the 12-month rolling median* price, with the number of sales as bars. The same figures are in the table below."></canvas></div>
+  <div class="chartbox"><canvas id="trends-chart" data-chart="trends" data-source="trends-data" aria-label="Line chart of the monthly typical price and the 12-month rolling typical price, with the number of sales as bars. The same figures are in the table below."></canvas></div>
 </figure>
 <script type="application/json" id="trends-data">{{ chart|tojson }}</script>
 <div class="table-wrap">
 <table class="trends">
-  <caption>Monthly sales and median* price, {{ f.flat_type }} in {{ f.town }}</caption>
-  <thead><tr><th>Month</th><th>Sales</th><th>Median* price</th><th>Average price per sqm</th><th>Previous year median*</th><th>YoY change</th><th>YoY %</th><th>12-month sales</th><th>12-month median*</th></tr></thead>
+  <caption>Monthly sales and typical price, {{ f.flat_type }} in {{ f.town }}</caption>
+  <thead><tr><th>Month</th><th>Sales</th><th>{{ ui.term('Typical price', 'typical-price') }}</th><th>Average price per sqm</th><th>Typical price a year earlier</th><th>YoY change</th><th>YoY %</th><th>12-month sales</th><th>12-month typical price</th></tr></thead>
   <tbody>
     {% for p in points %}
-    <tr><td>{{ p.month|month }}</td><td>{{ p.n }}</td><td>{{ p.median_price|money }}</td><td>{{ p.avg_psm|money }}</td><td>{{ p.prev_year_median|money if p.prev_year_median is not none else 'No sales' }}</td><td>{{ p.yoy_change|money if p.yoy_change is not none else '' }}</td><td>{{ p.yoy_pct|pct }}</td><td>{{ p.rolling_n }}</td><td>{{ p.rolling_median|money }}</td></tr>
+    <tr><td class="nowrap">{{ p.month|month }}</td><td>{{ p.n }}</td><td>{{ p.median_price|money }}</td><td>{{ p.avg_psm|money }}</td><td>{{ p.prev_year_median|money if p.prev_year_median is not none else 'No sales' }}</td><td>{{ p.yoy_change|money if p.yoy_change is not none else '' }}</td><td>{{ p.yoy_pct|pct }}</td><td>{{ p.rolling_n }}</td><td>{{ p.rolling_median|money }}</td></tr>
     {% endfor %}
   </tbody>
 </table>
 </div>
-<p class="footnote">* median: the lower of the two middle prices when n is even</p>
 {% else %}
 <p>No sales match.</p>
 {% endif %}

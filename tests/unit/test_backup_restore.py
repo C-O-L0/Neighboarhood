@@ -39,7 +39,7 @@ def test_each_architecture_has_a_pinned_sha256_that_is_checked_during_the_build(
     for arch in ("AMD64", "ARM64"):
         assert re.search(rf"^ARG TOOLS_SHA256_{arch}=[0-9a-f]{{64}}$", text, flags=re.M), arch
     assert re.search(r"^ARG TOOLS_VERSION=\d+\.\d+\.\d+$", text, flags=re.M)
-    assert 'sha256sum --check -' in text
+    assert "sha256sum --check -" in text
     assert "fastdl.mongodb.org/tools/db/" in text
 
 
@@ -97,7 +97,7 @@ def test_the_container_script_keeps_passwords_off_command_lines():
     assert "--password" not in text and "--uri" not in text
     assert text.count("--config=") >= 2  # mongodump and mongorestore
     assert "chmod 600" in text and "rm -f" in text
-    assert 'PGPASSWORD=${POSTGRES_PASSWORD' in text
+    assert "PGPASSWORD=${POSTGRES_PASSWORD" in text
     # the YAML file is written by the printf builtin; the only other command that sees the password reads it on stdin
     assert """printf '%s' "$MONGODB_INITDB_ROOT_PASSWORD" | sed""" in text
 

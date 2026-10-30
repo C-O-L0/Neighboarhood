@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Glossary · Neighboar{% endblock %}
+{% block content %}
+<h1>Glossary</h1>
+<p>What the words on these pages mean. Every figure comes from HDB resale sales that were registered, not from flats for sale today.</p>
+<dl class="glossary">
+  <dt id="typical-price">Typical price</dt>
+  <dd>The middle price of the sales counted: half sold for this much or less. With an even number of sales it is the lower of the two middle prices, so it is always a price someone really paid. Statisticians call it the median.</dd>
+
+  <dt id="few-sales">Few sales</dt>
+  <dd>Fewer than 5 sales in the period. A typical price from so few sales can move a lot with one more sale, so treat it with care.</dd>
+
+  <dt id="registration-month">Month</dt>
+  <dd>The month HDB registered the sale. The buyer and seller agreed the price some weeks before that.</dd>
+
+  <dt id="last-12-months">Last 12 months</dt>
+  <dd>The 12 registration months up to the latest month in the data, not up to today.</dd>
+
+  <dt id="flat-type">Flat type</dt>
+  <dd>HDB's size class, named by rooms. A 3-room flat usually has 2 bedrooms, a 4-room flat 3 bedrooms, and a 5-room flat 3 bedrooms with more space. Executive flats are larger again.</dd>
+
+  <dt id="flat-model">Flat model</dt>
+  <dd>The design a block was built to, such as Improved, New Generation, Model A or Maisonette. Models from the same era tend to have similar layouts and sizes.</dd>
+
+  <dt id="storey-range">Storeys</dt>
+  <dd>HDB publishes the floor of a sale as a band of storeys, such as 07 to 09, not the exact floor.</dd>
+
+  <dt id="floor-area">Floor area</dt>
+  <dd>The flat's floor area in square metres (sqm).</dd>
+
+  <dt id="price-per-sqm">Price per sqm</dt>
+  <dd>The price divided by the floor area. It lets you compare flats of different sizes.</dd>
+
+  <dt id="lease">Lease left</dt>
+  <dd>HDB flats are sold on 99-year leases that start in the block's lease start year. Lease left is what remains; when it runs out, the flat returns to the state. HDB and CPF rules on loans and CPF use depend on the lease left, so check the official HDB and CPF pages before you buy.</dd>
+
+  <dt id="hawker-centre">Hawker centres nearby</dt>
+  <dd>Open hawker centres within a straight-line distance of the block. Centres still under construction are left out.</dd>
+
+  <dt id="demo-mode">Demo mode</dt>
+  <dd>For presenting the project: it shows a bar to switch between the PostgreSQL and MongoDB versions of the app and how long each page's queries took. Both give the same answers from the same data. Accounts and saved blocks are kept separately in each database.</dd>
+</dl>
+{% endblock %}
