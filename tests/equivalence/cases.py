@@ -22,6 +22,7 @@ from app.repos.mongo.accounts import MongoAccountRepo
 from app.repos.mongo.building import MongoBuildingRepo
 from app.repos.mongo.explore import MongoExploreRepo
 from app.repos.mongo.food import MongoFoodRepo
+from app.repos.mongo.places import MongoPlaceRepo
 from app.repos.mongo.rankings import MongoRankingRepo
 from app.repos.mongo.saved import MongoSavedRepo
 from app.repos.mongo.search import MongoSearchRepo
@@ -30,11 +31,13 @@ from app.repos.pg.accounts import PgAccountRepo
 from app.repos.pg.building import PgBuildingRepo
 from app.repos.pg.explore import PgExploreRepo
 from app.repos.pg.food import PgFoodRepo
+from app.repos.pg.places import PgPlaceRepo
 from app.repos.pg.rankings import PgRankingRepo
 from app.repos.pg.saved import PgSavedRepo
 from app.repos.pg.search import PgSearchRepo
 from app.repos.pg.trends import PgTrendRepo
 from app.services.explore import FitQuery, window_ending
+from app.services.places import RADII_M, SUGGESTIONS, parse_place
 from app.services.rankings import RankingQuery
 from app.services.search import RESALE_TYPES, SearchQuery
 from app.services.trends import TrendQuery, add_months
@@ -441,6 +444,37 @@ def _explore_towns(repo, p):
     return repo.towns_fit(q.flat_type, q.budget, window_ending(p["end"]))
 
 
+# Places (task T4). Picker: typed texts covering full words, abbreviations, a block number, a lone block-like
+# word, LIKE and regex metacharacters and no match. Nearby: every radius around every located block on the
+# sample; on full data every PLACES_FULL_STEP-th located block id. An unlocated block and an unknown id give
+# None in both.
+PLACE_TEXTS = (
+    "marine terrace", "17 marine ter", "Blk 186 Bishan Street 13", "bishan street", "ROAD", "rd", "st", "10",
+    "SIN MING", "queen's", "a%b_c", "(x)", "no such street",
+)  # fmt: skip
+PLACES_FULL_STEP = 100
+
+
+def place_find_params(conn) -> list[dict]:
+    return [{"text": t} for t in PLACE_TEXTS]
+
+
+def _find_place(repo, p):
+    parsed = parse_place(p["text"])
+    return repo.find(parsed.block, parsed.street, SUGGESTIONS)
+
+
+def place_near_params(conn) -> list[dict]:
+    located = [r[0] for r in conn.execute(
+        "SELECT building_id FROM building WHERE latitude IS NOT NULL ORDER BY building_id"
+    ).fetchall()]  # fmt: skip
+    unlocated = conn.execute("SELECT min(building_id) FROM building WHERE latitude IS NULL").fetchone()[0]
+    if not is_sample(conn):
+        located = located[::PLACES_FULL_STEP]
+    ids = [*located, unlocated, 2_000_000_000]
+    return [{"building_id": i, "radius_m": r} for i in ids for r in RADII_M]
+
+
 CASES: list[Case] = [
     Case(
         name="building",
@@ -470,6 +504,18 @@ CASES: list[Case] = [
         pg_call=lambda conn, p: PgFoodRepo(conn).town(p["town"]),
         mongo_call=lambda db, p: MongoFoodRepo(db).town(p["town"]),
         params=food_town_params,
+    ),
+    Case(
+        name="places_find",
+        pg_call=lambda conn, p: _find_place(PgPlaceRepo(conn), p),
+        mongo_call=lambda db, p: _find_place(MongoPlaceRepo(db), p),
+        params=place_find_params,
+    ),
+    Case(
+        name="places_near",
+        pg_call=lambda conn, p: PgPlaceRepo(conn).near(p["building_id"], p["radius_m"]),
+        mongo_call=lambda db, p: MongoPlaceRepo(db).near(p["building_id"], p["radius_m"]),
+        params=place_near_params,
     ),
     Case(
         name="explore_latest",

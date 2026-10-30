@@ -316,3 +316,25 @@ class TownBaseline:
     storey_sum: int
     lease_year: int | None
     area_median: Decimal
+
+
+@dataclass(frozen=True)
+class Place:
+    """A block a buyer named as a place to live near. located is False when it has no coordinates."""
+
+    building_id: int
+    block: str
+    street: str
+    town: str
+    located: bool
+
+
+@dataclass(frozen=True)
+class NearBlock:
+    """A block within the chosen radius of a place, with its straight-line distance in metres (0.1 m)."""
+
+    building_id: int
+    block: str
+    street: str
+    town: str
+    distance_m: Decimal = field(metadata={"tol": DISTANCE_TOL})

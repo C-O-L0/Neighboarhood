@@ -64,6 +64,23 @@ def expand_street(street: str) -> str:
     return " ".join(out)
 
 
+# Full word -> HDB abbreviation: the reverse of ABBREVIATIONS (each full word has one abbreviation).
+FULL_WORDS: dict[str, str] = {full: short for short, full in ABBREVIATIONS.items()}
+assert len(FULL_WORDS) == len(ABBREVIATIONS)
+
+
+def abbreviate_street(text: str) -> str:
+    """Turn full words a person typed into HDB's abbreviations, so "marine terrace" finds "MARINE TER".
+
+    Every street stored from HDB's datasets is abbreviated, so search text is abbreviated before it reaches either
+    database. Words already abbreviated, numbers and other words are kept. "SAINT" becomes "ST.", as HDB writes it.
+    """
+    out = []
+    for tok in normalise_key(text).split(" "):
+        out.append("ST." if tok == "SAINT" else FULL_WORDS.get(tok, tok))
+    return " ".join(out)
+
+
 def same_street(hdb_street: str, onemap_road: str) -> bool:
     """True when an HDB street and a OneMap road name refer to the same road."""
     return _canonical(hdb_street) == _canonical(onemap_road)
