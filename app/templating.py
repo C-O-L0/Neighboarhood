@@ -76,6 +76,7 @@ def _context(request: Request) -> dict:
         "db_mode": mode,
         "db_mode_name": MODE_NAMES[mode],
         "demo": getattr(state, "demo", False),
+        "data_month": getattr(state, "data_month", None),
         "mode_links": mode_links(request),
         # Where the footer's demo toggle sends the browser back to (checked again by the /demo route).
         "here": f"{request.url.path}?{request.url.query}" if request.url.query else request.url.path,

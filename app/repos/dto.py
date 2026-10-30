@@ -271,3 +271,33 @@ class BlockFoodAccess:
     street: str
     nearest: list[HawkerDistance]
     within_1km: int
+
+
+@dataclass(frozen=True)
+class FlatTypeRange:
+    """Recent sales of one flat type: the typical floor area and the middle 80% of prices.
+
+    price_low and price_high are the 10th and 90th percentiles as PostgreSQL's percentile_disc defines them:
+    the sorted price at position ceil(p * n), counting from 1.
+    """
+
+    flat_type: str
+    n: int
+    area_median: Decimal
+    price_low: Decimal
+    price_high: Decimal
+
+
+@dataclass(frozen=True)
+class TownFit:
+    """Recent sales of one flat type in one town, measured against a budget."""
+
+    town: str
+    n: int
+    median_price: Decimal
+    within_budget: int  # sales at or under the budget
+
+    @property
+    def share_within(self) -> int:
+        """Whole percent of sales at or under the budget, rounded half up."""
+        return int((Decimal(100 * self.within_budget) / self.n).quantize(Decimal(1), ROUND_HALF_UP))

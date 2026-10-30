@@ -10,6 +10,7 @@ from fastapi import Request
 from app.repos.mongo.accounts import MongoAccountRepo
 from app.repos.mongo.admin import MongoAdminRepo
 from app.repos.mongo.building import MongoBuildingRepo
+from app.repos.mongo.explore import MongoExploreRepo
 from app.repos.mongo.food import MongoFoodRepo
 from app.repos.mongo.rankings import MongoRankingRepo
 from app.repos.mongo.saved import MongoSavedRepo
@@ -18,6 +19,7 @@ from app.repos.mongo.trends import MongoTrendRepo
 from app.repos.pg.accounts import PgAccountRepo
 from app.repos.pg.admin import PgAdminRepo
 from app.repos.pg.building import PgBuildingRepo
+from app.repos.pg.explore import PgExploreRepo
 from app.repos.pg.food import PgFoodRepo
 from app.repos.pg.rankings import PgRankingRepo
 from app.repos.pg.saved import PgSavedRepo
@@ -36,6 +38,7 @@ REPOS = {
     "saved": (PgSavedRepo, MongoSavedRepo),
     "admin": (PgAdminRepo, MongoAdminRepo),
     "food": (PgFoodRepo, MongoFoodRepo),
+    "explore": (PgExploreRepo, MongoExploreRepo),
 }
 
 

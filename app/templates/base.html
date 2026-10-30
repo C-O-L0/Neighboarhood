@@ -73,6 +73,7 @@
   </main>
   <footer class="sitefoot">
     <div class="wrap sitefoot-inner">
+      {% if data_month %}<span>Sales registered up to {{ data_month|month }}</span>{% endif %}
       <span>Past sales, not listings</span>
       <a href="/glossary">Glossary</a>
       <form method="post" action="/demo" class="demo-toggle">
