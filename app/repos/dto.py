@@ -301,3 +301,18 @@ class TownFit:
     def share_within(self) -> int:
         """Whole percent of sales at or under the budget, rounded half up."""
         return int((Decimal(100 * self.within_budget) / self.n).quantize(Decimal(1), ROUND_HALF_UP))
+
+
+@dataclass(frozen=True)
+class TownBaseline:
+    """The typical recent sale of one flat type in one town, for explainer tags (app/services/explain.py).
+
+    Each figure is the lower median over the window's sales: storey_sum is storey_min + storey_max (twice the
+    middle storey, kept whole), lease_year the block's lease start year.
+    """
+
+    town: str
+    n: int
+    storey_sum: int
+    lease_year: int | None
+    area_median: Decimal

@@ -14,13 +14,13 @@ from decimal import Decimal
 from bson.decimal128 import Decimal128
 from pymongo.database import Database
 
-from app.repos.dto import FlatTypeRange, TownFit
+from app.repos.dto import FlatTypeRange, TownBaseline, TownFit
 from app.services.explore import Window
 from app.services.search import RESALE_TYPES
 from etl.clean import FLAT_TYPE_IDS
 
 
-def _at_percentile(values: str, n: str, p: float) -> dict:
+def _at_percentile(values: str, n: str | dict, p: float) -> dict:
     """The sorted value at position ceil(p * n), counting from 1 (as percentile_disc)."""
     index = {"$max": [{"$subtract": [{"$ceil": {"$multiply": [p, n]}}, 1]}, 0]}
     return {"$arrayElemAt": [{"$sortArray": {"input": values, "sortBy": 1}}, index]}
@@ -74,6 +74,33 @@ def towns_pipeline(flat_type: str, budget: Decimal, window: Window) -> list[dict
     ]
 
 
+def baselines_pipeline(flat_type: str, window: Window) -> list[dict]:
+    """Lease years are pushed without nulls, as percentile_disc ignores nulls, so the lease median counts its own n."""
+    leases = {"$filter": {"input": "$leases", "cond": {"$ne": ["$$this", None]}}}
+    return [
+        {"$match": {"flat_type": flat_type, "txn_month": _in_window(window)}},
+        {
+            "$group": {
+                "_id": "$town",
+                "n": {"$sum": 1},
+                "storeys": {"$push": {"$add": ["$storey_min", "$storey_max"]}},
+                "leases": {"$push": "$lease_commence_year"},
+                "areas": {"$push": "$floor_area_sqm"},
+            }
+        },
+        {"$set": {"leases": leases}},
+        {
+            "$project": {
+                "n": 1,
+                "storey_sum": _at_percentile("$storeys", "$n", 0.5),
+                "lease_year": _at_percentile("$leases", {"$size": "$leases"}, 0.5),
+                "area_median": _at_percentile("$areas", "$n", 0.5),
+            }
+        },
+        {"$sort": {"_id": 1}},
+    ]
+
+
 class MongoExploreRepo:
     """Built around one Database (docs/conventions.md, section 3)."""
 
@@ -110,6 +137,19 @@ class MongoExploreRepo:
                 n=d["n"],
                 median_price=d["median_price"].to_decimal(),
                 within_budget=d["within_budget"],
+            )
+            for d in docs
+        ]
+
+    def baselines(self, flat_type: str, window: Window) -> list[TownBaseline]:
+        docs = self.db.resale_transactions.aggregate(baselines_pipeline(flat_type, window))
+        return [
+            TownBaseline(
+                town=d["_id"],
+                n=d["n"],
+                storey_sum=d["storey_sum"],
+                lease_year=d.get("lease_year"),
+                area_median=d["area_median"].to_decimal(),
             )
             for d in docs
         ]

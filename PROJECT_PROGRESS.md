@@ -2,6 +2,14 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-30 UI overhaul, task T3 explainer baselines
+
+- `baselines(flat_type, window)` in both databases: per town, the lower median storey band (as `storey_min + storey_max`, kept whole), lease start year and floor area of the window's sales of the flat type. Same `(flat_type, txn_month)` index as T2.
+- Tag rules live in `app/services/explain.py`, in integer arithmetic: "Low/High floor" a third or more from the typical middle storey, "Shorter/Longer lease" 10 or more years apart, "Smaller/Larger than usual" 10% or more apart. No tags means typical for the town; no comparison at all when the town has fewer than 5 sales.
+- Block age and lease are one factor, not two as USE_CASES R8 listed: the lease left at a sale is 99 years minus the block's age, so both tags would always appear together.
+- Baselines are computed per request, not stored: one indexed aggregate per flat type, and nothing to keep current after admin writes.
+- Full suite on the sample: 1520 passed, 0 skipped.
+
 ## 2026-10-30 UI overhaul, task T2 towns that fit
 
 - New `explore` feature in both databases: `latest_month`, `flat_type_ranges` (count, typical floor area, 10th and 90th percentile price per resale flat type) and `towns_fit` (per town: count, typical price, sales at or under the budget; cheapest first). Every query filters on `(flat_type, txn_month)` and uses that index in both databases; the latest month is one index probe per flat type (PostgreSQL `LATERAL` backward scan, MongoDB `DISTINCT_SCAN`).
