@@ -484,6 +484,12 @@ CASES: list[Case] = [
         params=explore_window_params,
     ),
     Case(
+        name="explore_baselines",
+        pg_call=lambda conn, p: PgExploreRepo(conn).baselines(p["flat_type"], window_ending(p["end"])),
+        mongo_call=lambda db, p: MongoExploreRepo(db).baselines(p["flat_type"], window_ending(p["end"])),
+        params=lambda conn: [{**w, "flat_type": t} for w in explore_window_params(conn) for t in RESALE_TYPES],
+    ),
+    Case(
         name="explore_towns",
         pg_call=lambda conn, p: _explore_towns(PgExploreRepo(conn), p),
         mongo_call=lambda db, p: _explore_towns(MongoExploreRepo(db), p),

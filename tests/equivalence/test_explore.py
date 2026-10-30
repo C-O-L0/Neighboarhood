@@ -24,10 +24,11 @@ def repos(pg_conn, mongo_db):
 
 
 def sales(pg_conn, window: Window) -> list[tuple]:
-    """(flat type, town, price, area) of every sale in the window, read with plain SQL."""
+    """(flat type, town, price, area, storey sum, lease year) of every sale in the window, read with plain SQL."""
     return pg_conn.execute(
         """
-        SELECT flat_type, town, resale_price, floor_area_sqm FROM v_transaction_detail
+        SELECT flat_type, town, resale_price, floor_area_sqm, storey_min + storey_max, lease_commence_year
+        FROM v_transaction_detail
         WHERE txn_month BETWEEN %s AND %s
         """,
         [window.start, window.end],
@@ -55,7 +56,7 @@ def test_latest_month_is_the_newest_sale_in_both(pg_conn, mongo_db, latest):
 def test_ranges_match_the_raw_sales(pg_conn, mongo_db, latest, years_back):
     window = window_ending(add_months(latest, -12 * years_back))
     by_type = defaultdict(lambda: ([], []))
-    for flat_type, _, price, area in sales(pg_conn, window):
+    for flat_type, _, price, area, *_ in sales(pg_conn, window):
         by_type[flat_type][0].append(price)
         by_type[flat_type][1].append(area)
     expected = [
@@ -78,7 +79,7 @@ def test_towns_match_the_raw_sales_for_every_type_and_budget(pg_conn, mongo_db, 
     checked = 0
     for flat_type in RESALE_TYPES:
         prices_by_town = defaultdict(list)
-        for t, town, price, _ in rows:
+        for t, town, price, *_ in rows:
             if t == flat_type:
                 prices_by_town[town].append(price)
         for budget in (Decimal("400000"), Decimal("650000"), Decimal("900000")):
@@ -143,3 +144,31 @@ def test_results_are_typed(pg_conn, mongo_db, latest):
         for t in repo.towns_fit("4 ROOM", Decimal("650000"), window):
             assert isinstance(t.median_price, Decimal) and 0 <= t.within_budget <= t.n
     assert_equivalent(pg.flat_type_ranges(window), mongo.flat_type_ranges(window))
+
+
+@pytest.mark.parametrize("years_back", [0, 2])
+def test_baselines_match_the_raw_sales(pg_conn, mongo_db, latest, years_back):
+    window = window_ending(add_months(latest, -12 * years_back))
+    rows = sales(pg_conn, window)
+    pg, mongo = repos(pg_conn, mongo_db)
+    checked = 0
+    for flat_type in RESALE_TYPES:
+        by_town = defaultdict(list)
+        for t, town, _, area, storey_sum, lease in rows:
+            if t == flat_type:
+                by_town[town].append((storey_sum, lease, area))
+        expected = [
+            (
+                town,
+                len(v),
+                at_percentile([s for s, _, _ in v], 0.5),
+                at_percentile([y for _, y, _ in v if y is not None], 0.5),
+                at_percentile([a for _, _, a in v], 0.5),
+            )
+            for town, v in sorted(by_town.items())
+        ]
+        for repo in (pg, mongo):
+            got = [(b.town, b.n, b.storey_sum, b.lease_year, b.area_median) for b in repo.baselines(flat_type, window)]
+            assert got == expected, (repo.__class__.__name__, flat_type)
+        checked += bool(expected)
+    assert checked

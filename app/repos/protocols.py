@@ -16,6 +16,7 @@ from app.repos.dto import (
     RolledBack,
     SavedBlock,
     SearchResult,
+    TownBaseline,
     TownFit,
     TownRank,
     TrendPoint,
@@ -122,5 +123,11 @@ class ExploreRepo(Protocol):
         """Per town with sales of the flat type in the window: count, typical price and sales within budget.
 
         Ordered by typical price, then town name.
+        """
+        ...
+
+    def baselines(self, flat_type: str, window: Window) -> list[TownBaseline]:
+        """Per town with sales of the flat type in the window: count and the typical storey band, lease start
+        year and floor area (lower medians). Ordered by town name.
         """
         ...
