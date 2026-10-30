@@ -15,6 +15,7 @@ from bson.decimal128 import Decimal128
 from pymongo.database import Database
 
 from app.repos.dto import BlockFit, BlockFitPage, FlatTypeRange, TownBaseline, TownFit
+from app.repos.mongo.building import coord
 from app.services.explore import PAGE_SIZE, BlockFilter, Window
 from app.services.food import round_metres
 from app.services.search import RESALE_TYPES
@@ -116,6 +117,15 @@ def _block_medians(sales: str) -> dict:
 _SALE_FIELDS = {"resale_price": 1, "floor_area_sqm": 1, "storey_sum": {"$add": ["$storey_min", "$storey_max"]}}
 
 
+# The page's blocks get their location from building_profiles (the sales carry none); 20 lookups by _id.
+_LOCATION = [
+    {"$lookup": {"from": "building_profiles", "localField": "_id", "foreignField": "_id", "as": "building",
+                 "pipeline": [{"$project": {"location": 1}}]}},
+    {"$set": {"location": {"$first": "$building.location"}}},
+    {"$unset": "building"},
+]  # fmt: skip
+
+
 def _filters_and_page(f: BlockFilter, sort: dict) -> list[dict]:
     """The budget, lease and area filters on the per-block medians, then the total and one page."""
     match: dict = {"median_price": {"$lte": Decimal128(f.budget)}}
@@ -128,7 +138,7 @@ def _filters_and_page(f: BlockFilter, sort: dict) -> list[dict]:
         {
             "$facet": {
                 "total": [{"$count": "n"}],
-                "rows": [{"$sort": sort}, {"$skip": f.offset}, {"$limit": PAGE_SIZE}],
+                "rows": [{"$sort": sort}, {"$skip": f.offset}, {"$limit": PAGE_SIZE}, *_LOCATION],
             }
         },
     ]
@@ -218,6 +228,8 @@ def _block_fit(d: dict) -> BlockFit:
         area_median=d["area_median"].to_decimal(),
         lease_year=d.get("lease_year"),
         distance_m=round_metres(d["distance"]) if "distance" in d else None,
+        latitude=coord(d["location"]["coordinates"][1]) if isinstance(d.get("location"), dict) else None,
+        longitude=coord(d["location"]["coordinates"][0]) if isinstance(d.get("location"), dict) else None,
     )
 
 

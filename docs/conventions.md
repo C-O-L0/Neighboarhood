@@ -99,6 +99,7 @@ A median is labelled "typical price" (decided 2026-10-30, replacing "median*" an
 
 - Styles live in `app/static/app.css`: colour, radius and spacing tokens on `:root` first, then base elements, layout and components. Pages use the tokens, never their own colours.
 - The font is Figtree, self-hosted from `app/static/vendor/figtree-latin.woff2` (Latin subset, SIL Open Font License); no font or script loads from another site.
+- Maps use vendored Leaflet 1.9.4 (`app/static/vendor/leaflet.*`, hashes checked) and `app/static/map.js`, which draws from JSON embedded in the page and sets every text with `textContent`. The map tiles are the only resource loaded from another site: OpenStreetMap's standard tiles, address and attribution in `app/services/maps.py`, passed to the page as data attributes. A list with the same blocks always sits beside a map, so a page works without the tiles.
 - Every page has the same header (brand, main menu with `aria-current="page"` on the current item, account area) and footer (glossary link, demo toggle). The account menu is a `<details>` element, so it needs no script.
 - Shared pieces are Jinja macros in `app/templates/_ui.html`, imported as `ui`. A component is added there by the first task that uses it, not ahead of its first user.
 - Plain language first: buttons and links name the action, jargon gets a glossary link (`ui.term`), and the glossary at `/glossary` has one anchored entry per term.

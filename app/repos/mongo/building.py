@@ -17,7 +17,8 @@ def _dec(value: Decimal128 | None) -> Decimal | None:
     return None if value is None else value.to_decimal()
 
 
-def _coord(value: float) -> Decimal:
+def coord(value: float) -> Decimal:
+    """A MongoDB float coordinate as the 6 dp Decimal PostgreSQL stores (docs/conventions.md, 2)."""
     return Decimal(repr(value)).quantize(_SIX_DP)
 
 
@@ -66,7 +67,7 @@ class MongoBuildingRepo:
             reverse=True,
         )
         loc = doc.get("location")
-        lon, lat = (_coord(loc["coordinates"][0]), _coord(loc["coordinates"][1])) if loc else (None, None)
+        lon, lat = (coord(loc["coordinates"][0]), coord(loc["coordinates"][1])) if loc else (None, None)
         return BuildingDetail(
             building_id=doc["_id"],
             block=doc["block"],

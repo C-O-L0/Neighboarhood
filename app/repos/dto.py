@@ -327,6 +327,8 @@ class Place:
     street: str
     town: str
     located: bool
+    latitude: Decimal | None = None  # 6 dp, when located
+    longitude: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -358,6 +360,8 @@ class BlockFit:
     area_median: Decimal
     lease_year: int | None
     distance_m: Decimal | None = field(default=None, metadata={"tol": DISTANCE_TOL})
+    latitude: Decimal | None = None  # 6 dp; None for a block without coordinates (it has no map pin)
+    longitude: Decimal | None = None
 
 
 @dataclass(frozen=True)

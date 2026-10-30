@@ -2,6 +2,14 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-30 UI overhaul, task T7 map
+
+- Explore shows its page of blocks on a map beside the list (above it on phones): price pins, the chosen block highlighted, and the search area as a dashed circle. Leaflet 1.9.4 is vendored and hash-checked like Chart.js; `app/static/map.js` builds every label with `textContent`.
+- The map tiles are OpenStreetMap's standard tiles, the one resource loaded from another site (approved 2026-10-30). Address and attribution live in `app/services/maps.py`. If the tiles fail, a note says so and the list still has every block.
+- `BlockFit` and `Place` now carry coordinates (6 dp) in both databases. MongoDB looks up the page's 20 locations from `building_profiles` inside the `$facet`.
+- The block profile's map (with hawker centres) comes with T8, which also needs hawker coordinates.
+- Full suite on the sample: 1615 passed, 0 skipped.
+
 ## 2026-10-30 UI overhaul, task T6 Home and Explore
 
 - Home (`/`) is the guided start: one form, three numbered steps (flat type with its recent area and middle-80% price range, budget, optional place and radius), no script. The old block lookup is a side card. The "Not sure yet" option was dropped: every flat type already shows its size and price range.

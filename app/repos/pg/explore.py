@@ -100,7 +100,7 @@ per_block AS (
 ),
 fits AS (
     SELECT p.building_id, b.block, b.street, tw.name AS town, p.n, p.median_price, p.storey_sum,
-           p.area_median, b.lease_commence_year AS lease_year, {distance} AS distance
+           p.area_median, b.lease_commence_year AS lease_year, {distance} AS distance, b.latitude, b.longitude
     FROM per_block p
     JOIN building b ON b.building_id = p.building_id
     JOIN town tw ON tw.town_id = b.town_id
@@ -108,7 +108,7 @@ fits AS (
     WHERE p.median_price <= %(budget)s{filters}
 )
 SELECT c.total, r.building_id, r.block, r.street, r.town, r.n, r.median_price, r.storey_sum, r.area_median,
-       r.lease_year, r.distance
+       r.lease_year, r.distance, r.latitude, r.longitude
 FROM (SELECT count(*)::int AS total FROM fits) c
 LEFT JOIN LATERAL (
     SELECT * FROM fits ORDER BY {order} LIMIT %(limit)s OFFSET %(offset)s
@@ -189,7 +189,7 @@ class PgExploreRepo:
         statement, params = _blocks_statement(f)
         rows = self.conn.execute(statement, params).fetchall()  # one statement: one snapshot
         blocks = [
-            BlockFit(*r[1:10], distance_m=None if r[10] is None else round_metres(r[10]))
+            BlockFit(*r[1:10], None if r[10] is None else round_metres(r[10]), r[11], r[12])
             for r in rows
             if r[1] is not None
         ]

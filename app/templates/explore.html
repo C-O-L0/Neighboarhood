@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% import "_ui.html" as ui %}
 {% block title %}{{ q.flat_type|flat_label }} up to {{ q.budget|money }} · Neighboar{% endblock %}
+{% block head %}{% if map %}<link rel="stylesheet" href="{{ url_for('static', path='vendor/leaflet.css') }}">{% endif %}{% endblock %}
 {% block content %}
 {% set adj = q.flat_type|flat_adj %}
 <div class="chips" aria-label="Your search">
@@ -92,7 +93,7 @@
     <span class="hint">{{ 'nearest first' if place and place.located else 'cheapest typical price first' }}</span>
   </div>
 
-  <details class="filters"{% if q.min_lease or q.min_area or (place and place.located) %} open{% endif %}>
+  <details class="filters"{% if q.min_lease or q.min_area %} open{% endif %}>
     <summary>More filters</summary>
     <form method="get" action="/explore" class="filter-form">
       <input type="hidden" name="db" value="{{ db_mode }}">
@@ -131,6 +132,7 @@
   </details>
 
   {% if blocks %}
+  <div class="results-split">
   <ol class="block-list">
     {% for row in blocks %}
     {% set b = row.b %}
@@ -148,6 +150,16 @@
     </li>
     {% endfor %}
   </ol>
+  {% if map %}
+  <figure class="map-figure">
+    <div id="explore-map" class="map" data-map data-source="map-data" data-tiles="{{ tile_url }}" data-attribution="{{ attribution }}" data-max-zoom="{{ max_zoom }}" role="region" aria-label="Map of the blocks on this page"></div>
+    <figcaption>
+      <span class="map-fallback" hidden>The map could not load. </span>The list has every block on this page.
+    </figcaption>
+  </figure>
+  <script type="application/json" id="map-data">{{ map|tojson }}</script>
+  {% endif %}
+  </div>
   {% if pages > 1 %}
   <nav class="pager" aria-label="Pages">
     {% if q.page > 1 %}<a rel="prev" href="{{ link(page=q.page - 1) }}">Previous</a>{% endif %}
@@ -161,4 +173,10 @@
   <p class="empty">No block's typical {{ adj }} price is within {{ q.budget|money }}{% if q.min_lease or q.min_area %} with these filters{% endif %}.</p>
   {% endif %}
 </section>
+{% endblock %}
+{% block scripts %}
+{% if map %}
+<script src="{{ url_for('static', path='vendor/leaflet.js') }}"></script>
+<script src="{{ url_for('static', path='map.js') }}"></script>
+{% endif %}
 {% endblock %}

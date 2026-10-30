@@ -6,6 +6,7 @@
   <title>{% block title %}Neighboar{% endblock %}</title>
   <link rel="preload" href="{{ url_for('static', path='vendor/figtree-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+  {% block head %}{% endblock %}
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>

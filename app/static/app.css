@@ -252,7 +252,21 @@ a.side-card:hover { border-color: var(--field); color: var(--ink); }
 .block-price { min-width: 7rem; text-align: right; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .empty { padding: 20px; background: var(--surface); border: 1px dashed var(--field); border-radius: var(--radius); }
 
+/* Maps (Leaflet, OpenStreetMap tiles) */
+.results-split { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.results-split > .block-list { flex: 999 1 560px; min-width: 0; }
+.map-figure { flex: 1 1 340px; min-width: 0; margin: 0; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.map { height: 520px; border: 1px solid var(--line); border-radius: var(--radius); background: #e9eee8; z-index: 0; }
+.map-figure figcaption { font-size: 13px; color: var(--muted); }
+.price-pin { display: inline-block; transform: translate(-50%, -50%); padding: 2px 8px; border: 1px solid var(--accent); border-radius: 999px; background: var(--surface); color: var(--ink); font: 700 12px/1.4 Figtree, system-ui, sans-serif; white-space: nowrap; box-shadow: 0 1px 4px rgba(21, 32, 27, 0.2); }
+.price-pin.chosen { background: var(--accent); color: #ffffff; }
+.leaflet-marker-icon:focus-visible .price-pin { outline: 2px solid var(--accent); outline-offset: 2px; }
+.map-popup { display: flex; flex-direction: column; gap: 2px; font: 14px/1.4 Figtree, system-ui, sans-serif; }
+.map-popup a { font-weight: 600; }
+
 @media (max-width: 640px) {
+  .map-figure { order: -1; position: static; flex-basis: 100%; }
+  .map { height: 280px; }
   .home-main h1 { font-size: 30px; }
   .home-side { padding-top: 0; }
   .guide { padding: 4px 16px 20px; }
