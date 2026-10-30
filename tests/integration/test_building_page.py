@@ -149,10 +149,11 @@ def test_find_not_found_is_404(db):
         "block=%20&street=X",
     ],
 )
-def test_find_rejects_bad_input_with_422_and_no_db_call(query):
+def test_find_rejects_bad_input_with_422_and_no_lookup(query):
     resp = get(f"/building/find?{query}", follow_redirects=False)
     assert resp.status_code == 422
-    assert not TIMING.findall(resp.text)
+    # The home page it returns to loads its flat type ranges; the block lookup itself never runs.
+    assert [t[0] for t in TIMING.findall(resp.text)] == ["flat type ranges"]
 
 
 def test_home_page_has_the_lookup_form():

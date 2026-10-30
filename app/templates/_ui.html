@@ -4,3 +4,18 @@
 {% macro term(label, anchor) -%}
 {{ label }}<a class="term" href="/glossary#{{ anchor }}" aria-label="What does {{ label|lower }} mean?">?</a>
 {%- endmacro %}
+
+{# Explainer tags for a block (app/services/explain.py): none when there is nothing fair to say (None),
+   "Typical for the town" when nothing differs ([]), otherwise one pill per difference. #}
+{% macro tag_list(found, town) -%}
+{% if found is not none %}
+<span class="tags">
+  {% for t in found %}<span class="tag">{{ t.label }}</span>{% else %}<span class="tag typical">Typical for {{ town }}</span>{% endfor %}
+</span>
+{% endif %}
+{%- endmacro %}
+
+{# "few sales" next to a count below the threshold (USE_CASES R3). #}
+{% macro few(n, threshold) -%}
+{% if n < threshold %} <a class="few" href="/glossary#few-sales">few sales</a>{% endif %}
+{%- endmacro %}

@@ -49,7 +49,8 @@ def gap_query(pg_rw):
 
 def pages(building_path, gap_query):
     return [
-        ("/", False),
+        ("/", True),
+        ("/explore?flat_type=4+ROOM&budget=650000", True),
         ("/search?town=BISHAN", True),
         (gap_query, True),
         ("/rankings?year=2022", True),

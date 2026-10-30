@@ -2,6 +2,15 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-30 UI overhaul, task T6 Home and Explore
+
+- Home (`/`) is the guided start: one form, three numbered steps (flat type with its recent area and middle-80% price range, budget, optional place and radius), no script. The old block lookup is a side card. The "Not sure yet" option was dropped: every flat type already shows its size and price range.
+- Explore (`/explore`): search chips, a headline (best town, or the closest towns when none fits, or the count near a place or in a town), town cards with the share of sales within budget, then blocks with explainer tags, lease left, distance and typical price, 20 per page, and "More filters" (town, lease left, floor area, radius).
+- A typed place: one match is used, several are offered as "Which block did you mean?" (first 8), none returns to the form with a message. An unlocated place is reported and the results are not limited by distance; nothing within the radius offers the next radius.
+- New filters: `money_short` ($620k, $1.23M), `flat_label`, `flat_adj`, `proper` (block numbers keep their case), `distance` (m below 1 km). `PlaceRepo.get` added in both databases.
+- The block lookup's 422 now shows the home page, which loads its flat type ranges; the lookup itself still never runs on bad input (test narrowed to that).
+- Full suite on the sample: 1609 passed, 0 skipped.
+
 ## 2026-10-30 UI overhaul, task T5 blocks that fit
 
 - `blocks_fit(BlockFilter)` in both databases: blocks whose typical (lower median) price for the flat type over the recent window is at or under the budget, with optional town, place and radius, least lease left and least typical floor area. Pages of 20 with the total. Without a place, cheapest first; with a place, located blocks within the radius (the place itself included), nearest first; ties by building id.

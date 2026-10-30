@@ -546,6 +546,12 @@ CASES: list[Case] = [
         params=place_find_params,
     ),
     Case(
+        name="places_get",
+        pg_call=lambda conn, p: PgPlaceRepo(conn).get(p["building_id"]),
+        mongo_call=lambda db, p: MongoPlaceRepo(db).get(p["building_id"]),
+        params=lambda conn: [{"building_id": i} for i in sorted({p["building_id"] for p in place_near_params(conn)})],
+    ),
+    Case(
         name="places_near",
         pg_call=lambda conn, p: PgPlaceRepo(conn).near(p["building_id"], p["radius_m"]),
         mongo_call=lambda db, p: MongoPlaceRepo(db).near(p["building_id"], p["radius_m"]),

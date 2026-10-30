@@ -2,7 +2,20 @@ from datetime import date
 from decimal import Decimal
 
 from app.repos.dto import RecentSale
-from app.templating import lease, money, month, pct, storey, templates, unknown
+from app.templating import (
+    distance,
+    flat_adj,
+    flat_label,
+    lease,
+    money,
+    money_short,
+    month,
+    pct,
+    proper,
+    storey,
+    templates,
+    unknown,
+)
 
 
 def test_money():
@@ -49,3 +62,36 @@ def test_filters_are_registered_in_the_environment():
 def test_price_psm_rounds_half_up_in_python():
     sale = RecentSale(1, date(2024, 1, 1), "4 ROOM", "Improved", 1, 3, Decimal("90.0"), Decimal("450001.00"))
     assert sale.price_psm == Decimal("5000.01")
+
+
+def test_money_short():
+    assert money_short(Decimal("620000")) == "$620k"
+    assert money_short(Decimal("387500")) == "$388k"  # half up
+    assert money_short(Decimal("1233000")) == "$1.23M"
+    assert money_short(Decimal("1000000")) == "$1M"
+    assert money_short(Decimal("1460000")) == "$1.46M"
+    assert money_short(None) == "Unknown"
+
+
+def test_flat_type_wording():
+    assert flat_label("4 ROOM") == "4 room" and flat_label("EXECUTIVE") == "Executive"
+    assert flat_label("MULTI-GENERATION") == "Multi-generation"
+    assert flat_adj("4 ROOM") == "4-room" and flat_adj("EXECUTIVE") == "executive"
+
+
+def test_proper():
+    assert proper("MARINE TER") == "Marine Ter"
+    assert proper("ST. GEORGE'S RD") == "St. George's Rd"
+    assert proper("C'WEALTH CRES") == "C'wealth Cres"
+    assert proper("KALLANG/WHAMPOA") == "Kallang/Whampoa"
+    assert proper("273A BISHAN ST 24") == "273A Bishan St 24"
+
+
+def test_distance():
+    assert distance(Decimal("0")) == "0 m"
+    assert distance(Decimal("124.9")) == "120 m"
+    assert distance(Decimal("125.0")) == "130 m"  # half up
+    assert distance(Decimal("999.4")) == "1000 m"
+    assert distance(Decimal("1449.9")) == "1.4 km"
+    assert distance(Decimal("4999.9")) == "5.0 km"
+    assert distance(None) == "Unknown"

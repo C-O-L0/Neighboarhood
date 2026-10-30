@@ -65,6 +65,45 @@ def stamp(value: datetime | None) -> str:
     return "Never" if value is None else value.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
 
+def money_short(value: Decimal | None) -> str:
+    """A rough amount for ranges: "$620k" below a million, "$1.23M" from a million (half up)."""
+    if value is None:
+        return "Unknown"
+    if value >= 1_000_000:
+        millions = (value / 1_000_000).quantize(Decimal("0.01"), ROUND_HALF_UP)
+        return f"${millions.normalize():f}M"
+    return f"${(value / 1000).quantize(Decimal(1), ROUND_HALF_UP)}k"
+
+
+def flat_label(flat_type: str) -> str:
+    """HDB's flat type in sentence case: "4 ROOM" is "4 room", "EXECUTIVE" is "Executive"."""
+    return flat_type[:1] + flat_type[1:].lower()
+
+
+def flat_adj(flat_type: str) -> str:
+    """The flat type before a noun: "4-room sales", "executive sales"."""
+    return flat_type.lower().replace(" ", "-")
+
+
+def proper(text: str) -> str:
+    """HDB's upper-case names for people to read: "MARINE TER" is "Marine Ter", "ST. GEORGE'S RD" is
+    "St. George's Rd", "KALLANG/WHAMPOA" is "Kallang/Whampoa". Words are split on spaces and slashes."""
+
+    def word(w: str) -> str:
+        return w if w[:1].isdigit() else w[:1].upper() + w[1:].lower()  # block numbers keep "273A"
+
+    return " ".join("/".join(word(part) for part in token.split("/")) for token in text.split(" "))
+
+
+def distance(metres: Decimal | None) -> str:
+    """A walking-scale distance: "120 m" (to 10 m) below 1 km, "1.4 km" (to 0.1 km) from 1 km."""
+    if metres is None:
+        return "Unknown"
+    if metres < 1000:
+        return f"{metres.quantize(Decimal('1E1'), ROUND_HALF_UP):.0f} m"
+    return f"{(metres / 1000).quantize(Decimal('0.1'), ROUND_HALF_UP)} km"
+
+
 def _context(request: Request) -> dict:
     state = request.state
     mode = getattr(state, "db_mode", "pg")
@@ -86,5 +125,16 @@ def _context(request: Request) -> dict:
 
 templates = Jinja2Templates(directory=BASE / "templates", context_processors=[_context])
 templates.env.filters.update(
-    money=money, month=month, lease=lease, storey=storey, pct=pct, unknown=unknown, stamp=stamp
+    money=money,
+    month=month,
+    lease=lease,
+    storey=storey,
+    pct=pct,
+    unknown=unknown,
+    stamp=stamp,
+    money_short=money_short,
+    flat_label=flat_label,
+    flat_adj=flat_adj,
+    proper=proper,
+    distance=distance,
 )

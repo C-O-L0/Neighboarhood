@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}{{ q.flat_type|flat_label }} up to {{ q.budget|money }} · Neighboar{% endblock %}
+{% block content %}
+{% set adj = q.flat_type|flat_adj %}
+<div class="chips" aria-label="Your search">
+  <span class="chip">{{ q.flat_type|flat_label }}</span>
+  <span class="chip">Up to {{ q.budget|money }}</span>
+  {% if place and place.located %}<span class="chip">Within {{ q.radius // 1000 }} km of {{ place.block }} {{ place.street|proper }}</span>
+  {% elif q.town %}<span class="chip">{{ q.town|proper }}</span>
+  {% else %}<span class="chip muted">Anywhere</span>{% endif %}
+  <a href="{{ change_link }}">Change</a>
+</div>
+
+{% if choices %}
+<section class="card choose" aria-labelledby="choose-h">
+  <h2 id="choose-h">Which block did you mean?</h2>
+  <p class="hint">More than one block matches “{{ values.place_text }}”. Pick one to see what fits near it.{% if choices|length >= suggestions %} Only the first {{ suggestions }} are shown: add the block number to narrow it down.{% endif %}</p>
+  <ul>
+    {% for c in choices %}
+    <li>
+      {% if c.located %}<a href="{{ link(place=c.building_id, page=None) }}">{{ c.block }} {{ c.street|proper }}</a> <span class="hint">{{ c.town|proper }}</span>
+      {% else %}{{ c.block }} {{ c.street|proper }} <span class="hint">{{ c.town|proper }} · no location, so distances are not possible</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% if place and not place.located %}
+<div class="notice" role="status">We do not have a location for {{ place.block }} {{ place.street|proper }}, so these results are not limited to blocks near it.</div>
+{% endif %}
+
+<header class="results-head">
+  {% if place and place.located %}
+    {% if total %}
+    <h1>{{ total }} block{{ '' if total == 1 else 's' }} within {{ q.radius // 1000 }} km of {{ place.block }} {{ place.street|proper }} fit{{ 's' if total == 1 else '' }} your budget</h1>
+    <p class="lede">Their typical {{ adj }} price in the last 12 months was at or under {{ q.budget|money }}. Nearest first.</p>
+    {% else %}
+    <h1>No block within {{ q.radius // 1000 }} km of {{ place.block }} {{ place.street|proper }} fits your budget</h1>
+    <p class="lede">{% if larger_radius %}<a href="{{ link(radius=larger_radius, page=None) }}">Try {{ larger_radius // 1000 }} km</a>, or <a href="{{ change_link }}">change your budget</a>.{% else %}<a href="{{ change_link }}">Change your budget</a> or the place.{% endif %}</p>
+    {% endif %}
+  {% elif q.town %}
+    <h1>{{ total }} block{{ '' if total == 1 else 's' }} in {{ q.town|proper }} fit{{ 's' if total == 1 else '' }} your budget</h1>
+    <p class="lede">Their typical {{ adj }} price in the last 12 months was at or under {{ q.budget|money }}. Cheapest first.</p>
+  {% elif best %}
+    <h1>{{ best.town|proper }} fits your budget best</h1>
+    <p class="lede">{{ best.share_within }}% of its {{ adj }} sales in the last 12 months were at or under {{ q.budget|money }}. {{ total }} block{{ '' if total == 1 else 's' }} had a typical price within budget.</p>
+  {% elif towns %}
+    <h1>No town's typical {{ adj }} price is within {{ q.budget|money }}</h1>
+    <p class="lede">Closest: {% for t in closest %}{{ t.town|proper }} ({{ (t.median_price - q.budget)|money }} over){{ ', ' if not loop.last else '.' }}{% endfor %}{% if total %} {{ total }} block{{ '' if total == 1 else 's' }} still had a typical price within budget.{% endif %}</p>
+  {% else %}
+    <h1>No {{ adj }} sales in the last 12 months</h1>
+    <p class="lede"><a href="{{ change_link }}">Choose another flat type</a>.</p>
+  {% endif %}
+</header>
+
+{% if towns %}
+<section aria-labelledby="towns-h" class="towns">
+  <div class="section-head">
+    <h2 id="towns-h">Towns</h2>
+    {% if q.town %}<a href="{{ link(town=None, page=None) }}">Show blocks in every town</a>{% endif %}
+  </div>
+  <ol class="town-grid">
+    {% for t in towns %}
+    {% if loop.index == 7 %}</ol>
+  <details class="more-towns">
+    <summary>Show all {{ towns|length }} towns</summary>
+    <ol class="town-grid">
+    {% endif %}
+      <li>
+        <a class="town-card{% if q.town == t.town %} selected{% endif %}" href="{{ link(town=t.town, page=None) }}"{% if q.town == t.town %} aria-current="true"{% endif %}>
+          <span class="town-top">
+            <strong>{{ t.town|proper }}</strong>
+            {% if t.median_price <= q.budget %}<span class="badge fit">Fits</span>{% else %}<span class="badge over">{{ (t.median_price - q.budget)|money_short }} over</span>{% endif %}
+          </span>
+          <span class="town-price">{{ t.median_price|money }}</span>
+          <span class="hint">typical price · {{ t.n }} sale{{ '' if t.n == 1 else 's' }} in 12 months{{ ui.few(t.n, few_sales) }}</span>
+          <span class="bar" aria-hidden="true"><span style="width: {{ t.share_within }}%"></span></span>
+          <span class="share">{% if t.within_budget %}{{ t.share_within }}% sold within budget{% else %}None sold within budget{% endif %}</span>
+        </a>
+      </li>
+    {% endfor %}
+  </ol>
+  {% if towns|length > 6 %}</details>{% endif %}
+  <p class="hint">The typical price is the middle sale price. <a href="/glossary#typical-price">How we work it out</a>.</p>
+</section>
+{% endif %}
+
+<section aria-labelledby="blocks-h" class="blocks">
+  <div class="section-head">
+    <h2 id="blocks-h">Blocks within budget</h2>
+    <span class="hint">{{ 'nearest first' if place and place.located else 'cheapest typical price first' }}</span>
+  </div>
+
+  <details class="filters"{% if q.min_lease or q.min_area or (place and place.located) %} open{% endif %}>
+    <summary>More filters</summary>
+    <form method="get" action="/explore" class="filter-form">
+      <input type="hidden" name="db" value="{{ db_mode }}">
+      {% for k in ('flat_type', 'budget', 'place', 'place_text') %}{% if values[k] %}<input type="hidden" name="{{ k }}" value="{{ values[k] }}">{% endif %}{% endfor %}
+      <div class="field">
+        <label for="f-town">Town</label>
+        <select id="f-town" name="town">
+          <option value="">Any town</option>
+          {% for t in all_towns %}<option value="{{ t }}"{% if q.town == t %} selected{% endif %}>{{ t|proper }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-lease">Lease left, at least</label>
+        <select id="f-lease" name="min_lease">
+          <option value="">Any</option>
+          {% for y in (50, 60, 70, 80) %}<option value="{{ y }}"{% if q.min_lease == y %} selected{% endif %}>{{ y }} years</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-area">Floor area, at least (sqm)</label>
+        <input id="f-area" name="min_area" value="{{ values.min_area or '' }}" inputmode="decimal" maxlength="5" placeholder="Any">
+      </div>
+      {% if place and place.located %}
+      <div class="field">
+        <label for="f-radius">Within</label>
+        <select id="f-radius" name="radius">
+          {% for r in radii %}<option value="{{ r }}"{% if q.radius == r %} selected{% endif %}>{{ r // 1000 }} km</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <button type="submit" class="secondary">Apply</button>
+    </form>
+  </details>
+
+  {% if blocks %}
+  <ol class="block-list">
+    {% for row in blocks %}
+    {% set b = row.b %}
+    <li class="block-row">
+      <div class="block-name">
+        <a href="/building/{{ b.building_id }}">{{ b.block }} {{ b.street|proper }}</a>
+        <span class="hint">
+          {{ b.town|proper }} · {{ b.n }} sale{{ '' if b.n == 1 else 's' }}{{ ui.few(b.n, few_sales) }}
+          {% if row.lease_left is not none %} · about {{ row.lease_left }} years lease left{% endif %}
+          {% if place and b.building_id == place.building_id %} · your chosen block{% elif b.distance_m is not none %} · {{ b.distance_m|distance }} away{% endif %}
+        </span>
+      </div>
+      {{ ui.tag_list(row.tags, b.town|proper) }}
+      <div class="block-price"><span class="sr">Typical price </span>{{ b.median_price|money }}</div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% if pages > 1 %}
+  <nav class="pager" aria-label="Pages">
+    {% if q.page > 1 %}<a rel="prev" href="{{ link(page=q.page - 1) }}">Previous</a>{% endif %}
+    <span>Page {{ q.page }} of {{ pages }}</span>
+    {% if q.page < pages %}<a rel="next" href="{{ link(page=q.page + 1) }}">Next</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% elif total %}
+  <p>No blocks on this page. <a href="{{ link(page=None) }}">Back to the first page</a>.</p>
+  {% else %}
+  <p class="empty">No block's typical {{ adj }} price is within {{ q.budget|money }}{% if q.min_lease or q.min_area %} with these filters{% endif %}.</p>
+  {% endif %}
+</section>
+{% endblock %}

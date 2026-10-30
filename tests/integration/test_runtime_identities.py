@@ -130,6 +130,10 @@ ROUTES: dict[str, tuple[str, Callable[[SimpleNamespace], Req]]] = {
     "GET /health": ("anon", lambda c: Req("/health")),
     "GET /api/health": ("anon", lambda c: Req("/api/health")),
     "GET /": ("buyer", lambda c: Req("/")),
+    "GET /explore": (
+        "buyer",
+        lambda c: Req("/explore", {"flat_type": "4 ROOM", "budget": "800000", "place_text": "bishan"}),
+    ),
     "GET /building/find": (
         "buyer",
         lambda c: Req("/building/find", {"block": c.plan.a_block, "street": c.plan.a_street}),
