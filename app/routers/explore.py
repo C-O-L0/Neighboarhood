@@ -27,10 +27,11 @@ from app.services.explore import (
     lease_left_years,
     window_ending,
 )
+from app.services.maps import ATTRIBUTION, MAX_ZOOM, TILE_URL
 from app.services.places import DEFAULT_RADIUS_M, RADII_M, SUGGESTIONS, parse_place
 from app.services.repos import call_repo
 from app.services.search import RESALE_TYPES
-from app.templating import templates
+from app.templating import money, money_short, proper, templates
 from etl.clean import TOWN_IDS
 
 router = APIRouter()
@@ -72,6 +73,32 @@ def render_home(request: Request, status: int = 200, *, values: dict | None = No
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return render_home(request, values=_values(request))
+
+
+def map_data(rows, place, radius_m: int) -> dict | None:
+    """The page's located blocks as map pins, and the chosen place with its radius. None when nothing is located.
+
+    Coordinates go out as strings so the JSON is the same from both databases (docs/conventions.md, 2).
+    """
+    pins = [
+        {
+            "lat": str(b.latitude),
+            "lon": str(b.longitude),
+            "label": money_short(b.median_price),
+            "name": f"{b.block} {proper(b.street)}",
+            "detail": f"{money(b.median_price)} typical · {b.n} sale{'' if b.n == 1 else 's'}",
+            "href": f"/building/{b.building_id}",
+            "chosen": place is not None and b.building_id == place.building_id,
+        }
+        for b in rows
+        if b.latitude is not None
+    ]
+    centre = None
+    if place is not None and place.located:
+        centre = {"lat": str(place.latitude), "lon": str(place.longitude), "radius_m": radius_m}
+    if not pins and centre is None:
+        return None
+    return {"pins": pins, "place": centre}
 
 
 def _link(values: dict, **changes) -> str:
@@ -154,6 +181,10 @@ def explore(request: Request):
         "larger_radius": larger,
         "all_towns": sorted(TOWN_IDS),
         "link": lambda **changes: _link(values, **changes),
+        "map": map_data(page.rows, place if place is not None and place.located else None, query.radius),
+        "tile_url": TILE_URL,
+        "attribution": ATTRIBUTION,
+        "max_zoom": MAX_ZOOM,
         "change_link": "/?"
         + urlencode({k: v for k, v in values.items() if k in ("flat_type", "budget", "place_text", "radius")}),
     }

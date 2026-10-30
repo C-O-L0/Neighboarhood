@@ -14,14 +14,14 @@ from app.repos.pg.search import like_escape
 from app.services.food import EARTH_RADIUS_M, round_metres
 
 _GET = """
-SELECT b.building_id, b.block, b.street, tw.name, b.latitude IS NOT NULL
+SELECT b.building_id, b.block, b.street, tw.name, b.latitude IS NOT NULL, b.latitude, b.longitude
 FROM building b
 JOIN town tw ON tw.town_id = b.town_id
 WHERE b.building_id = %(building_id)s
 """
 
 _FIND = """
-SELECT b.building_id, b.block, b.street, tw.name, b.latitude IS NOT NULL
+SELECT b.building_id, b.block, b.street, tw.name, b.latitude IS NOT NULL, b.latitude, b.longitude
 FROM building b
 JOIN town tw ON tw.town_id = b.town_id
 WHERE b.street LIKE %(street)s AND (%(block)s::text IS NULL OR b.block = %(block)s)

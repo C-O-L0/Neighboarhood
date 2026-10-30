@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 STATIC = ROOT / "app" / "static"
 TEMPLATES = sorted((ROOT / "app" / "templates").rglob("*.html"))
-OWN_FILES = [*sorted(STATIC.glob("*.css")), STATIC / "charts.js"]
+OWN_FILES = [*sorted(STATIC.glob("*.css")), STATIC / "charts.js", STATIC / "map.js"]
 
 
 def test_vendored_chart_js_matches_the_recorded_hash():
@@ -27,6 +27,17 @@ def test_vendored_font_matches_the_recorded_hash_and_is_used():
     assert 'url("vendor/figtree-latin.woff2")' in (STATIC / "app.css").read_text(encoding="utf-8")
     licence = (STATIC / "vendor" / "LICENSE.figtree-OFL.txt").read_text(encoding="utf-8")
     assert "SIL OPEN FONT LICENSE" in licence.upper()
+
+
+def test_vendored_leaflet_matches_the_recorded_hashes():
+    readme = (STATIC / "vendor" / "README.md").read_text(encoding="utf-8")
+    line = re.search(r"Leaflet SHA-256 in hex \(checked by .*", readme).group(0)
+    recorded = dict(re.findall(r"`(leaflet\.(?:js|css))` `([0-9a-f]{64})`", line))
+    assert set(recorded) == {"leaflet.js", "leaflet.css"}
+    for name, digest in recorded.items():
+        assert hashlib.sha256((STATIC / "vendor" / name).read_bytes()).hexdigest() == digest, name
+    assert (STATIC / "vendor" / "leaflet.js").read_bytes().startswith(b"/* @preserve\n * Leaflet 1.9.4")
+    assert "BSD 2-Clause" in (STATIC / "vendor" / "LICENSE.leaflet.txt").read_text(encoding="utf-8")
 
 
 def test_both_licence_files_exist():

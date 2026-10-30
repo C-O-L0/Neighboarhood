@@ -12,6 +12,7 @@ import re
 from pymongo.database import Database
 
 from app.repos.dto import NearBlock, Place
+from app.repos.mongo.building import coord
 from app.services.food import round_metres
 
 
@@ -30,10 +31,18 @@ def find_pipeline(block: str | None, street: str, limit: int) -> list[dict]:
                 "block": 1,
                 "street": 1,
                 "town": "$town.name",
-                "located": {"$eq": [{"$type": "$location"}, "object"]},
+                "location": 1,
             }
         },
     ]
+
+
+def _place(building_id: int, block: str, street: str, town: str, location) -> Place:
+    """located only for a GeoJSON point; a missing or null location has no coordinates."""
+    if not isinstance(location, dict):
+        return Place(building_id, block, street, town, False)
+    lon, lat = location["coordinates"]
+    return Place(building_id, block, street, town, True, coord(lat), coord(lon))
 
 
 class MongoPlaceRepo:
@@ -48,11 +57,11 @@ class MongoPlaceRepo:
         )
         if d is None:
             return None
-        return Place(d["_id"], d["block"], d["street"], d["town"]["name"], isinstance(d.get("location"), dict))
+        return _place(d["_id"], d["block"], d["street"], d["town"]["name"], d.get("location"))
 
     def find(self, block: str | None, street: str, limit: int) -> list[Place]:
         docs = self.db.building_profiles.aggregate(find_pipeline(block, street, limit))
-        return [Place(d["_id"], d["block"], d["street"], d["town"], d["located"]) for d in docs]
+        return [_place(d["_id"], d["block"], d["street"], d["town"], d.get("location")) for d in docs]
 
     def near(self, building_id: int, radius_m: int) -> list[NearBlock] | None:
         origin = self.db.building_profiles.find_one(

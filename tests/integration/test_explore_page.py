@@ -1,5 +1,6 @@
 """Home's guided start and the Explore page through the running web app (task T6)."""
 
+import json
 import os
 import re
 from html import unescape
@@ -169,3 +170,54 @@ def test_nothing_near_offers_a_larger_radius(pg_rw):
         pytest.skip("every located block has 4-room sales nearby")
     page = text_of(get(f"/explore?flat_type=4+ROOM&budget=10000000&place={row[0]}&radius=1000"))
     assert "No block within 1 km" in page and "Try 2 km" in page
+
+
+# ---------------------------------------------------------------- the map (T7)
+
+MAP_JSON = re.compile(r'<script type="application/json" id="map-data">(.*?)</script>', re.S)
+
+
+def map_of(resp) -> dict | None:
+    m = MAP_JSON.search(resp.text)
+    return None if m is None else json.loads(m.group(1))
+
+
+def test_the_map_has_a_pin_for_every_located_block_on_the_page(pg_rw):
+    resp = get(FIT)
+    data = map_of(resp)
+    ids = [
+        int(i)
+        for i in re.findall(r'<li class="block-row">\s*<div class="block-name">\s*<a href="/building/(\d+)"', resp.text)
+    ]
+    located = {r[0] for r in pg_rw.execute("SELECT building_id FROM building WHERE latitude IS NOT NULL").fetchall()}
+    assert [int(p["href"].rsplit("/", 1)[1]) for p in data["pins"]] == [i for i in ids if i in located]
+    assert data["place"] is None
+    pin = data["pins"][0]
+    assert set(pin) == {"lat", "lon", "label", "name", "detail", "href", "chosen"}
+    assert re.fullmatch(r"\d\.\d{6}", pin["lat"]) and re.fullmatch(r"10\d\.\d{6}", pin["lon"])
+    assert re.fullmatch(r"\$\d+k|\$[\d.]+M", pin["label"])
+    assert 'data-map data-source="map-data"' in resp.text and "vendor/leaflet.js" in resp.text and "map.js" in resp.text
+
+
+def test_the_map_is_the_same_from_both_databases(located_place):
+    for path in (FIT, f"{FIT}&place={located_place[0]}&radius=2000", f"{FIT}&page=2"):
+        assert map_of(get(f"{path}&db=pg")) == map_of(get(f"{path}&db=mongo")), path
+
+
+def test_a_place_puts_its_area_on_the_map(located_place, pg_rw):
+    data = map_of(get(f"{FIT}&place={located_place[0]}&radius=5000"))
+    lat, lon = pg_rw.execute(
+        "SELECT latitude, longitude FROM building WHERE building_id = %s", [located_place[0]]
+    ).fetchone()
+    assert data["place"] == {"lat": str(lat), "lon": str(lon), "radius_m": 5000}
+    assert sum(p["chosen"] for p in data["pins"]) <= 1
+
+
+def test_no_blocks_and_no_place_means_no_map():
+    resp = get("/explore?flat_type=4+ROOM&budget=1000")
+    assert map_of(resp) is None and "leaflet" not in resp.text
+
+
+def test_map_scripts_and_styles_are_served_from_the_site():
+    for path in ("/static/vendor/leaflet.js", "/static/vendor/leaflet.css", "/static/map.js"):
+        assert get(path).status_code == 200, path
