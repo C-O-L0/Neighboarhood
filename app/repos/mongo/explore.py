@@ -14,13 +14,14 @@ from decimal import Decimal
 from bson.decimal128 import Decimal128
 from pymongo.database import Database
 
-from app.repos.dto import FlatTypeRange, TownBaseline, TownFit
-from app.services.explore import Window
+from app.repos.dto import BlockFit, BlockFitPage, FlatTypeRange, TownBaseline, TownFit
+from app.services.explore import PAGE_SIZE, BlockFilter, Window
+from app.services.food import round_metres
 from app.services.search import RESALE_TYPES
 from etl.clean import FLAT_TYPE_IDS
 
 
-def _at_percentile(values: str, n: str | dict, p: float) -> dict:
+def at_percentile(values: str, n: str | dict, p: float) -> dict:
     """The sorted value at position ceil(p * n), counting from 1 (as percentile_disc)."""
     index = {"$max": [{"$subtract": [{"$ceil": {"$multiply": [p, n]}}, 1]}, 0]}
     return {"$arrayElemAt": [{"$sortArray": {"input": values, "sortBy": 1}}, index]}
@@ -48,9 +49,9 @@ def ranges_pipeline(window: Window) -> list[dict]:
         {
             "$project": {
                 "n": 1,
-                "area_median": _at_percentile("$areas", "$n", 0.5),
-                "price_low": _at_percentile("$prices", "$n", 0.1),
-                "price_high": _at_percentile("$prices", "$n", 0.9),
+                "area_median": at_percentile("$areas", "$n", 0.5),
+                "price_low": at_percentile("$prices", "$n", 0.1),
+                "price_high": at_percentile("$prices", "$n", 0.9),
             }
         },
     ]
@@ -69,7 +70,7 @@ def towns_pipeline(flat_type: str, budget: Decimal, window: Window) -> list[dict
                 "within_budget": {"$sum": {"$cond": [{"$lte": ["$resale_price", limit]}, 1, 0]}},
             }
         },
-        {"$project": {"n": 1, "within_budget": 1, "median_price": _at_percentile("$prices", "$n", 0.5)}},
+        {"$project": {"n": 1, "within_budget": 1, "median_price": at_percentile("$prices", "$n", 0.5)}},
         {"$sort": {"median_price": 1, "_id": 1}},
     ]
 
@@ -92,13 +93,132 @@ def baselines_pipeline(flat_type: str, window: Window) -> list[dict]:
         {
             "$project": {
                 "n": 1,
-                "storey_sum": _at_percentile("$storeys", "$n", 0.5),
-                "lease_year": _at_percentile("$leases", {"$size": "$leases"}, 0.5),
-                "area_median": _at_percentile("$areas", "$n", 0.5),
+                "storey_sum": at_percentile("$storeys", "$n", 0.5),
+                "lease_year": at_percentile("$leases", {"$size": "$leases"}, 0.5),
+                "area_median": at_percentile("$areas", "$n", 0.5),
             }
         },
         {"$sort": {"_id": 1}},
     ]
+
+
+def _block_medians(sales: str) -> dict:
+    """$project fields for the medians of an array of sales with resale_price, storey_sum and floor_area_sqm."""
+    n = {"$size": sales}
+    return {
+        "n": n,
+        "median_price": at_percentile({"$map": {"input": sales, "in": "$$this.resale_price"}}, n, 0.5),
+        "storey_sum": at_percentile({"$map": {"input": sales, "in": "$$this.storey_sum"}}, n, 0.5),
+        "area_median": at_percentile({"$map": {"input": sales, "in": "$$this.floor_area_sqm"}}, n, 0.5),
+    }
+
+
+_SALE_FIELDS = {"resale_price": 1, "floor_area_sqm": 1, "storey_sum": {"$add": ["$storey_min", "$storey_max"]}}
+
+
+def _filters_and_page(f: BlockFilter, sort: dict) -> list[dict]:
+    """The budget, lease and area filters on the per-block medians, then the total and one page."""
+    match: dict = {"median_price": {"$lte": Decimal128(f.budget)}}
+    if f.min_lease_year is not None:
+        match["lease_year"] = {"$gte": f.min_lease_year}
+    if f.min_area is not None:
+        match["area_median"] = {"$gte": Decimal128(f.min_area)}
+    return [
+        {"$match": match},
+        {
+            "$facet": {
+                "total": [{"$count": "n"}],
+                "rows": [{"$sort": sort}, {"$skip": f.offset}, {"$limit": PAGE_SIZE}],
+            }
+        },
+    ]
+
+
+def blocks_pipeline(f: BlockFilter) -> list[dict]:
+    """Without a place, on resale_transactions: the window's sales grouped by block (town_type_month or
+    type_month index). Built only from the validated, typed values in the filter."""
+    match: dict = {"flat_type": f.flat_type, "txn_month": _in_window(f.window)}
+    if f.town is not None:
+        match["town"] = f.town
+    return [
+        {"$match": match},
+        {
+            "$group": {
+                "_id": "$building_id",
+                "block": {"$first": "$block"},
+                "street": {"$first": "$street"},
+                "town": {"$first": "$town"},
+                "lease_year": {"$first": "$lease_commence_year"},
+                "sales": {
+                    "$push": {
+                        "resale_price": "$resale_price",
+                        "floor_area_sqm": "$floor_area_sqm",
+                        "storey_sum": {"$add": ["$storey_min", "$storey_max"]},
+                    }
+                },
+            }
+        },
+        {"$project": {"block": 1, "street": 1, "town": 1, "lease_year": 1, **_block_medians("$sales")}},
+        *_filters_and_page(f, {"median_price": 1, "_id": 1}),
+    ]
+
+
+def blocks_near_pipeline(f: BlockFilter, origin: dict) -> list[dict]:
+    """With a place, on building_profiles: $geoNear finds the located blocks within the radius (the place
+    included), then each block's window sales of the flat type come from a $lookup on building_id (the
+    building_month index)."""
+    query: dict = {} if f.town is None else {"town.name": f.town}
+    return [
+        {
+            "$geoNear": {
+                "near": origin,
+                "key": "location",
+                "distanceField": "distance",
+                "spherical": True,
+                "maxDistance": f.radius_m,
+                "query": query,
+            }
+        },
+        {
+            "$lookup": {
+                "from": "resale_transactions",
+                "localField": "_id",
+                "foreignField": "building_id",
+                "pipeline": [
+                    {"$match": {"flat_type": f.flat_type, "txn_month": _in_window(f.window)}},
+                    {"$project": _SALE_FIELDS},
+                ],
+                "as": "sales",
+            }
+        },
+        {"$match": {"sales.0": {"$exists": True}}},
+        {
+            "$project": {
+                "block": 1,
+                "street": 1,
+                "town": "$town.name",
+                "lease_year": "$lease_commence_year",
+                "distance": 1,
+                **_block_medians("$sales"),
+            }
+        },
+        *_filters_and_page(f, {"distance": 1, "_id": 1}),
+    ]
+
+
+def _block_fit(d: dict) -> BlockFit:
+    return BlockFit(
+        building_id=d["_id"],
+        block=d["block"],
+        street=d["street"],
+        town=d["town"],
+        n=d["n"],
+        median_price=d["median_price"].to_decimal(),
+        storey_sum=d["storey_sum"],
+        area_median=d["area_median"].to_decimal(),
+        lease_year=d.get("lease_year"),
+        distance_m=round_metres(d["distance"]) if "distance" in d else None,
+    )
 
 
 class MongoExploreRepo:
@@ -153,3 +273,16 @@ class MongoExploreRepo:
             )
             for d in docs
         ]
+
+    def blocks_fit(self, f: BlockFilter) -> BlockFitPage:
+        if f.place is None:
+            result = next(self.db.resale_transactions.aggregate(blocks_pipeline(f)))
+        else:
+            place = self.db.building_profiles.find_one(
+                {"_id": f.place, "location": {"$type": "object"}}, {"location": 1}
+            )
+            if place is None:  # unknown or unlocated: nothing is within any distance of it, as in PostgreSQL
+                return BlockFitPage(total=0, rows=[])
+            result = next(self.db.building_profiles.aggregate(blocks_near_pipeline(f, place["location"])))
+        total = result["total"][0]["n"] if result["total"] else 0
+        return BlockFitPage(total=total, rows=[_block_fit(d) for d in result["rows"]])

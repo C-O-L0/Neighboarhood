@@ -8,8 +8,19 @@ from bson.decimal128 import Decimal128
 from pydantic import ValidationError
 
 from app.repos.dto import TownFit
-from app.repos.mongo.explore import towns_pipeline
-from app.services.explore import FitQuery, Window, best_fit, closest, error_messages, parse_money, window_ending
+from app.repos.mongo.explore import blocks_near_pipeline, blocks_pipeline, towns_pipeline
+from app.services.explore import (
+    BlocksQuery,
+    FitQuery,
+    Window,
+    best_fit,
+    block_filter,
+    closest,
+    error_messages,
+    lease_left_years,
+    parse_money,
+    window_ending,
+)
 
 
 @pytest.mark.parametrize(
@@ -99,3 +110,64 @@ def test_towns_pipeline_uses_only_typed_values():
     }
     within = pipeline[1]["$group"]["within_budget"]["$sum"]["$cond"][0]["$lte"]
     assert within == ["$resale_price", Decimal128("650000")]
+
+
+# ---------------------------------------------------------------- blocks that fit (T5)
+
+WINDOW = Window(date(2025, 10, 1), date(2026, 9, 1))
+
+
+def test_blocks_query_defaults_and_filter():
+    q = BlocksQuery.model_validate({"flat_type": "4 ROOM", "budget": "650,000"})
+    f = block_filter(q, WINDOW)
+    assert (f.town, f.place, f.radius_m, f.min_lease_year, f.min_area, f.page, f.offset) == (
+        None, None, 2000, None, None, 1, 0,
+    )  # fmt: skip
+
+
+def test_blocks_query_reads_every_filter():
+    q = BlocksQuery.model_validate(
+        {"flat_type": "4 ROOM", "budget": "650000", "town": " BISHAN ", "place": "307", "radius": "5000",
+         "min_lease": "60", "min_area": "90.5", "page": "3"}
+    )  # fmt: skip
+    f = block_filter(q, WINDOW)
+    assert (f.town, f.place, f.radius_m, f.min_area, f.page, f.offset) == ("BISHAN", 307, 5000, Decimal("90.5"), 3, 40)
+    assert f.min_lease_year == 2026 + 60 - 99  # lease must start in 1987 or later to have 60 years left in 2026
+
+
+def test_lease_left_years():
+    assert lease_left_years(1975, date(2026, 9, 1)) == 48
+    assert lease_left_years(2026, date(2026, 9, 1)) == 99
+
+
+@pytest.mark.parametrize(
+    "field,value,message",
+    [
+        ("town", "ATLANTIS", "Town must be one of the listed towns."),
+        ("place", "abc", "Choose the place from the list of blocks."),
+        ("place", "0", "Choose the place from the list of blocks."),
+        ("place", "2147483648", "Choose the place from the list of blocks."),
+        ("radius", "1500", "Distance must be 1, 2 or 5 km."),
+        ("min_lease", "99", "Lease left must be a whole number of years from 1 to 98."),
+        ("min_lease", "6.5", "Lease left must be a whole number of years from 1 to 98."),
+        ("min_area", "0", "Floor area must be a number of square metres from 1 to 300."),
+        ("min_area", "301", "Floor area must be a number of square metres from 1 to 300."),
+        ("min_area", "90.55", "Floor area must be a number of square metres from 1 to 300."),
+        ("page", "0", "Page must be a whole number from 1 to 10000."),
+    ],
+)
+def test_blocks_query_errors_are_plain(field, value, message):
+    with pytest.raises(ValidationError) as exc:
+        BlocksQuery.model_validate({"flat_type": "4 ROOM", "budget": "650000", field: value})
+    assert error_messages(exc.value) == [message]
+
+
+def test_blocks_pipelines_use_only_typed_values():
+    q = BlocksQuery.model_validate({"flat_type": "4 ROOM", "budget": "650000", "town": "BISHAN", "min_area": "90"})
+    f = block_filter(q, WINDOW)
+    pipeline = blocks_pipeline(f)
+    assert pipeline[0]["$match"]["town"] == "BISHAN" and pipeline[0]["$match"]["flat_type"] == "4 ROOM"
+    budget = next(s for s in pipeline if "$match" in s and "median_price" in s["$match"])["$match"]
+    assert budget == {"median_price": {"$lte": Decimal128("650000")}, "area_median": {"$gte": Decimal128("90")}}
+    near = blocks_near_pipeline(f, {"type": "Point", "coordinates": [103.9, 1.3]})
+    assert near[0]["$geoNear"]["maxDistance"] == 2000 and near[0]["$geoNear"]["query"] == {"town.name": "BISHAN"}

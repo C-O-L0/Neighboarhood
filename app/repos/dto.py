@@ -338,3 +338,29 @@ class NearBlock:
     street: str
     town: str
     distance_m: Decimal = field(metadata={"tol": DISTANCE_TOL})
+
+
+@dataclass(frozen=True)
+class BlockFit:
+    """A block whose typical recent price for one flat type is within budget, with what its explainer tags need.
+
+    storey_sum and area_median are lower medians over the block's window sales (as TownBaseline), lease_year
+    the block's lease start year, distance_m the distance from the chosen place (None without a place).
+    """
+
+    building_id: int
+    block: str
+    street: str
+    town: str
+    n: int
+    median_price: Decimal
+    storey_sum: int
+    area_median: Decimal
+    lease_year: int | None
+    distance_m: Decimal | None = field(default=None, metadata={"tol": DISTANCE_TOL})
+
+
+@dataclass(frozen=True)
+class BlockFitPage:
+    total: int  # blocks that match, on every page
+    rows: list[BlockFit]
