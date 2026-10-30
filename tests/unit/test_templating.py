@@ -7,7 +7,10 @@ from app.templating import lease, money, month, pct, storey, templates, unknown
 
 def test_money():
     assert money(Decimal("1234.5")) == "$1,234.50"
-    assert money(Decimal("-12500")) == "-$12,500.00"
+    assert money(Decimal("-12500")) == "-$12,500"
+    assert money(Decimal("468000.00")) == "$468,000"
+    assert money(Decimal("0.004")) == "$0"
+    assert money(Decimal("612345.675")) == "$612,345.68"
     assert money(None) == "Unknown"
 
 

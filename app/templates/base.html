@@ -4,51 +4,85 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Neighboar{% endblock %}</title>
+  <link rel="preload" href="{{ url_for('static', path='vendor/figtree-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
 </head>
 <body>
+  <a class="skip" href="#main">Skip to content</a>
+  {% set path = request.url.path %}
   <header class="topbar">
-    <a class="brand" href="/">Neighboar</a>
-    <nav class="menu" aria-label="Main">
-      <a href="/">Home</a>
-      <a href="/search">Search</a>
-      <a href="/trends">Trends</a>
-      <a href="/rankings">Rankings</a>
-      <a href="/food">Food</a>
-      <a href="/health">Health</a>
-      {% if account %}<a href="/saved?db={{ db_mode }}">Saved</a>{% endif %}
-      {% if account and account.is_admin %}<a href="/admin?db={{ db_mode }}">Admin</a>{% endif %}
-    </nav>
-    <nav class="account" aria-label="Account">
-      {% if account %}
-      <span>Signed in as <a href="/account?db={{ db_mode }}">{{ account.display_name or account.email }}</a> ({{ db_mode_name }})</span>
-      <form method="post" action="/logout?db={{ db_mode }}" class="inline">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit">Sign out</button>
-      </form>
-      {% else %}
-      <a href="/login?db={{ db_mode }}">Sign in</a>
-      <a href="/register?db={{ db_mode }}">Register</a>
-      {% endif %}
-    </nav>
-    <nav class="mode" aria-label="Database">
-      <span>Database: <strong id="db-mode">{{ db_mode_name }}</strong></span>
-      <a href="{{ mode_links['pg'] }}"{% if db_mode == 'pg' %} aria-current="true"{% endif %}>PostgreSQL</a>
-      <a href="{{ mode_links['mongo'] }}"{% if db_mode == 'mongo' %} aria-current="true"{% endif %}>MongoDB</a>
-    </nav>
+    <div class="wrap topbar-inner">
+      <a class="brand" href="/">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13 14 5l10 8"/><path d="M7 11v12h14V11"/><path d="M12 23v-6h4v6"/></svg>
+        Neighboar
+      </a>
+      <nav class="menu" aria-label="Main">
+        {% for href, label in [('/', 'Find a home'), ('/search', 'Search'), ('/trends', 'Town trends'), ('/rankings', 'Rankings'), ('/food', 'Food')] %}
+        <a href="{{ href }}"{% if path == href %} aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
+        {% if account %}<a href="/saved?db={{ db_mode }}"{% if path == '/saved' %} aria-current="page"{% endif %}>Shortlist</a>{% endif %}
+        {% if account and account.is_admin %}<a href="/admin?db={{ db_mode }}"{% if path == '/admin' %} aria-current="page"{% endif %}>Admin</a>{% endif %}
+      </nav>
+      <div class="account">
+        {% if account %}
+        <details class="account-menu">
+          <summary>
+            <span class="avatar" aria-hidden="true">{{ (account.display_name or account.email)[:1]|upper }}</span>
+            <span class="sr">Signed in as</span> {{ account.display_name or account.email }}
+          </summary>
+          <div class="account-pop">
+            <a href="/account?db={{ db_mode }}">Your account</a>
+            <form method="post" action="/logout?db={{ db_mode }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="linkish">Sign out</button>
+            </form>
+          </div>
+        </details>
+        {% else %}
+        <a href="/login?db={{ db_mode }}">Sign in</a>
+        <a class="button" href="/register?db={{ db_mode }}">Register</a>
+        {% endif %}
+      </div>
+    </div>
   </header>
-  <main class="page">
+  {% if demo %}
+  <div class="demobar" role="region" aria-label="Demo mode">
+    <div class="wrap demobar-inner">
+      <span class="demo-badge">Demo</span>
+      <nav class="mode" aria-label="Database">
+        <span class="sr">Database: <strong id="db-mode">{{ db_mode_name }}</strong></span>
+        <a href="{{ mode_links['pg'] }}"{% if db_mode == 'pg' %} aria-current="true"{% endif %}>PostgreSQL</a>
+        <a href="{{ mode_links['mongo'] }}"{% if db_mode == 'mongo' %} aria-current="true"{% endif %}>MongoDB</a>
+      </nav>
+      {% if timings %}
+      <div class="timings">
+        <span>This page: {{ '%.1f'|format(timings|sum(attribute='ms')) }} ms in {{ timings|length }} {{ 'query' if timings|length == 1 else 'queries' }}</span>
+        <ul>
+          {% for t in timings %}
+          <li>{{ t.label }}: {{ '%.1f'|format(t.ms) }} ms on {{ t.db_name }} (query and fetch)</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      <a class="demo-link" href="/health">System health</a>
+    </div>
+  </div>
+  {% endif %}
+  <main id="main" class="page">
     {% block content %}{% endblock %}
   </main>
-  {% if timings %}
-  <footer class="timings">
-    <ul>
-      {% for t in timings %}
-      <li>{{ t.label }}: {{ '%.1f'|format(t.ms) }} ms on {{ t.db_name }} (query and fetch)</li>
-      {% endfor %}
-    </ul>
+  <footer class="sitefoot">
+    <div class="wrap sitefoot-inner">
+      <span>Past sales, not listings</span>
+      <a href="/glossary">Glossary</a>
+      <form method="post" action="/demo" class="demo-toggle">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="next" value="{{ here }}">
+        <input type="hidden" name="on" value="{{ '0' if demo else '1' }}">
+        <button type="submit" class="switch" aria-pressed="{{ 'true' if demo else 'false' }}">Demo mode</button>
+      </form>
+    </div>
   </footer>
-  {% endif %}
   {% block scripts %}{% endblock %}
 </body>
 </html>

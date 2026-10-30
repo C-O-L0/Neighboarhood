@@ -16,10 +16,13 @@ _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
 
 
 def money(value: Decimal | None) -> str:
+    """Dollars with cents, rounded half up; whole amounts drop the ".00" ($468,000, $612,345.67)."""
     if value is None:
         return "Unknown"
     q = value.quantize(Decimal("0.01"), ROUND_HALF_UP)
     sign = "-" if q < 0 else ""
+    if q == q.to_integral_value():
+        return f"{sign}${abs(q):,.0f}"
     return f"{sign}${abs(q):,.2f}"
 
 
@@ -72,7 +75,10 @@ def _context(request: Request) -> dict:
         "account": getattr(state, "account", None),
         "db_mode": mode,
         "db_mode_name": MODE_NAMES[mode],
+        "demo": getattr(state, "demo", False),
         "mode_links": mode_links(request),
+        # Where the footer's demo toggle sends the browser back to (checked again by the /demo route).
+        "here": f"{request.url.path}?{request.url.query}" if request.url.query else request.url.path,
         "timings": getattr(state, "timings", []),
     }
 

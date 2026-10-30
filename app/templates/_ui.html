@@ -1,0 +1,6 @@
+{# Shared page components (docs/conventions.md, 14). Import with: {% import "_ui.html" as ui %} #}
+
+{# A term followed by a "?" link to its glossary entry. #}
+{% macro term(label, anchor) -%}
+{{ label }}<a class="term" href="/glossary#{{ anchor }}" aria-label="What does {{ label|lower }} mean?">?</a>
+{%- endmacro %}

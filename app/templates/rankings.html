@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui.html" as ui %}
 {% block title %}Town rankings · Neighboar{% endblock %}
 {% block content %}
 <h1>Town rankings</h1>
@@ -36,12 +37,12 @@
 {% for flat_type, rows in groups %}
 <h2>{{ flat_type }} in {{ f.year }}</h2>
 <figure class="chart">
-  <div class="chartbox tall" data-towns="{{ rows|length }}"><canvas id="rankings-chart-{{ loop.index0 }}" data-chart="rankings" data-source="rankings-data" data-index="{{ loop.index0 }}" aria-label="Bar chart of the median* price of each town for {{ flat_type }} in {{ f.year }}, with the island median* as a line. The same figures are in the table below."></canvas></div>
+  <div class="chartbox tall" data-towns="{{ rows|length }}"><canvas id="rankings-chart-{{ loop.index0 }}" data-chart="rankings" data-source="rankings-data" data-index="{{ loop.index0 }}" aria-label="Bar chart of the typical price of each town for {{ flat_type }} in {{ f.year }}, with the island typical price as a line. The same figures are in the table below."></canvas></div>
 </figure>
 <div class="table-wrap">
 <table class="rankings">
-  <caption>Town median* prices for {{ flat_type }} in {{ f.year }}, in rank order</caption>
-  <thead><tr><th>Rank</th><th>Town</th><th>Sales</th><th>Median* price</th><th>Average price per sqm</th><th>Island median*</th><th>Above island median</th></tr></thead>
+  <caption>Town typical prices for {{ flat_type }} in {{ f.year }}, in rank order</caption>
+  <thead><tr><th>Rank</th><th>Town</th><th>Sales</th><th>{{ ui.term('Typical price', 'typical-price') }}</th><th>Average price per sqm</th><th>Island typical price</th><th>Above island typical price</th></tr></thead>
   <tbody>
     {% for r in rows %}
     <tr><td>{{ r.rank }}</td><td>{{ r.town }}</td><td>{{ r.n }}</td><td>{{ r.median_price|money }}</td><td>{{ r.avg_psm|money }}</td><td>{{ r.island_median|money }}</td><td>{{ 'Yes' if r.beats_island else 'No' }}</td></tr>
@@ -52,7 +53,6 @@
 {% endfor %}
 {% if groups %}
 <script type="application/json" id="rankings-data">{{ chart|tojson }}</script>
-<p class="footnote">* median: the lower of the two middle prices when n is even</p>
 {% else %}
 <p>No sales match.</p>
 {% endif %}

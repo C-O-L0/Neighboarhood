@@ -71,7 +71,7 @@
   <thead><tr><th>Month</th><th>Town</th><th>Block</th><th>Street</th><th>Flat type</th><th>Model</th><th>Storey</th><th>Area (sqm)</th><th>Lease start</th><th>Remaining lease</th><th>Price</th><th>Price per sqm</th></tr></thead>
   <tbody>
     {% for r in result.rows %}
-    <tr><td>{{ r.txn_month|month }}</td><td>{{ r.town }}</td><td>{{ r.block }}</td><td><a href="/building/{{ r.building_id }}">{{ r.street }}</a></td><td>{{ r.flat_type }}</td><td>{{ r.flat_model }}</td><td>{{ r.storey_min|storey(r.storey_max) }}</td><td>{{ r.floor_area_sqm }}</td><td>{{ r.lease_commence_year|unknown }}</td><td>{{ r.remaining_lease_months|lease }}</td><td>{{ r.resale_price|money }}</td><td>{{ r.price_psm|money }}</td></tr>
+    <tr><td class="nowrap">{{ r.txn_month|month }}</td><td>{{ r.town }}</td><td>{{ r.block }}</td><td><a href="/building/{{ r.building_id }}">{{ r.street }}</a></td><td>{{ r.flat_type }}</td><td>{{ r.flat_model }}</td><td class="nowrap">{{ r.storey_min|storey(r.storey_max) }}</td><td>{{ r.floor_area_sqm }}</td><td>{{ r.lease_commence_year|unknown }}</td><td>{{ r.remaining_lease_months|lease }}</td><td>{{ r.resale_price|money }}</td><td>{{ r.price_psm|money }}</td></tr>
     {% endfor %}
   </tbody>
 </table>

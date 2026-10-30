@@ -9,6 +9,8 @@ import secrets
 import httpx
 import pytest
 
+from tests.integration.web import DEMO
+
 BASE = os.environ.get("NEIGHBOAR_URL", "http://127.0.0.1:8000")
 pytestmark = pytest.mark.integration
 
@@ -19,10 +21,13 @@ DEMO_EMAIL = "demo@neighboar.local"
 
 
 class Browser:
-    """An httpx client with its own cookie jar that fetches a fresh CSRF token before each POST."""
+    """An httpx client with its own cookie jar that fetches a fresh CSRF token before each POST.
+
+    It is in demo mode, so pages show the database switch and the timings.
+    """
 
     def __init__(self):
-        self.http = httpx.Client(base_url=BASE, timeout=30, follow_redirects=False)
+        self.http = httpx.Client(base_url=BASE, cookies=DEMO, timeout=30, follow_redirects=False)
 
     def token(self, mode):
         page = self.http.get(f"/login?db={mode}")
@@ -138,7 +143,7 @@ def test_demo_account_signs_in(browser, mode, demo_passwords):
     assert page.status_code == 200
     name = "PostgreSQL" if mode == "pg" else "MongoDB"
     assert DEMO_EMAIL in page.text
-    assert "Signed in as" in page.text and f"({name})" in page.text
+    assert "Signed in as" in page.text and f'<th scope="row">Database</th><td>{name}</td>' in page.text
     assert "Last active" in page.text and "Created" in page.text
 
 

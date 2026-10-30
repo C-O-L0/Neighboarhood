@@ -1,4 +1,4 @@
-"""Vendored Chart.js, no off-site assets, no inline scripts (task 2.5)."""
+"""Vendored Chart.js and font, no off-site assets, no inline scripts (tasks 2.5 and T1)."""
 
 import hashlib
 import re
@@ -16,6 +16,17 @@ def test_vendored_chart_js_matches_the_recorded_hash():
     recorded = re.search(r"checked by .*?: `([0-9a-f]{64})`", readme).group(1)
     assert hashlib.sha256((STATIC / "vendor" / "chart.umd.js").read_bytes()).hexdigest() == recorded
     assert (STATIC / "vendor" / "chart.umd.js").read_bytes().startswith(b"/*!\n * Chart.js v4.4.7")
+
+
+def test_vendored_font_matches_the_recorded_hash_and_is_used():
+    readme = (STATIC / "vendor" / "README.md").read_text(encoding="utf-8")
+    recorded = re.search(r"Font SHA-256 in hex \(checked by .*?: `([0-9a-f]{64})`", readme).group(1)
+    font = STATIC / "vendor" / "figtree-latin.woff2"
+    assert hashlib.sha256(font.read_bytes()).hexdigest() == recorded
+    assert font.read_bytes().startswith(b"wOF2")
+    assert 'url("vendor/figtree-latin.woff2")' in (STATIC / "app.css").read_text(encoding="utf-8")
+    licence = (STATIC / "vendor" / "LICENSE.figtree-OFL.txt").read_text(encoding="utf-8")
+    assert "SIL OPEN FONT LICENSE" in licence.upper()
 
 
 def test_both_licence_files_exist():
@@ -57,8 +68,10 @@ def test_css_scrolls_wrappers_not_tables():
 
 def test_the_checker_catches_what_it_should():
     scan = Scan()
-    scan.feed('<script>x()</script><a onclick="x()">a</a><script src="https://cdn.example/x.js"></script>'
-              '<link rel="stylesheet" href="//cdn.example/a.css"><script type="application/json">{}</script>')
+    scan.feed(
+        '<script>x()</script><a onclick="x()">a</a><script src="https://cdn.example/x.js"></script>'
+        '<link rel="stylesheet" href="//cdn.example/a.css"><script type="application/json">{}</script>'
+    )
     assert len(scan.problems) == 4
 
 

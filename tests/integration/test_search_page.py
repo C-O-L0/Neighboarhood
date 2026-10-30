@@ -9,16 +9,18 @@ import pytest
 from psycopg import sql
 
 from etl.clean import FLAT_MODEL_IDS, FLAT_TYPE_IDS, TOWN_IDS
+from tests.integration.web import DEMO
 
 BASE = os.environ.get("NEIGHBOAR_URL", "http://127.0.0.1:8000")
 pytestmark = pytest.mark.integration
 
-MAIN = re.compile(r'<main class="page">(.*?)</main>', re.S)
+MAIN = re.compile(r'<main id="main" class="page">(.*?)</main>', re.S)
 TIMING = re.compile(r"<li>([^<]+): [\d.]+ ms on (PostgreSQL|MongoDB) \(query and fetch\)</li>")
 ROWS = re.compile(r"<tbody>(.*?)</tbody>", re.S)
 
 
 def get(path, **kw):
+    kw.setdefault("cookies", DEMO)
     return httpx.get(f"{BASE}{path}", timeout=30, **kw)
 
 
@@ -174,7 +176,7 @@ def test_last_page_has_no_next_and_beyond_it_is_empty():
 def test_duplicate_pair_appears_twice(db):
     q = "block=18&street=MARINE+TER&month_from=2017-02&month_to=2017-02&flat_type=4+ROOM"
     page = main_of(get(f"/search?{q}&db={db}"))
-    assert page.count("$468,000.00") >= 2
+    assert page.count("$468,000") >= 2
     assert page.count("04 TO 06") >= 2
     assert page.count("88.0") >= 2
 

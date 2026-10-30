@@ -100,7 +100,7 @@
     {% for s in sales %}
     <tr>
       <td>{{ s.txn_id }}</td>
-      <td>{{ s.txn_month|month }}</td>
+      <td class="nowrap">{{ s.txn_month|month }}</td>
       <td><a href="/building/{{ s.building_id }}?db={{ db_mode }}">{{ s.block }} {{ s.street }}</a></td>
       <td>{{ s.town }}</td>
       <td>{{ s.flat_type }}</td>

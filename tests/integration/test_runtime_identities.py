@@ -149,6 +149,8 @@ ROUTES: dict[str, tuple[str, Callable[[SimpleNamespace], Req]]] = {
     "POST /saved": ("buyer", lambda c: Req("/saved", form={"building_id": str(c.plan.a_id), "note": "probe"})),
     "POST /saved/note": ("buyer", lambda c: Req("/saved/note", form={"building_id": str(c.plan.a_id), "note": "x"})),
     "POST /saved/remove": ("buyer", lambda c: Req("/saved/remove", form={"building_id": str(c.plan.a_id)})),
+    "GET /glossary": ("anon", lambda c: Req("/glossary")),
+    "POST /demo": ("anon", lambda c: Req("/demo", form={"on": "1", "next": "/"})),
     "GET /admin": ("admin", lambda c: Req("/admin")),
     "POST /admin/sales": ("admin", lambda c: Req("/admin/sales", form=sale_form(c.plan))),
     "POST /admin/sales/delete": ("admin", lambda c: Req("/admin/sales/delete", form={"txn_id": str(2**63 - 1)})),

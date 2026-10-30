@@ -10,17 +10,19 @@ import pytest
 
 from app.services.trends import add_months
 from tests.equivalence.cases import has_gap, trend_series
+from tests.integration.web import DEMO
 
 BASE = os.environ.get("NEIGHBOAR_URL", "http://127.0.0.1:8000")
 pytestmark = pytest.mark.integration
 
 TIMING = re.compile(r"<li>([^<]+): [\d.]+ ms on (PostgreSQL|MongoDB) \(query and fetch\)</li>")
-FOOTNOTE = "* median: the lower of the two middle prices when n is even"
-NAV = ["/", "/search", "/trends", "/rankings", "/food", "/health"]
+TERM = 'href="/glossary#typical-price"'
+NAV = ["/", "/search", "/trends", "/rankings", "/food", "/glossary"]
 JSON_TAG = re.compile(r'<script type="application/json" id="([\w-]+)">(.*?)</script>', re.S)
 
 
 def get(path, **kw):
+    kw.setdefault("cookies", DEMO)
     return httpx.get(f"{BASE}{path}", timeout=30, **kw)
 
 
@@ -58,16 +60,32 @@ def pages(building_path, gap_query):
 
 
 @pytest.mark.parametrize("db,name", [("pg", "PostgreSQL"), ("mongo", "MongoDB")])
-def test_every_page_has_navigation_toggle_and_timing(db, name, building_path, gap_query):
+def test_every_page_has_navigation_demo_bar_and_timing(db, name, building_path, gap_query):
     for path, queries in pages(building_path, gap_query):
         resp = get(path + ("&" if "?" in path else "?") + f"db={db}")
         assert resp.status_code == 200, path
         for target in NAV:
-            assert f'<a href="{target}">' in resp.text, (path, target)
+            assert f'href="{target}"' in resp.text, (path, target)
         assert f'<strong id="db-mode">{name}</strong>' in resp.text
         assert resp.text.count('aria-current="true"') == 1
+        assert resp.text.count('aria-current="page"') <= 1
+        assert 'href="/health"' in resp.text
         if queries:
             assert TIMING.findall(resp.text), path
+
+
+def test_without_demo_mode_there_is_no_switch_and_no_timing(building_path):
+    for path in ("/", "/search?town=BISHAN", building_path):
+        resp = get(path, cookies={})
+        assert resp.status_code == 200, path
+        assert 'id="db-mode"' not in resp.text and not TIMING.findall(resp.text), path
+        assert 'action="/demo"' in resp.text and 'aria-pressed="false"' in resp.text, path
+
+
+def test_current_menu_item_is_marked():
+    assert re.search(r'<a href="/search" aria-current="page">Search</a>', get("/search").text)
+    assert re.search(r'<a href="/" aria-current="page">Find a home</a>', get("/").text)
+    assert 'aria-current="page"' not in get("/glossary").text
 
 
 def test_chart_script_is_served_from_the_site():
@@ -81,7 +99,7 @@ def test_trends_chart_json_covers_every_month_with_null_for_gaps(db, gap_query):
     resp = get(f"{gap_query}&db={db}")
     data = json.loads(chart_json(resp, "trends-data"))
     assert set(data) == {"months", "median", "rolling_median", "n"}
-    rows = re.findall(r"<tr><td>([A-Z][a-z]{2} \d{4})</td>", resp.text)
+    rows = re.findall(r'<tr><td class="nowrap">([A-Z][a-z]{2} \d{4})</td>', resp.text)
     first, last = rows[0], rows[-1]
     names = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
     index = {m: i for i, m in enumerate(names)}
@@ -174,10 +192,15 @@ def test_wide_tables_are_wrapped_for_scrolling(db, building_path, gap_query):
 
 
 @pytest.mark.parametrize("db", ["pg", "mongo"])
-def test_pages_with_a_median_show_the_footnote(db, building_path, gap_query):
+def test_pages_with_a_typical_price_link_it_to_the_glossary(db, building_path, gap_query):
     for path in (gap_query, "/rankings?year=2022", building_path):
         text = get(f"{path}{'&' if '?' in path else '?'}db={db}").text
-        if "median*" in text:
-            assert FOOTNOTE in text, path
-    assert FOOTNOTE in get(f"{gap_query}&db={db}").text
-    assert FOOTNOTE in get(f"/rankings?year=2022&db={db}").text
+        assert "Typical price" in text and TERM in text, path
+        assert "median*" not in text.lower(), path
+
+
+def test_glossary_has_an_entry_for_every_linked_term(building_path, gap_query):
+    glossary = get("/glossary").text
+    for path in (gap_query, "/rankings?year=2022", building_path):
+        for anchor in re.findall(r'href="/glossary#([\w-]+)"', get(path).text):
+            assert f'<dt id="{anchor}">' in glossary, (path, anchor)
