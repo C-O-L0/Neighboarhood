@@ -40,9 +40,7 @@ def _back(request: Request, back: str, building_id: int | None, params: dict[str
 
 
 def _invalid(request: Request, heading: str, message: str):
-    return templates.TemplateResponse(
-        request, "error.html", {"heading": heading, "message": message}, status_code=422
-    )
+    return templates.TemplateResponse(request, "error.html", {"heading": heading, "message": message}, status_code=422)
 
 
 def _read(request: Request, building_id: str, note: str | None = None):

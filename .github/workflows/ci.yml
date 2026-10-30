@@ -18,7 +18,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Lint (fast fail before building images)
-        run: pipx run ruff==0.17.1 check .
+        run: |
+          pipx run ruff==0.17.1 check .
+          pipx run ruff==0.17.1 format --check .
 
       - name: Create .env with throwaway secrets
         run: |

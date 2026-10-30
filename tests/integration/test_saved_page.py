@@ -157,9 +157,7 @@ def test_the_rollback_demo_changes_nothing(mode, make_user, blocks, pg_rw, mongo
     ids_before = saved_ids(mode, bid, pg_rw, mongo_app)
     active_before = last_active(mode, bid, pg_rw, mongo_app)
 
-    resp = browser.post(
-        "/saved", mode, building_id=str(blocks[1]), note="demo", simulate_failure="1", back="building"
-    )
+    resp = browser.post("/saved", mode, building_id=str(blocks[1]), note="demo", simulate_failure="1", back="building")
     text = notice(follow(browser, resp))
     if mode == "pg":
         assert text.startswith("Rolled back: the transaction inserted 1 row into saved_building and updated 1 row")

@@ -30,7 +30,10 @@ def test_a_good_form_is_normalised_and_quantized():
 
 def test_the_boundaries_just_inside_are_accepted():
     form, errors = parse(
-        resale_price="9999999.99", floor_area_sqm="399.9", storey_min="1", storey_max="60",
+        resale_price="9999999.99",
+        floor_area_sqm="399.9",
+        storey_min="1",
+        storey_max="60",
         remaining_lease_months="1188",
     )
     assert errors == [] and form.resale_price == Decimal("9999999.99")

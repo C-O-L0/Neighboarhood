@@ -296,9 +296,7 @@ def write_mongo(db: Database, buyers: list[Buyer]) -> None:
     db.counters.update_one({"_id": "buyer"}, {"$max": {"seq": top}}, upsert=True)
 
 
-def synthesise(
-    pg: psycopg.Connection, db: Database, buyer_password: str, admin_password: str
-) -> tuple[int, int]:
+def synthesise(pg: psycopg.Connection, db: Database, buyer_password: str, admin_password: str) -> tuple[int, int]:
     """Check both databases, then write the same buyers to both. Returns (buyers, saves)."""
     check_demo_passwords(buyer_password, admin_password)
     pg_rows, mongo_rows = pg_buildings(pg), mongo_buildings(db)

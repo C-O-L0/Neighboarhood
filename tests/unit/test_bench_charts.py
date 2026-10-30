@@ -200,7 +200,7 @@ def test_line_charts_have_one_line_per_db_with_markers_and_no_value_labels(tmp_p
             }
             assert all(ln.get_marker() not in ("", "None", None) for ln in lines)
             assert not ax.texts
-            assert "(" in ax.get_ylabel()   # units
+            assert "(" in ax.get_ylabel()  # units
     assert all(figures[n].legends for n in charts.CHARTS)  # one legend on every chart
     assert "calls/s" in figures["throughput"].axes[0].get_ylabel()
 

@@ -163,4 +163,3 @@ def test_main_returns_one_on_a_forced_failure_and_leaves_the_indexes(handles, tm
 
 def test_main_refuses_an_unknown_case(tmp_path):
     assert bench_explain.main(["--cases", "trends_series", "--results-root", str(tmp_path)]) == 2
-

@@ -10,15 +10,26 @@ from app.services.charts import money_text, rankings_chart, trends_chart
 
 def point(month, median, rolling="400000", n=3):
     return TrendPoint(
-        month=month, n=n, median_price=Decimal(median), avg_psm=Decimal("5000.00"),
-        prev_year_median=None, rolling_n=10, rolling_median=Decimal(rolling),
+        month=month,
+        n=n,
+        median_price=Decimal(median),
+        avg_psm=Decimal("5000.00"),
+        prev_year_median=None,
+        rolling_n=10,
+        rolling_median=Decimal(rolling),
     )
 
 
 def rank(town, median, island="500000"):
     return TownRank(
-        flat_type="4 ROOM", rank=1, town=town, n=5, median_price=Decimal(median),
-        avg_psm=Decimal("5000.00"), island_median=Decimal(island), beats_island=True,
+        flat_type="4 ROOM",
+        rank=1,
+        town=town,
+        n=5,
+        median_price=Decimal(median),
+        avg_psm=Decimal("5000.00"),
+        island_median=Decimal(island),
+        beats_island=True,
     )
 
 

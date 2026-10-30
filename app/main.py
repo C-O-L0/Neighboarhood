@@ -63,9 +63,7 @@ def create_app() -> FastAPI:
             )
         response = await call_next(request)
         if param is not None:
-            response.set_cookie(
-                COOKIE, param, max_age=COOKIE_MAX_AGE, path="/", httponly=True, samesite="lax"
-            )
+            response.set_cookie(COOKIE, param, max_age=COOKIE_MAX_AGE, path="/", httponly=True, samesite="lax")
         return response
 
     app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")

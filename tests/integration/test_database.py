@@ -339,9 +339,15 @@ def test_mongo_transaction_rolls_back(mongo_app, mongo_admin, mongo_admin_client
 
 @pytest.mark.parametrize("month", [datetime(2024, 2, 1, tzinfo=UTC), datetime(2025, 12, 1, tzinfo=UTC)])
 def test_mongo_valid_sale_is_accepted(mongo_app, mongo_admin, month):
-    doc = {**_valid_sale(mongo_app, -6), "source": "admin", "txn_month": month,
-           "storey_min": 1, "storey_max": 1, "floor_area_sqm": Decimal128("399.9"),
-           "resale_price": Decimal128("0.01")}
+    doc = {
+        **_valid_sale(mongo_app, -6),
+        "source": "admin",
+        "txn_month": month,
+        "storey_min": 1,
+        "storey_max": 1,
+        "floor_area_sqm": Decimal128("399.9"),
+        "resale_price": Decimal128("0.01"),
+    }
     try:
         mongo_admin.resale_transactions.insert_one(doc)
         assert mongo_admin.resale_transactions.find_one({"_id": -6}) is not None

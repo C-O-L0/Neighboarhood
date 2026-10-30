@@ -199,9 +199,7 @@ def test_session_cookie_attributes_and_contents(demo_passwords):
     assert resp.status_code == 403  # no session, no token
     client = httpx.Client(base_url=BASE, follow_redirects=False)
     token = CSRF.search(client.get("/login?db=pg").text).group(1)
-    resp = client.post(
-        "/login?db=pg", data={"csrf_token": token, "email": DEMO_EMAIL, "password": demo_passwords[0]}
-    )
+    resp = client.post("/login?db=pg", data={"csrf_token": token, "email": DEMO_EMAIL, "password": demo_passwords[0]})
     assert resp.status_code == 303
     header = next(h for h in resp.headers.get_list("set-cookie") if h.startswith("neighboar_session="))
     low = header.lower()

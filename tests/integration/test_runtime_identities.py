@@ -160,7 +160,7 @@ ROUTES: dict[str, tuple[str, Callable[[SimpleNamespace], Req]]] = {
 
 
 def route_keys(application) -> set[str]:
-    """"METHOD path" for every route; included routers are expanded (FastAPI 0.143 app.routes no longer lists them)."""
+    """ "METHOD path" for every route; included routers are expanded (FastAPI 0.143 app.routes no longer lists them)."""
     keys = set()
     for context in iter_route_contexts(application.routes):
         methods = sorted(m for m in (context.methods or ()) if m != "HEAD") or ["MOUNT"]
@@ -210,9 +210,7 @@ def stray_buyers(pg_owner, mongo_etl):
 
 @pytest.mark.parametrize("mode", MODES)
 @pytest.mark.parametrize("key", sorted(ROUTES))
-def test_route_checks_out_only_its_own_identities(
-    key, mode, app, make_user, plan, cleanup, stray_buyers, monkeypatch
-):
+def test_route_checks_out_only_its_own_identities(key, mode, app, make_user, plan, cleanup, stray_buyers, monkeypatch):
     new_email = f"test-identity-{secrets.token_hex(6)}@example.com"
     stray_buyers.append(new_email)
     role, build = ROUTES[key]

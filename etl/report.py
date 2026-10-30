@@ -107,7 +107,7 @@ def render(report: dict, rejected: pd.DataFrame | None = None, db_counts: dict |
     if fresh:
         w(
             "Other counts in this report are cleaning output (rows written to `data/interim/*.parquet`). "
-            "Counts taken from PostgreSQL and MongoDB after loading are in \"Database counts\"."
+            'Counts taken from PostgreSQL and MongoDB after loading are in "Database counts".'
         )
     else:
         w(
