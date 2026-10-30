@@ -33,7 +33,7 @@ Every SQL `ORDER BY` (and window `ORDER BY`) on a text column uses `COLLATE "C"`
 
 ## 5. Timing (section 2)
 
-The service layer times only the repo call with `time.perf_counter_ns()`. Connection checkout from the pool is outside the timed span. It records `Timing(label, db, ms)` on `request.state.timings`. In demo mode (section 6) the demo bar lists each timing as "<label>: <ms> ms on PostgreSQL|MongoDB (query and fetch)", after the page total.
+The service layer times only the repo call with `time.perf_counter_ns()`. Connection checkout from the pool is outside the timed span. It records `Timing(label, db, ms)` on `request.state.timings`. The two lookups that serve the page frame rather than the page, the signed-in account and the data month in the footer (`app/services/guards.py`), are not timed. In demo mode (section 6) the demo bar lists each timing as "<label>: <ms> ms on PostgreSQL|MongoDB (query and fetch)", after the page total.
 
 ## 6. DB mode
 

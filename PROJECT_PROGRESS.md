@@ -2,6 +2,14 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-30 UI overhaul, task T2 towns that fit
+
+- New `explore` feature in both databases: `latest_month`, `flat_type_ranges` (count, typical floor area, 10th and 90th percentile price per resale flat type) and `towns_fit` (per town: count, typical price, sales at or under the budget; cheapest first). Every query filters on `(flat_type, txn_month)` and uses that index in both databases; the latest month is one index probe per flat type (PostgreSQL `LATERAL` backward scan, MongoDB `DISTINCT_SCAN`).
+- "Recent" means the 12 registration months ending at the latest month in the data. `app/services/explore.py` works out that window once and passes both dates to each database. Percentiles in MongoDB pick the element PostgreSQL's `percentile_disc` picks, position `ceil(p * n)` with `p` a double.
+- The footer shows "Sales registered up to <month>" from the current database; the lookup runs for GET pages only and is not timed, like the account lookup.
+- Rules for the pages (T6): "few sales" is fewer than 5; the best fit is the fitting town with the highest share of sales within budget (ties: lower typical price, then name); with no fit, the 3 towns least over budget. Budgets accept commas and a dollar sign.
+- Full suite on the sample: 1498 passed, 0 skipped.
+
 ## 2026-10-30 UI overhaul, task T1 page shell
 
 - The UI is being rebuilt around buyer use cases (find where we can afford, check a price, judge a block, shortlist and compare as a household); the task list runs T1 to T18. T1 is the shared shell.

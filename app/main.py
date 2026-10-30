@@ -15,7 +15,7 @@ from app.routers import admin, auth, building, demo, food, glossary, health, ran
 from app.services.admin import AdminState
 from app.services.auth import LoginThrottle
 from app.services.dbmode import COOKIE, COOKIE_MAX_AGE, MODES, demo_on, requested_mode, resolve_mode
-from app.services.guards import csrf_guard, load_account
+from app.services.guards import csrf_guard, load_account, load_data_month
 from app.templating import templates
 
 BASE = Path(__file__).resolve().parent
@@ -34,7 +34,11 @@ def create_app() -> FastAPI:
         finally:
             app.state.dbs.close()
 
-    app = FastAPI(title="Neighboar", lifespan=lifespan, dependencies=[Depends(csrf_guard), Depends(load_account)])
+    app = FastAPI(
+        title="Neighboar",
+        lifespan=lifespan,
+        dependencies=[Depends(csrf_guard), Depends(load_account), Depends(load_data_month)],
+    )
     app.add_middleware(
         SessionMiddleware,
         secret_key=settings.secret_key,

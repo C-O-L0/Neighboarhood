@@ -18,6 +18,8 @@ from app.services.repos import REPOS
 log = logging.getLogger(__name__)
 
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+# Routes that never render a page footer, so they skip the data-month lookup.
+NOT_PAGES = ("/api/", "/docs", "/redoc", "/openapi.json")
 
 
 async def csrf_guard(request: Request) -> None:
@@ -66,6 +68,28 @@ def load_account(request: Request) -> None:
     if account is None:  # the account was deleted since sign-in
         del request.session["uid"][mode]
     request.state.account = account
+
+
+def load_data_month(request: Request) -> None:
+    """Set request.state.data_month to the latest registration month in this request's database, or None.
+
+    Pages show it in the footer ("Sales registered up to ...") and the explore pages end their recent window on
+    it. Like the account lookup it serves the page frame, so it is not timed. Only GET pages need it.
+    """
+    request.state.data_month = None
+    mode = getattr(request.state, "db_mode", None)
+    if mode is None or request.method not in SAFE_METHODS or request.url.path.startswith(NOT_PAGES):
+        return
+    try:
+        admin = is_admin_path(request.url.path)
+        pg_cls, mongo_cls = REPOS["explore"]
+        if mode == "pg":
+            with pg_conn(request, admin=admin) as conn:
+                request.state.data_month = pg_cls(conn).latest_month()
+        else:
+            request.state.data_month = mongo_cls(mongo_db(request, admin=admin)).latest_month()
+    except Exception as exc:  # a database outage must not break every page
+        log.warning("data month lookup failed for mode %s: %s", mode, type(exc).__name__)
 
 
 def require_admin(request: Request) -> None:

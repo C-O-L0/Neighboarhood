@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal
 from typing import Protocol
 
 from app.repos.dto import (
@@ -9,13 +11,16 @@ from app.repos.dto import (
     BlockFoodAccess,
     BuildingDetail,
     Duplicate,
+    FlatTypeRange,
     Outcome,
     RolledBack,
     SavedBlock,
     SearchResult,
+    TownFit,
     TownRank,
     TrendPoint,
 )
+from app.services.explore import Window
 from app.services.rankings import RankingQuery
 from app.services.search import SearchQuery
 from app.services.trends import TrendQuery
@@ -98,4 +103,24 @@ class FoodRepo(Protocol):
 
     def town(self, town: str) -> list[BlockFoodAccess]:
         """Each geocoded block of the town with its nearest open centre, ordered by distance then building id."""
+        ...
+
+
+class ExploreRepo(Protocol):
+    def latest_month(self) -> date | None:
+        """The latest registration month with a sale (day 1); None when there are no sales."""
+        ...
+
+    def flat_type_ranges(self, window: Window) -> list[FlatTypeRange]:
+        """Per resale flat type with sales in the window: count, typical area, 10th and 90th percentile price.
+
+        Ordered as the flat types are listed in etl.clean.FLAT_TYPES.
+        """
+        ...
+
+    def towns_fit(self, flat_type: str, budget: Decimal, window: Window) -> list[TownFit]:
+        """Per town with sales of the flat type in the window: count, typical price and sales within budget.
+
+        Ordered by typical price, then town name.
+        """
         ...

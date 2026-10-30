@@ -20,6 +20,7 @@ from typing import Any
 from app.repos.dto import NewSale
 from app.repos.mongo.accounts import MongoAccountRepo
 from app.repos.mongo.building import MongoBuildingRepo
+from app.repos.mongo.explore import MongoExploreRepo
 from app.repos.mongo.food import MongoFoodRepo
 from app.repos.mongo.rankings import MongoRankingRepo
 from app.repos.mongo.saved import MongoSavedRepo
@@ -27,14 +28,16 @@ from app.repos.mongo.search import MongoSearchRepo
 from app.repos.mongo.trends import MongoTrendRepo
 from app.repos.pg.accounts import PgAccountRepo
 from app.repos.pg.building import PgBuildingRepo
+from app.repos.pg.explore import PgExploreRepo
 from app.repos.pg.food import PgFoodRepo
 from app.repos.pg.rankings import PgRankingRepo
 from app.repos.pg.saved import PgSavedRepo
 from app.repos.pg.search import PgSearchRepo
 from app.repos.pg.trends import PgTrendRepo
+from app.services.explore import FitQuery, window_ending
 from app.services.rankings import RankingQuery
 from app.services.search import RESALE_TYPES, SearchQuery
-from app.services.trends import TrendQuery
+from app.services.trends import TrendQuery, add_months
 
 SAMPLE_MAX = 1000
 FULL_DATA_STEP = 25  # building cases: every 25th building id in id order, plus the named blocks
@@ -410,6 +413,34 @@ def food_town_params(conn) -> list[dict]:
     return [{"town": n} for n in sorted(names)]
 
 
+# Explore (task T2). Windows end at the latest month and 24 months earlier, so a second, fully populated year is
+# compared too. Budgets: three round amounts, plus each flat type's own recent typical price as reported by
+# PostgreSQL, which puts a sale exactly on the budget (sales at the budget count as within it). The same list
+# runs on the sample and on full data: every case is one aggregate over one flat type and one window.
+EXPLORE_BUDGETS = ("300000", "650000", "1000000")
+
+
+def explore_window_params(conn) -> list[dict]:
+    latest = PgExploreRepo(conn).latest_month()
+    return [{"end": latest}, {"end": add_months(latest, -24)}]
+
+
+def explore_town_params(conn) -> list[dict]:
+    out = []
+    for w in explore_window_params(conn):
+        window = window_ending(w["end"])
+        for flat_type in RESALE_TYPES:
+            towns = PgExploreRepo(conn).towns_fit(flat_type, Decimal("1"), window)
+            budgets = [*EXPLORE_BUDGETS, *([str(towns[len(towns) // 2].median_price)] if towns else [])]
+            out += [{**w, "flat_type": flat_type, "budget": b} for b in budgets]
+    return out
+
+
+def _explore_towns(repo, p):
+    q = FitQuery.model_validate(p)
+    return repo.towns_fit(q.flat_type, q.budget, window_ending(p["end"]))
+
+
 CASES: list[Case] = [
     Case(
         name="building",
@@ -439,5 +470,23 @@ CASES: list[Case] = [
         pg_call=lambda conn, p: PgFoodRepo(conn).town(p["town"]),
         mongo_call=lambda db, p: MongoFoodRepo(db).town(p["town"]),
         params=food_town_params,
+    ),
+    Case(
+        name="explore_latest",
+        pg_call=lambda conn, p: PgExploreRepo(conn).latest_month(),
+        mongo_call=lambda db, p: MongoExploreRepo(db).latest_month(),
+        params=lambda conn: [{}],
+    ),
+    Case(
+        name="explore_ranges",
+        pg_call=lambda conn, p: PgExploreRepo(conn).flat_type_ranges(window_ending(p["end"])),
+        mongo_call=lambda db, p: MongoExploreRepo(db).flat_type_ranges(window_ending(p["end"])),
+        params=explore_window_params,
+    ),
+    Case(
+        name="explore_towns",
+        pg_call=lambda conn, p: _explore_towns(PgExploreRepo(conn), p),
+        mongo_call=lambda db, p: _explore_towns(MongoExploreRepo(db), p),
+        params=explore_town_params,
     ),
 ]

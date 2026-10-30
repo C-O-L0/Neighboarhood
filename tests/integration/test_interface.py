@@ -204,3 +204,12 @@ def test_glossary_has_an_entry_for_every_linked_term(building_path, gap_query):
     for path in (gap_query, "/rankings?year=2022", building_path):
         for anchor in re.findall(r'href="/glossary#([\w-]+)"', get(path).text):
             assert f'<dt id="{anchor}">' in glossary, (path, anchor)
+
+
+@pytest.mark.parametrize("db", ["pg", "mongo"])
+def test_footer_shows_the_latest_registration_month(db, pg_rw, building_path):
+    latest = pg_rw.execute("SELECT max(txn_month) FROM resale_transaction").fetchone()[0]
+    label = f"Sales registered up to {latest:%b %Y}"
+    for path in ("/", "/glossary", building_path):
+        assert label in get(f"{path}?db={db}").text, path
+    assert "Sales registered up to" not in get("/api/health").text
