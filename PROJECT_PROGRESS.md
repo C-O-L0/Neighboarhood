@@ -2,6 +2,13 @@
 
 Decisions and next actions only (README rule). Newest first.
 
+## 2026-10-30 UI overhaul, task T4 places and street abbreviations
+
+- Street abbreviations: every stored street is in HDB's abbreviated form (checked against all 632 streets in `data/cache/block_coordinates.csv`), so the typed text is abbreviated before it reaches either database (`etl.streets.abbreviate_street`, the reverse of `ABBREVIATIONS`; "SAINT" becomes "ST."). Used by search, the home block lookup and the new place picker. "marine terrace" now finds MARINE TER. Not handled: punctuation ("st georges" still misses ST. GEORGE'S RD).
+- New `places` feature in both databases: `find(block, street, limit)` for the picker (street contains the text, optional exact block, ordered by street then block number with 9 before 10) and `near(building_id, radius_m)` (located, not non-residential blocks within 1, 2 or 5 km, nearest first; None for an unknown or unlocated block). `app/services/places.py` reads "Blk 186 Bishan Street 13" as block and street.
+- Distances use the food-access method in both: Haversine with R = 6378100 m in PostgreSQL and `$geoNear` in MongoDB, compared within 1 m. MongoDB uses its location 2dsphere index; PostgreSQL has no spatial index and computes the distance for every located building. That is fast at 13,358 buildings and is a benchmark case for T17.
+- Full suite on the sample: 1565 passed, 0 skipped.
+
 ## 2026-10-30 UI overhaul, task T3 explainer baselines
 
 - `baselines(flat_type, window)` in both databases: per town, the lower median storey band (as `storey_min + storey_max`, kept whole), lease start year and floor area of the window's sales of the flat type. Same `(flat_type, txn_month)` index as T2.

@@ -189,3 +189,9 @@ def test_toggle_links_keep_a_normal_path(ids):
     page = get(f"/building/{ids['normal']}?db=pg").text
     assert f'href="/building/{ids["normal"]}?db=mongo"' in page
     assert f'href="/building/{ids["normal"]}?db=pg"' in page
+
+
+@pytest.mark.parametrize("db", ["pg", "mongo"])
+def test_find_accepts_full_street_words(ids, db):
+    resp = get(f"/building/find?block=17&street=marine+terrace&db={db}", follow_redirects=False)
+    assert resp.status_code == 303 and re.fullmatch(r"/building/\d+", resp.headers["location"])

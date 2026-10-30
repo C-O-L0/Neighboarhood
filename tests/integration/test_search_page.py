@@ -187,3 +187,11 @@ def test_injection_strings_are_not_errors(street, db):
     resp = get("/search", params={"street": street, "db": db})
     assert resp.status_code == 200
     assert "No sales match." in resp.text
+
+
+@pytest.mark.parametrize("db", ["pg", "mongo"])
+def test_street_accepts_full_words(db):
+    full = main_of(get(f"/search?street=marine+terrace&db={db}"))
+    short = main_of(get(f"/search?street=MARINE+TER&db={db}"))
+    assert re.search(r"[\d,]+ sales, page 1 of", full)
+    assert re.search(r"([\d,]+) sales", full).group(1) == re.search(r"([\d,]+) sales", short).group(1)

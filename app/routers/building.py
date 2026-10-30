@@ -9,6 +9,7 @@ from app.services.repos import call_repo
 from app.services.saved import notice_from
 from app.templating import templates
 from etl.clean import normalise_key
+from etl.streets import abbreviate_street
 
 router = APIRouter()
 
@@ -33,7 +34,7 @@ def home(request: Request):
 
 @router.get("/building/find")
 def find_building(request: Request, block: str = "", street: str = ""):
-    nb, ns = normalise_key(block), normalise_key(street)
+    nb, ns = normalise_key(block), abbreviate_street(street)  # "17 marine terrace" finds 17 MARINE TER
     if not 1 <= len(nb) <= MAX_BLOCK or not 1 <= len(ns) <= MAX_STREET:
         message = f"Enter a block of 1 to {MAX_BLOCK} characters and a street of 1 to {MAX_STREET} characters."
         return _home(request, 422, block=nb[:100], street=ns[:100], message=message)

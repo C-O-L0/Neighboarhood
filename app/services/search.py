@@ -14,6 +14,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, ValidationError, field_validator, model_validator
 
 from etl.clean import FLAT_MODEL_IDS, FLAT_TYPES, TOWN_IDS, normalise_key
+from etl.streets import abbreviate_street
 
 PAGE_SIZE = 50
 MAX_PAGE = 10_000
@@ -130,7 +131,8 @@ class SearchQuery(BaseModel):
     @field_validator("street", mode="before")
     @classmethod
     def _street(cls, v):
-        return _text(v, "Street", MAX_STREET)
+        # Full words become HDB's abbreviations ("terrace" finds "MARINE TER"), checked for length afterwards.
+        return _text(abbreviate_street(v) if v.isprintable() else v, "Street", MAX_STREET)
 
     @field_validator("block", mode="before")
     @classmethod

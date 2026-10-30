@@ -12,7 +12,9 @@ from app.repos.dto import (
     BuildingDetail,
     Duplicate,
     FlatTypeRange,
+    NearBlock,
     Outcome,
+    Place,
     RolledBack,
     SavedBlock,
     SearchResult,
@@ -129,5 +131,20 @@ class ExploreRepo(Protocol):
     def baselines(self, flat_type: str, window: Window) -> list[TownBaseline]:
         """Per town with sales of the flat type in the window: count and the typical storey band, lease start
         year and floor area (lower medians). Ordered by town name.
+        """
+        ...
+
+
+class PlaceRepo(Protocol):
+    def find(self, block: str | None, street: str, limit: int) -> list[Place]:
+        """Blocks whose street contains the text (and with that block number, when given), at most limit.
+
+        Ordered by street, then block number (shorter first, so 9 comes before 10), then building id.
+        """
+        ...
+
+    def near(self, building_id: int, radius_m: int) -> list[NearBlock] | None:
+        """Located blocks within radius_m of the block, nearest first (then building id), the block itself and
+        blocks marked non-residential left out. None when the block is unknown or has no coordinates.
         """
         ...

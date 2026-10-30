@@ -12,6 +12,7 @@ from app.repos.mongo.admin import MongoAdminRepo
 from app.repos.mongo.building import MongoBuildingRepo
 from app.repos.mongo.explore import MongoExploreRepo
 from app.repos.mongo.food import MongoFoodRepo
+from app.repos.mongo.places import MongoPlaceRepo
 from app.repos.mongo.rankings import MongoRankingRepo
 from app.repos.mongo.saved import MongoSavedRepo
 from app.repos.mongo.search import MongoSearchRepo
@@ -21,6 +22,7 @@ from app.repos.pg.admin import PgAdminRepo
 from app.repos.pg.building import PgBuildingRepo
 from app.repos.pg.explore import PgExploreRepo
 from app.repos.pg.food import PgFoodRepo
+from app.repos.pg.places import PgPlaceRepo
 from app.repos.pg.rankings import PgRankingRepo
 from app.repos.pg.saved import PgSavedRepo
 from app.repos.pg.search import PgSearchRepo
@@ -39,6 +41,7 @@ REPOS = {
     "admin": (PgAdminRepo, MongoAdminRepo),
     "food": (PgFoodRepo, MongoFoodRepo),
     "explore": (PgExploreRepo, MongoExploreRepo),
+    "places": (PgPlaceRepo, MongoPlaceRepo),
 }
 
 
