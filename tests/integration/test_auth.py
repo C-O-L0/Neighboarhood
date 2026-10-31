@@ -78,9 +78,18 @@ def mongo_count(mongo_app, email):
 
 
 def delete_buyer(pg_owner, mongo_etl, email):
+    """Delete a test buyer and, in both databases, any household or invitation they were part of."""
+    pg_owner.execute(
+        "DELETE FROM household WHERE household_id IN (SELECT m.household_id FROM household_member m"
+        " JOIN buyer b USING (buyer_id) WHERE lower(b.email) = %s)",
+        (email.lower(),),
+    )
     pg_owner.execute("DELETE FROM buyer WHERE lower(email) = %s", (email.lower(),))
     pg_owner.commit()
-    mongo_etl.buyers.delete_many({"email": email.lower()})
+    ids = [d["_id"] for d in mongo_etl.buyers.find({"email": email.lower()}, {"_id": 1})]
+    mongo_etl.households.delete_many({"members.buyer_id": {"$in": ids}})
+    mongo_etl.invitations.delete_many({"$or": [{"_id": {"$in": ids}}, {"invitee_id": {"$in": ids}}]})
+    mongo_etl.buyers.delete_many({"_id": {"$in": ids}})
 
 
 # ---------------------------------------------------------------- register

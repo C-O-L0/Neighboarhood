@@ -17,6 +17,10 @@ TABLES = (
     "buyer",
     "saved_building",
     "hawker_centre",
+    "household",
+    "household_member",
+    "household_invitation",
+    "household_saved",
 )
 
 PG_CONSTRAINTS = """

@@ -189,12 +189,17 @@ class Account:
 
 @dataclass(frozen=True)
 class SavedBlock:
+    """A block on a shortlist. On a household's shortlist, saved_by and note_by name the member (None for a
+    personal shortlist, where both are the owner, and when that account has been deleted)."""
+
     building_id: int
     block: str
     street: str
     town: str
     note: str | None
     saved_at: datetime
+    saved_by: int | None = None
+    note_by: int | None = None
 
 
 @dataclass(frozen=True)
@@ -210,6 +215,66 @@ class Outcome(StrEnum):
     NOT_SAVED = "not_saved"
     NO_SUCH_BUILDING = "no_such_building"
     CAP_REACHED = "cap_reached"
+
+
+class HouseholdOutcome(StrEnum):
+    """Result of a household write (UC10). Both repos return the same value for the same situation."""
+
+    OK = "ok"
+    NOT_FOUND = "not_found"  # no account with that email in this database (shown as a generic refusal, UC10 E1)
+    SELF = "self"  # the buyer invited their own email
+    IN_HOUSEHOLD = "in_household"  # the acting buyer is already in a household
+    PARTNER_IN_HOUSEHOLD = "partner_in_household"  # the other account is already in one (UC10 A2)
+    NO_INVITATION = "no_invitation"  # nothing to accept, decline or cancel
+    NOT_IN_HOUSEHOLD = "not_in_household"  # nothing to leave
+
+
+@dataclass(frozen=True)
+class Person:
+    buyer_id: int
+    email: str
+    display_name: str | None
+
+
+@dataclass(frozen=True)
+class Member:
+    buyer_id: int
+    email: str
+    display_name: str | None
+    seat: int  # 1 for the inviter, 2 for the one who accepted
+
+
+@dataclass(frozen=True)
+class Household:
+    household_id: int
+    members: list[Member]  # by seat
+    saved_count: int
+
+
+@dataclass(frozen=True)
+class Invitation:
+    inviter: Person
+    invitee: Person
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class Invitations:
+    """A buyer's pending invitations: the one they sent, and those they received (oldest first, then inviter id)."""
+
+    sent: Invitation | None
+    received: list[Invitation]
+
+
+@dataclass(frozen=True)
+class AcceptResult:
+    """merged: the partner's own blocks added to the shared shortlist; left_out: those that did not fit under the
+    cap (they are dropped, as are all of them when the partner chose not to merge). Blocks the inviter had
+    already saved count as neither."""
+
+    outcome: HouseholdOutcome
+    merged: int = 0
+    left_out: int = 0
 
 
 @dataclass(frozen=True)

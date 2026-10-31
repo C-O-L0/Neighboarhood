@@ -46,6 +46,10 @@ IDENTITY = {
     "resale_transaction": "pg_admin",
     "buyer": "pg_rw",
     "saved_building": "pg_rw",
+    "household": "pg_rw",
+    "household_member": "pg_rw",
+    "household_invitation": "pg_rw",
+    "household_saved": "pg_rw",
 }
 
 
@@ -159,6 +163,37 @@ def buyer_b(_c=None, **o):
 
 def saved(c, **o):
     return {"buyer_id": 900001, "building_id": c["blocks"][0], "note": "n", "saved_at": STAMP, **o}
+
+
+def buyer_c(_c=None, **o):
+    return buyer(buyer_id=900003, email="neg-c@example.com", **o)
+
+
+def home(_c=None, **o):
+    return {"household_id": 900101, "created_at": STAMP, **o}
+
+
+def home_b(_c=None, **o):
+    return home(household_id=900102, **o)
+
+
+def member(_c=None, **o):
+    return {"buyer_id": 900001, "household_id": 900101, "seat": 1, "joined_at": STAMP, **o}
+
+
+def member_b(_c=None, **o):
+    return member(buyer_id=900002, seat=2, **o)
+
+
+def invitation(_c=None, **o):
+    return {"inviter_id": 900001, "invitee_id": 900002, "created_at": STAMP, **o}
+
+
+def shared(c, **o):
+    return {
+        "household_id": 900101, "building_id": c["blocks"][0], "note": "n", "note_by": 900001, "saved_by": 900001,
+        "saved_at": STAMP, **o,
+    }  # fmt: skip
 
 
 def hawker(_c=None, **o):
@@ -406,6 +441,74 @@ for _col in ("buyer_id", "building_id", "saved_at"):
 case(S + "note:type", spec("saved_building", saved, {"note": "x" * 501}, _saver, sqlstate="22001"))
 case(S + "saved_building_cap#insert", None)  # custom runner below
 case(S + "saved_building_cap#update_buyer_id", None)  # custom runner below
+case(
+    S + "saved_building_owner",
+    spec(
+        "saved_building",
+        lambda c: saved(c, buyer_id=900002),
+        {"buyer_id": 900001},
+        [("buyer", buyer), ("buyer", buyer_b), ("household", home), ("household_member", member)],
+        message=r"is in a household",
+    ),
+)
+
+# ---- households (T11)
+HH = "pg:household."
+case(HH + "household_pkey", spec("household", home_b, {"household_id": 900101}, [("household", home)]))
+for _col in ("household_id", "created_at"):
+    case(f"{HH}household_{_col}_not_null", spec("household", home, {_col: None}))
+
+HM = "pg:household_member."
+_two = [("buyer", buyer), ("buyer", buyer_b), ("household", home)]
+case(
+    HM + "household_member_pkey",
+    spec("household_member", member_b, {"buyer_id": 900001}, [*_two, ("household_member", member)]),
+)
+case(
+    HM + "household_member_household_id_seat_key",
+    spec("household_member", member_b, {"seat": 1}, [*_two, ("household_member", member)]),
+)
+case(HM + "household_member_seat_check", spec("household_member", member, {"seat": 3}, _two))
+case(HM + "household_member_buyer_id_fkey", spec("household_member", member, {"buyer_id": MISSING}, _two))
+case(HM + "household_member_household_id_fkey", spec("household_member", member, {"household_id": MISSING}, _two))
+for _col in ("buyer_id", "household_id", "seat", "joined_at"):
+    case(f"{HM}household_member_{_col}_not_null", spec("household_member", member, {_col: None}, _two))
+
+HI = "pg:household_invitation."
+_three = [("buyer", buyer), ("buyer", buyer_b), ("buyer", buyer_c)]
+case(
+    HI + "household_invitation_pkey",
+    spec(
+        "household_invitation",
+        invitation(inviter_id=900003),
+        {"inviter_id": 900001},
+        [*_three, ("household_invitation", invitation)],
+    ),
+)
+case(HI + "household_invitation_check", spec("household_invitation", invitation, {"invitee_id": 900001}, _three))
+for _col in ("inviter_id", "invitee_id"):
+    case(f"{HI}household_invitation_{_col}_fkey", spec("household_invitation", invitation, {_col: MISSING}, _three))
+for _col in ("inviter_id", "invitee_id", "created_at"):
+    case(f"{HI}household_invitation_{_col}_not_null", spec("household_invitation", invitation, {_col: None}, _three))
+
+HS = "pg:household_saved."
+_home = [("buyer", buyer), ("household", home)]
+case(
+    HS + "household_saved_pkey",
+    spec(
+        "household_saved",
+        lambda c: shared(c, building_id=c["blocks"][1]),
+        shared,
+        [*_home, ("household_saved", shared)],
+    ),
+)
+for _col in ("household_id", "building_id", "note_by", "saved_by"):
+    case(f"{HS}household_saved_{_col}_fkey", spec("household_saved", shared, {_col: MISSING}, _home))
+for _col in ("household_id", "building_id", "saved_at"):
+    case(f"{HS}household_saved_{_col}_not_null", spec("household_saved", shared, {_col: None}, _home))
+case(HS + "note:type", spec("household_saved", shared, {"note": "x" * 501}, _home, sqlstate="22001"))
+case(HS + "household_saved_cap#insert", None)  # custom runner below
+case(HS + "household_saved_cap#update_household_id", None)  # custom runner below
 
 # hawker centres
 H = "pg:hawker_centre."
@@ -474,6 +577,8 @@ def test_pg_rule(key, request, live_pg_rules, loaded):
     conn = request.getfixturevalue(IDENTITY[rule["table"]])
     if key.startswith(S + "saved_building_cap"):
         return run_cap(conn, rule, key.split("#")[1], loaded)
+    if key.startswith(HS + "household_saved_cap"):
+        return run_household_cap(conn, rule, key.split("#")[1], loaded)
     run(conn, rule, CASES[key](loaded))
 
 
@@ -503,6 +608,33 @@ def run_cap(conn, rule: dict, variant: str, c: dict) -> None:
             with conn.transaction():
                 conn.execute(move, (900001,))
     expect_error(raised.value, rule, Spec("saved_building", {}, message=message))
+
+
+def run_household_cap(conn, rule: dict, variant: str, c: dict) -> None:
+    """Trigger (c): the 51st shared block is refused, by an insert and by moving a row to a full household."""
+    put(conn, "buyer", buyer())
+    put(conn, "household", home())
+    for b in c["blocks"][:49]:
+        put(conn, "household_saved", shared(c, building_id=b))
+    full = shared(c, building_id=c["blocks"][49])
+    with conn.transaction(force_rollback=True):  # the 50th is accepted
+        put(conn, "household_saved", full)
+    put(conn, "household_saved", full)
+    if variant == "insert":
+        with pytest.raises(psycopg.Error) as raised:
+            with conn.transaction():
+                put(conn, "household_saved", shared(c, building_id=c["blocks"][50]))
+    else:
+        put(conn, "household", home_b())
+        put(conn, "household", home(household_id=900103))
+        put(conn, "household_saved", shared(c, household_id=900102, building_id=c["blocks"][50]))
+        move = "UPDATE household_saved SET household_id = %s WHERE household_id = 900102"
+        with conn.transaction(force_rollback=True):  # an empty household takes the row
+            conn.execute(move, (900103,))
+        with pytest.raises(psycopg.Error) as raised:  # the full one cannot
+            with conn.transaction():
+                conn.execute(move, (900101,))
+    expect_error(raised.value, rule, Spec("household_saved", {}, message=r"already has 50 saved blocks"))
 
 
 def test_every_rule_has_a_case(live_pg_rules):

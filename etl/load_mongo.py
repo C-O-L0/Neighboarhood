@@ -15,8 +15,8 @@ parquet files PostgreSQL loads, so both databases hold the same data:
   counters             buyer and txn sequences seeded past the loaded ids
 
 `_id` reuses the PostgreSQL keys. Money is Decimal128. Runs as the `etl` user.
-Reloading replaces all snapshot documents; buyer accounts are kept, but their
-saved blocks are cleared because building ids may change.
+Reloading replaces all snapshot documents; buyer accounts and households are
+kept, but their saved blocks are cleared because building ids may change.
 
 Usage (after `python -m etl.clean`):
     python -m etl.load_mongo [--interim data/interim]
@@ -186,6 +186,7 @@ def load(db: Database, interim: Path) -> dict[str, int]:
     for name in SNAPSHOT_COLLECTIONS:
         db[name].delete_many({})
     db.buyers.update_many({}, {"$set": {"saved": []}})
+    db.households.update_many({}, {"$set": {"saved": []}})
 
     counts: dict[str, int] = {}
     for name in ["building_profiles", "resale_transactions", "hawker_centres"]:

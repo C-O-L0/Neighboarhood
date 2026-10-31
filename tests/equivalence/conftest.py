@@ -80,9 +80,17 @@ def new_buyers(pg_conn, mongo_db, owner_conn, etl_db):
         return pg_id, mongo_id
 
     yield make
-    for pg_id, mongo_id in made:
-        owner_conn.execute("DELETE FROM buyer WHERE buyer_id = %s", (pg_id,))
-        etl_db.buyers.delete_one({"_id": mongo_id})
+    pg_ids, mongo_ids = [p for p, _ in made], [m for _, m in made]
+    # Their households too: PostgreSQL cascades members and invitations, but a household row outlives its members.
+    owner_conn.execute(
+        "DELETE FROM household WHERE household_id IN"
+        " (SELECT household_id FROM household_member WHERE buyer_id = ANY(%s))",
+        (pg_ids,),
+    )
+    owner_conn.execute("DELETE FROM buyer WHERE buyer_id = ANY(%s)", (pg_ids,))
+    etl_db.households.delete_many({"members.buyer_id": {"$in": mongo_ids}})
+    etl_db.invitations.delete_many({"$or": [{"_id": {"$in": mongo_ids}}, {"invitee_id": {"$in": mongo_ids}}]})
+    etl_db.buyers.delete_many({"_id": {"$in": mongo_ids}})
 
 
 @pytest.fixture(scope="session")

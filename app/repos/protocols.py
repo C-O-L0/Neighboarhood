@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Protocol
 
 from app.repos.dto import (
+    AcceptResult,
     Account,
     BlockFitPage,
     BlockFoodAccess,
@@ -15,6 +16,9 @@ from app.repos.dto import (
     Duplicate,
     FlatTypeRange,
     FlatTypeRecent,
+    Household,
+    HouseholdOutcome,
+    Invitations,
     NearBlock,
     Outcome,
     Place,
@@ -100,6 +104,35 @@ class SavedRepo(Protocol):
 
     def remove(self, buyer_id: int, building_id: int) -> Outcome:
         """Unsave a block (ok or not_saved); a not_saved call changes nothing."""
+        ...
+
+
+class HouseholdRepo(Protocol):
+    """UC10. Every write touches the acting buyer's last active time when it changes anything."""
+
+    def household(self, buyer_id: int) -> Household | None:
+        """The buyer's household with its members (by seat) and the number of shared blocks, or None."""
+        ...
+
+    def invitations(self, buyer_id: int) -> Invitations:
+        """The invitation the buyer sent (if any) and those they received, oldest first."""
+        ...
+
+    def invite(self, inviter_id: int, email: str) -> HouseholdOutcome:
+        """Invite the account with this email (ignoring case). Replaces the inviter's pending invitation."""
+        ...
+
+    def cancel(self, inviter_id: int) -> HouseholdOutcome: ...
+
+    def decline(self, invitee_id: int, inviter_id: int) -> HouseholdOutcome: ...
+
+    def accept(self, invitee_id: int, inviter_id: int, merge: bool) -> AcceptResult:
+        """One transaction. The inviter's blocks start the shared shortlist; the invitee's are merged in when
+        merge is set (oldest first, up to the cap of 50) and dropped otherwise. Removes every invitation of both."""
+        ...
+
+    def leave(self, buyer_id: int) -> HouseholdOutcome:
+        """Ends the household: the partner keeps the shortlist as their own; the leaver starts empty."""
         ...
 
 

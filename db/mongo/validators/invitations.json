@@ -1,0 +1,27 @@
+{
+  "bsonType": "object",
+  "title": "invitations: one pending household invitation per inviter (the _id is the inviter's buyer id)",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "invitee_id",
+    "created_at"
+  ],
+  "properties": {
+    "_id": {
+      "bsonType": [
+        "int",
+        "long"
+      ]
+    },
+    "invitee_id": {
+      "bsonType": [
+        "int",
+        "long"
+      ]
+    },
+    "created_at": {
+      "bsonType": "date"
+    }
+  }
+}

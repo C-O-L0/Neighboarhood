@@ -1,0 +1,112 @@
+{
+  "bsonType": "object",
+  "title": "households: two accounts sharing one shortlist, members and saved blocks embedded",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "created_at",
+    "members",
+    "saved"
+  ],
+  "properties": {
+    "_id": {
+      "bsonType": [
+        "int",
+        "long"
+      ]
+    },
+    "created_at": {
+      "bsonType": "date"
+    },
+    "members": {
+      "bsonType": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "bsonType": "object",
+        "additionalProperties": false,
+        "required": [
+          "buyer_id",
+          "seat",
+          "joined_at"
+        ],
+        "properties": {
+          "buyer_id": {
+            "bsonType": [
+              "int",
+              "long"
+            ]
+          },
+          "seat": {
+            "enum": [
+              1,
+              2
+            ]
+          },
+          "joined_at": {
+            "bsonType": "date"
+          }
+        }
+      }
+    },
+    "saved": {
+      "bsonType": "array",
+      "maxItems": 50,
+      "items": {
+        "bsonType": "object",
+        "additionalProperties": false,
+        "required": [
+          "building_id",
+          "block",
+          "street",
+          "town",
+          "saved_at"
+        ],
+        "properties": {
+          "building_id": {
+            "bsonType": [
+              "int",
+              "long"
+            ]
+          },
+          "block": {
+            "bsonType": "string",
+            "maxLength": 5
+          },
+          "street": {
+            "bsonType": "string",
+            "maxLength": 40
+          },
+          "town": {
+            "bsonType": "string",
+            "maxLength": 40
+          },
+          "note": {
+            "bsonType": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "saved_at": {
+            "bsonType": "date"
+          },
+          "note_by": {
+            "bsonType": [
+              "int",
+              "long",
+              "null"
+            ]
+          },
+          "saved_by": {
+            "bsonType": [
+              "int",
+              "long",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

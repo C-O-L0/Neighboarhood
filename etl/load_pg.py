@@ -5,8 +5,9 @@ table in foreign-key order, reset the identity sequences past the loaded ids,
 refresh the town-month materialised view and ANALYZE. If anything fails, the
 database is left exactly as it was.
 
-Reloading replaces all snapshot data. saved_building rows reference buildings, so
-they are emptied too; buyer accounts are kept (re-run etl/synth_buyers.py for saves).
+Reloading replaces all snapshot data. saved_building and household_saved rows reference
+buildings, so they are emptied too; buyer accounts and households are kept (re-run
+etl/synth_buyers.py for saves).
 
 Usage (after `python -m etl.clean`):
     python -m etl.load_pg [--interim data/interim]
@@ -78,7 +79,9 @@ def load(conn: psycopg.Connection, interim: Path) -> dict[str, int]:
         # Serialise with migrate and with another load.
         cur.execute("SELECT pg_advisory_xact_lock(hashtext('neighboar_load_pg'))")
         cur.execute(
-            sql.SQL("TRUNCATE {}, saved_building").format(sql.SQL(", ").join(sql.Identifier(t) for t in TABLES))
+            sql.SQL("TRUNCATE {}, saved_building, household_saved").format(
+                sql.SQL(", ").join(sql.Identifier(t) for t in TABLES)
+            )
         )
         # resale_transaction.source is not in the parquet and has no default, so
         # EXTRA_COLUMNS sets it to 'snapshot' on every loaded sale.

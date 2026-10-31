@@ -92,6 +92,49 @@ def test_two_hundred_buyers_and_identical_saves_in_both(pg, db, demo_passwords):
     assert {r[6] for r in pg_accounts(pg, True)} == {None} == {r[6] for r in mongo_accounts(db, True)}
 
 
+def pg_households(pg):
+    members = pg.execute(
+        "SELECT household_id, buyer_id, seat, joined_at FROM household_member WHERE buyer_id <= 200"
+    ).fetchall()
+    shared = pg.execute(
+        "SELECT household_id, building_id, note, note_by, saved_by, saved_at FROM household_saved"
+        " WHERE household_id IN (SELECT household_id FROM household_member WHERE buyer_id <= 200)"
+    ).fetchall()
+    invitations = pg.execute(
+        "SELECT inviter_id, invitee_id, created_at FROM household_invitation WHERE inviter_id <= 200"
+    ).fetchall()
+    return set(members), set(shared), set(invitations)
+
+
+def mongo_households(db):
+    docs = list(db.households.find({"members.buyer_id": {"$lte": 200}}))
+    members = {(d["_id"], m["buyer_id"], m["seat"], m["joined_at"]) for d in docs for m in d["members"]}
+    shared = {
+        (d["_id"], s["building_id"], s["note"], s["note_by"], s["saved_by"], s["saved_at"])
+        for d in docs
+        for s in d["saved"]
+    }
+    invitations = {(d["_id"], d["invitee_id"], d["created_at"]) for d in db.invitations.find({"_id": {"$lte": 200}})}
+    return members, shared, invitations
+
+
+def test_ten_households_and_five_invitations_identical_in_both(pg, db, demo_passwords):
+    run(pg, db, demo_passwords)
+    members, shared, invitations = pg_households(pg)
+    assert (members, shared, invitations) == mongo_households(db)
+    assert sorted((h, b, seat) for h, b, seat, _ in members) == [
+        (h, b, seat) for h in range(1, 11) for b, seat in ((2 * h + 1, 1), (2 * h + 2, 2))
+    ]
+    assert sorted((a, b) for a, b, _ in invitations) == [(23, 24), (25, 26), (27, 28), (29, 30), (31, 32)]
+    assert shared and all(s[4] in (2 * s[0] + 1, 2 * s[0] + 2) for s in shared)  # saved by one of the two
+    assert all((s[2] is None) == (s[3] is None) for s in shared)  # a note has an author
+    # Members keep no personal saves, and in MongoDB they carry their household's id.
+    assert not [r for r in pg_saves(pg) if 3 <= r[0] <= 22]
+    for d in db.buyers.find({"_id": {"$gte": 3, "$lte": 22}}):
+        assert d["saved"] == [] and d["household_id"] == (d["_id"] - 1) // 2
+    assert db.buyers.count_documents({"_id": {"$in": [1, 2, *range(23, 201)]}, "household_id": {"$ne": None}}) == 0
+
+
 def test_rerun_gives_identical_data(pg, db, demo_passwords):
     run(pg, db, demo_passwords)
     first = (pg_saves(pg), pg_accounts(pg), mongo_saves(db), mongo_accounts(db))

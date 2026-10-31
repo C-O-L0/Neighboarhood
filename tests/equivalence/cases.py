@@ -22,6 +22,7 @@ from app.repos.mongo.accounts import MongoAccountRepo
 from app.repos.mongo.building import MongoBuildingRepo
 from app.repos.mongo.explore import MongoExploreRepo
 from app.repos.mongo.food import MongoFoodRepo
+from app.repos.mongo.households import MongoHouseholdRepo
 from app.repos.mongo.places import MongoPlaceRepo
 from app.repos.mongo.prices import MongoPriceRepo
 from app.repos.mongo.rankings import MongoRankingRepo
@@ -32,6 +33,7 @@ from app.repos.pg.accounts import PgAccountRepo
 from app.repos.pg.building import PgBuildingRepo
 from app.repos.pg.explore import PgExploreRepo
 from app.repos.pg.food import PgFoodRepo
+from app.repos.pg.households import PgHouseholdRepo
 from app.repos.pg.places import PgPlaceRepo
 from app.repos.pg.prices import PgPriceRepo
 from app.repos.pg.rankings import PgRankingRepo
@@ -570,6 +572,21 @@ CASES: list[Case] = [
         name="saved",
         pg_call=lambda conn, p: PgSavedRepo(conn).list(p["buyer_id"]),
         mongo_call=lambda db, p: MongoSavedRepo(db).list(p["buyer_id"]),
+        params=buyer_params,
+    ),
+    # Households (T11): synthetic buyers 3 to 22 share ten households and 23 to 32 hold five invitations; the
+    # synthetic data gives both databases the same household ids and times. The writes are compared by the
+    # script in tests/equivalence/test_households.py.
+    Case(
+        name="households",
+        pg_call=lambda conn, p: PgHouseholdRepo(conn).household(p["buyer_id"]),
+        mongo_call=lambda db, p: MongoHouseholdRepo(db).household(p["buyer_id"]),
+        params=buyer_params,
+    ),
+    Case(
+        name="invitations",
+        pg_call=lambda conn, p: PgHouseholdRepo(conn).invitations(p["buyer_id"]),
+        mongo_call=lambda db, p: MongoHouseholdRepo(db).invitations(p["buyer_id"]),
         params=buyer_params,
     ),
     Case(
