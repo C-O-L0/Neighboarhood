@@ -62,7 +62,7 @@ docker compose up -d --build --wait web
 
 The first run pulls the images and builds the app, which takes a few minutes. Compose starts PostgreSQL and MongoDB, runs the one-off `migrate` step (replica set, roles, users, schema), then starts the web app. The command returns when the web app is healthy.
 
-Open http://localhost:8000/health. Both databases should show as up. The databases are empty at this point.
+Open http://localhost:8000/demo ("Behind the scenes"). Both databases should show as up. The databases are empty at this point.
 
 ## 5. Put the data snapshot in place
 

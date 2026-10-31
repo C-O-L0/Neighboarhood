@@ -18,7 +18,7 @@
         Neighboar
       </a>
       <nav class="menu" aria-label="Main">
-        {% for href, label in [('/', 'Find a home'), ('/price-check', 'Check a price'), ('/trends', 'Town trends'), ('/rankings', 'Rankings'), ('/food', 'Food')] %}
+        {% for href, label in [('/', 'Find a home'), ('/price-check', 'Check a price'), ('/trends', 'Town trends')] %}
         <a href="{{ href }}"{% if path == href %} aria-current="page"{% endif %}>{{ label }}</a>
         {% endfor %}
         {% if account %}<a href="/shortlist"{% if path in ('/shortlist', '/household') %} aria-current="page"{% endif %}>Shortlist{% if shortlist %} <span class="menu-count">{{ shortlist.count }}</span>{% endif %}</a>{% endif %}
@@ -66,7 +66,7 @@
         </ul>
       </div>
       {% endif %}
-      <a class="demo-link" href="/health">System health</a>
+      <a class="demo-link" href="/demo">Behind the scenes</a>
     </div>
   </div>
   {% endif %}

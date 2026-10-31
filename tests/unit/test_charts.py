@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 
 from app.repos.dto import TownRank, TrendPoint
-from app.services.charts import money_text, rankings_chart, trends_chart
+from app.services.charts import money_text, trends_chart
 
 
 def point(month, median, rolling="400000", n=3):
@@ -50,14 +50,3 @@ def test_trends_chart_fills_missing_months_with_null_and_is_json():
 
 def test_trends_chart_for_no_points_is_empty():
     assert trends_chart([]) == {"months": [], "median": [], "rolling_median": [], "n": []}
-
-
-def test_rankings_chart_has_one_element_per_flat_type_in_rank_order():
-    four = [rank("BISHAN", "600000"), rank("BEDOK", "500000.00")]
-    groups = [("4 ROOM", four), ("5 ROOM", [rank("BISHAN", "700000")])]
-    data = rankings_chart(groups)
-    assert [d["flat_type"] for d in data] == ["4 ROOM", "5 ROOM"]
-    assert data[0]["towns"] == ["BISHAN", "BEDOK"]
-    assert data[0]["median"] == ["600000.00", "500000.00"]
-    assert data[0]["island_median"] == "500000.00"
-    json.dumps(data)

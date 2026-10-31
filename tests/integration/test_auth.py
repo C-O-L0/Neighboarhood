@@ -79,6 +79,7 @@ def mongo_count(mongo_app, email):
 
 def delete_buyer(pg_owner, mongo_etl, email):
     """Delete a test buyer and, in both databases, any household or invitation they were part of."""
+    pg_owner.rollback()  # a failed statement earlier on this connection must not stop the clean-up
     pg_owner.execute(
         "DELETE FROM household WHERE household_id IN (SELECT m.household_id FROM household_member m"
         " JOIN buyer b USING (buyer_id) WHERE lower(b.email) = %s)",

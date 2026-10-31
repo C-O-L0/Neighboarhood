@@ -1,11 +1,14 @@
-"""Health check: proves the app reaches both databases as its least-privilege users."""
+"""Health check: proves the app reaches both databases as its least-privilege users.
+
+/api/health answers in JSON; the page that shows it to people is /demo (app/routers/behind.py).
+"""
 
 from __future__ import annotations
 
 import time
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
@@ -40,20 +43,12 @@ def _check_mongo(request: Request) -> dict:
         return {"ok": False, "error": f"{exc.__class__.__name__}: {exc}"}
 
 
-def _status(request: Request) -> dict:
+def status(request: Request) -> dict:
     pg, mongo = _check_postgres(request), _check_mongo(request)
     return {"ok": pg["ok"] and mongo["ok"], "postgres": pg, "mongodb": mongo}
 
 
-@router.get("/health", response_class=HTMLResponse)
-def health_page(request: Request):
-    status = _status(request)
-    return request.app.state.templates.TemplateResponse(
-        request, "health.html", {"status": status}, status_code=200 if status["ok"] else 503
-    )
-
-
 @router.get("/api/health")
 def health_json(request: Request):
-    status = _status(request)
-    return JSONResponse(status, status_code=200 if status["ok"] else 503)
+    result = status(request)
+    return JSONResponse(result, status_code=200 if result["ok"] else 503)

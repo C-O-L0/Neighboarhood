@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import Request
 
@@ -31,6 +32,7 @@ from app.repos.pg.rankings import PgRankingRepo
 from app.repos.pg.saved import PgSavedRepo
 from app.repos.pg.search import PgSearchRepo
 from app.repos.pg.trends import PgTrendRepo
+from app.services.behind import Call, MongoRecorder, PgRecorder
 from app.services.dbmode import Timing
 from app.services.identities import mongo_db, pg_conn
 
@@ -59,16 +61,38 @@ def call_repo(request: Request, feature: str, method: str, *args: Any, label: st
     """
     mode = request.state.db_mode
     pg_cls, mongo_cls = REPOS[feature]
+    record = getattr(request.state, "demo", False)  # behind the scenes is a demo-mode view (app/services/behind.py)
+    recorder = None
     if mode == "pg":
         with pg_conn(request) as conn:
-            fn = getattr(pg_cls(conn), method)
+            recorder = PgRecorder(conn) if record else None
+            fn = getattr(pg_cls(recorder or conn), method)
             started = time.perf_counter_ns()
             result = fn(*args)
             elapsed = time.perf_counter_ns() - started
     else:
-        fn = getattr(mongo_cls(mongo_db(request)), method)
+        db = mongo_db(request)
+        recorder = MongoRecorder(db) if record else None
+        fn = getattr(mongo_cls(recorder or db), method)
         started = time.perf_counter_ns()
         result = fn(*args)
         elapsed = time.perf_counter_ns() - started
-    request.state.timings.append(Timing(label or f"{feature}.{method}", mode, elapsed / 1e6))
+    name = label or f"{feature}.{method}"
+    if recorder is not None:
+        elapsed -= recorder.overhead_ns  # the recorder's own bookkeeping is not the database's time
+        statements = recorder.statements if mode == "pg" else []
+        calls = recorder.calls if mode == "mongo" else []
+        session = request.session.get("csrf", "")
+        call = Call(name, mode, elapsed / 1e6, statements, calls)
+        captures = request.app.state.captures
+        if not hasattr(request.state, "capture_id"):
+            request.state.capture_id = captures.new_id()
+        captures.add(session, request.state.capture_id, here(request), call)
+    request.state.timings.append(Timing(name, mode, elapsed / 1e6))
     return result
+
+
+def here(request: Request) -> str:
+    """The page's path and query, without db (the mode is shown separately)."""
+    query = urlencode([(k, v) for k, v in request.query_params.multi_items() if k != "db"])
+    return request.url.path + (f"?{query}" if query else "")

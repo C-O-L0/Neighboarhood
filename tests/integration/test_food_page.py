@@ -1,4 +1,4 @@
-"""Food access through the running web app: the block profile panel and /food (task 3.4)."""
+"""Food access through the running web app: the block profile panel (task 3.4), and the retired /food page."""
 
 import os
 import re
@@ -6,7 +6,6 @@ import re
 import httpx
 import pytest
 
-from etl.clean import TOWNS
 from tests.integration.web import DEMO
 
 BASE = os.environ.get("NEIGHBOAR_URL", "http://127.0.0.1:8000")
@@ -88,56 +87,8 @@ def test_unavailable_address_renders_as_unknown(pg_rw):
         assert '<span class="hint">Unknown' in panel_of(get(f"/block/{row[0]}?db={db}"))
 
 
-@pytest.mark.parametrize("db,name", MODES)
-def test_food_page_lists_the_town_with_a_timing_footer(db, name):
-    resp = get(f"/food?town=BISHAN&db={db}")
-    assert resp.status_code == 200
-    assert TIMING.findall(resp.text) == [("town food access", name)]
-    page = main_of(resp)
-    assert "Nearest hawker centre" in page and "Centres within 1 km" in page
-
-
-def test_food_page_is_the_same_in_both_modes():
-    def results(db):
-        page = main_of(get(f"/food?town=BUKIT+TIMAH&db={db}")).split("<h2>")[1]
-        return page.replace(f"?db={db}", "")  # the block links carry the mode
-
-    assert results("pg") == results("mongo")
-
-
-def test_first_visit_shows_the_empty_form():
-    resp = get("/food")
-    assert resp.status_code == 200
-    assert "<form" in resp.text and 'role="alert"' not in resp.text and "<table" not in resp.text
-    assert not TIMING.findall(resp.text)
-
-
-@pytest.mark.parametrize(
-    "query,message",
-    [
-        ("town=ATLANTIS", "Town must be one of the listed towns."),
-        ("town=bishan", "Town must be one of the listed towns."),
-        ("town=", "Town is required."),
-        ("town=%20", "Town is required."),
-    ],
-)
-@pytest.mark.parametrize("db", ["pg", "mongo"])
-def test_bad_town_is_422_with_a_message_and_no_query(query, message, db):
-    resp = get(f"/food?{query}&db={db}")
-    assert resp.status_code == 422
-    assert 'role="alert"' in resp.text and message in main_of(resp)
-    assert not TIMING.findall(resp.text)
-
-
-def test_town_input_is_escaped():
-    page = get('/food?town="><script>alert(1)</script>').text
-    assert "<script>alert(1)</script>" not in page
-
-
-@pytest.mark.parametrize("db", ["pg", "mongo"])
-def test_every_town_name_is_accepted(db):
-    names = sorted(name for _, name in TOWNS)
-    assert len(names) == 27
-    for name in names:
-        resp = get("/food", params={"town": name, "db": db})
-        assert resp.status_code == 200, name
+def test_the_retired_food_by_town_page_redirects_home():
+    # The town view was a query showcase; buyers get food access on each block profile. Its repo method stays
+    # (tests/equivalence/test_food.py and the benchmark's food_town case).
+    resp = get("/food?town=BISHAN", follow_redirects=False)
+    assert resp.status_code == 308 and resp.headers["location"] == "/"

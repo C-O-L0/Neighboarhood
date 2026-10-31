@@ -68,6 +68,7 @@ def make_user(app, pg_owner, mongo_etl):
 
     def make(mode, admin=False):
         session, email = Session(app), f"test-admin-{secrets.token_hex(6)}@example.com"
+        made.append(email)  # before anything can fail, so the account is always deleted
         assert session.post("/register", mode, email=email, password=PASSWORD).status_code == 303
         if admin:
             if mode == "pg":
@@ -77,7 +78,6 @@ def make_user(app, pg_owner, mongo_etl):
                 mongo_etl.buyers.update_one({"email": email}, {"$set": {"is_admin": True}})
         assert session.post("/login", mode, email=email, password=PASSWORD).status_code == 303
         session.email = email
-        made.append(email)
         return session
 
     yield make

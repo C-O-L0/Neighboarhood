@@ -14,22 +14,22 @@ from app.db import Databases
 from app.routers import (
     admin,
     auth,
+    behind,
     building,
     compare,
     demo,
     explore,
-    food,
     glossary,
     health,
     household,
     prices,
-    rankings,
     saved,
     search,
     trends,
 )
 from app.services.admin import AdminState
 from app.services.auth import LoginThrottle
+from app.services.behind import Captures
 from app.services.dbmode import COOKIE, COOKIE_MAX_AGE, MODES, demo_on, requested_mode, resolve_mode
 from app.services.guards import csrf_guard, load_account, load_data_month
 from app.templating import templates
@@ -66,6 +66,7 @@ def create_app() -> FastAPI:
     app.state.templates = templates
     app.state.throttle = LoginThrottle()  # per process; see docs
     app.state.admin = AdminState()  # per process: the admin write lock and the stale-figures flag
+    app.state.captures = Captures()  # per process: the last page's queries per session, for /demo
 
     @app.middleware("http")
     async def db_mode(request: Request, call_next):
@@ -92,14 +93,13 @@ def create_app() -> FastAPI:
     app.include_router(building.router)
     app.include_router(prices.router)
     app.include_router(compare.router)
-    app.include_router(food.router)
     app.include_router(search.router)
     app.include_router(trends.router)
-    app.include_router(rankings.router)
     app.include_router(auth.router)
     app.include_router(saved.router)
     app.include_router(household.router)
     app.include_router(admin.router)
     app.include_router(glossary.router)
     app.include_router(demo.router)
+    app.include_router(behind.router)
     return app

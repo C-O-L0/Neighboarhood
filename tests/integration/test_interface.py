@@ -17,7 +17,8 @@ pytestmark = pytest.mark.integration
 
 TIMING = re.compile(r"<li>([^<]+): [\d.]+ ms on (PostgreSQL|MongoDB) \(query and fetch\)</li>")
 TERM = 'href="/glossary#typical-price"'
-NAV = ["/", "/price-check", "/search", "/trends", "/rankings", "/food", "/glossary"]
+NAV = ["/", "/price-check", "/search", "/trends", "/glossary"]
+EXPLORE = "/explore?flat_type=4+ROOM&budget=650000"
 PRICE_CHECK = "/price-check?place_text=265+Bishan+St+24&flat_type=4+ROOM&area=104&price=700%2C000"
 JSON_TAG = re.compile(r'<script type="application/json" id="([\w-]+)">(.*?)</script>', re.S)
 
@@ -54,11 +55,9 @@ def pages(building_path, gap_query):
         ("/explore?flat_type=4+ROOM&budget=650000", True),
         ("/search?town=BISHAN", True),
         (gap_query, True),
-        ("/rankings?year=2022", True),
-        ("/food?town=BISHAN", True),
         (building_path, True),
         (PRICE_CHECK, True),
-        ("/health", False),
+        ("/demo", False),
     ]
 
 
@@ -72,7 +71,7 @@ def test_every_page_has_navigation_demo_bar_and_timing(db, name, building_path, 
         assert f'<strong id="db-mode">{name}</strong>' in resp.text
         assert resp.text.count('aria-current="true"') == 1
         assert resp.text.count('aria-current="page"') <= 1
-        assert 'href="/health"' in resp.text
+        assert 'href="/demo"' in resp.text
         if queries:
             assert TIMING.findall(resp.text), path
 
@@ -127,24 +126,6 @@ def test_trends_chart_json_is_identical_in_both_databases(gap_query):
     assert chart_json(pg, "trends-data") == chart_json(mongo, "trends-data")
 
 
-@pytest.mark.parametrize("db", ["pg", "mongo"])
-def test_rankings_chart_json_has_one_element_per_table(db):
-    resp = get(f"/rankings?year=2022&db={db}")
-    data = json.loads(chart_json(resp, "rankings-data"))
-    tables = re.findall(r'<table class="rankings">(.*?)</table>', resp.text, re.S)
-    assert len(data) == len(tables) >= 2
-    for element, table in zip(data, tables, strict=True):
-        assert set(element) == {"flat_type", "towns", "median", "island_median"}
-        assert len(element["towns"]) == len(element["median"])
-        assert element["towns"] == re.findall(r"<tr><td>\d+</td><td>([^<]+)</td>", table)
-    assert resp.text.count("<canvas") == len(data)
-
-
-def test_rankings_chart_json_is_identical_in_both_databases():
-    pg, mongo = get("/rankings?year=2022&db=pg"), get("/rankings?year=2022&db=mongo")
-    assert chart_json(pg, "rankings-data") == chart_json(mongo, "rankings-data")
-
-
 class Access(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -170,7 +151,7 @@ class Access(HTMLParser):
 @pytest.mark.parametrize("db", ["pg", "mongo"])
 def test_accessibility_labels_captions_and_canvas(db, building_path, gap_query):
     paths = [p for p, _ in pages(building_path, gap_query)]
-    paths += ["/trends", "/rankings", "/block/find?block=1&street=x"]
+    paths += ["/trends", "/block/find?block=1&street=x"]
     for path in paths:
         resp = get(path + ("&" if "?" in path else "?") + f"db={db}")
         scan = Access()
@@ -186,7 +167,6 @@ def test_wide_tables_are_wrapped_for_scrolling(db, building_path, gap_query):
     for path, css in (
         ("/search?town=BISHAN", "sales"),
         (gap_query, "trends"),
-        ("/rankings?year=2022", "rankings"),
         (building_path, "sales"),
     ):
         text = get(f"{path}{'&' if '?' in path else '?'}db={db}").text
@@ -196,7 +176,7 @@ def test_wide_tables_are_wrapped_for_scrolling(db, building_path, gap_query):
 
 @pytest.mark.parametrize("db", ["pg", "mongo"])
 def test_pages_with_a_typical_price_link_it_to_the_glossary(db, building_path, gap_query):
-    for path in (gap_query, "/rankings?year=2022", building_path):
+    for path in (gap_query, EXPLORE, building_path):
         text = get(f"{path}{'&' if '?' in path else '?'}db={db}").text
         assert "Typical price" in text and TERM in text, path
         assert "median*" not in text.lower(), path
@@ -204,7 +184,7 @@ def test_pages_with_a_typical_price_link_it_to_the_glossary(db, building_path, g
 
 def test_glossary_has_an_entry_for_every_linked_term(building_path, gap_query):
     glossary = get("/glossary").text
-    for path in (gap_query, "/rankings?year=2022", building_path):
+    for path in (gap_query, EXPLORE, building_path):
         for anchor in re.findall(r'href="/glossary#([\w-]+)"', get(path).text):
             assert f'<dt id="{anchor}">' in glossary, (path, anchor)
 

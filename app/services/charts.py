@@ -1,4 +1,4 @@
-"""Chart data for the trends and rankings pages (docs/conventions.md, 11).
+"""Chart data for the trends page (docs/conventions.md, 11).
 
 The result is embedded as JSON and read by app/static/charts.js. JSON cannot carry Decimal or date,
 so money becomes a string with exactly two decimals and months become "YYYY-MM". Rounding first makes
@@ -7,11 +7,10 @@ Decimal("500000") and Decimal("500000.00") give the same text whichever database
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from app.repos.dto import TownRank, TrendPoint
+from app.repos.dto import TrendPoint
 from app.services.trends import add_months
 
 _CENT = Decimal("0.01")
@@ -42,16 +41,3 @@ def trends_chart(points: list[TrendPoint]) -> dict:
         "rolling_median": [money_text(by_month[m].rolling_median) if m in by_month else None for m in months],
         "n": [by_month[m].n if m in by_month else None for m in months],
     }
-
-
-def rankings_chart(groups: Iterable[tuple[str, list[TownRank]]]) -> list[dict]:
-    """One element per flat type, towns in rank order."""
-    return [
-        {
-            "flat_type": flat_type,
-            "towns": [r.town for r in rows],
-            "median": [money_text(r.median_price) for r in rows],
-            "island_median": money_text(rows[0].island_median),
-        }
-        for flat_type, rows in groups
-    ]

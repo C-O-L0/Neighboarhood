@@ -62,9 +62,9 @@ def make_user(pg_owner, mongo_etl):
     def make(mode):
         browser = Browser()
         email = f"test-saved-{secrets.token_hex(6)}@example.com"
+        made.append((browser, email))  # before anything can fail, so the account is always deleted
         assert browser.post("/register", mode, email=email, password=PASSWORD).status_code == 303
         assert browser.login(mode, email, PASSWORD).status_code == 303
-        made.append((browser, email))
         return browser, email
 
     yield make
