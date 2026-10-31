@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Block {{ b.block }} {{ b.street|proper }} · Neighboar{% endblock %}
+{% block head %}{% if map %}<link rel="stylesheet" href="{{ url_for('static', path='vendor/leaflet.css') }}">{% endif %}{% endblock %}
+{% block content %}
+{% set land_labels = {
+  'residential': 'Residential', 'commercial': 'Commercial', 'market_hawker': 'Market / hawker',
+  'miscellaneous': 'Miscellaneous', 'multistorey_carpark': 'Multi-storey car park',
+  'precinct_pavilion': 'Precinct pavilion'} %}
+{% set town = b.town|proper %}
+<header class="profile-head">
+  <p class="eyebrow">{{ town }}</p>
+  <h1>Block {{ b.block }} {{ b.street|proper }}</h1>
+  <p class="lede">{{ summary }}</p>
+  {% if top_tags is not none %}
+  <p class="profile-tags"><span class="hint">{{ top.flat_type|flat_label }} sales here, compared with {{ town }}:</span> {{ ui.tag_list(top_tags, town) }}</p>
+  {% endif %}
+  <nav class="actions" aria-label="Next steps">
+    <a class="button secondary" href="{{ trend_link }}">{{ town }} trends</a>
+    <a class="button secondary" href="{{ near_link }}">Blocks near this</a>
+    {% if saved %}<a class="button secondary" href="#shortlist">On your shortlist</a>
+    {% else %}<a class="button" href="#shortlist">Save to shortlist</a>{% endif %}
+  </nav>
+</header>
+{% include "_notice.html" %}
+
+<div class="profile-split">
+  <section class="card glance" aria-labelledby="glance-h">
+    <h2 id="glance-h">At a glance</h2>
+    <dl class="glance-list">
+      <div><dt>Completed</dt><dd>{{ b.year_completed|unknown }}</dd></div>
+      <div><dt>{{ ui.term('Lease start', 'lease-start') }}</dt><dd>{{ b.lease_commence_year|unknown }}</dd></div>
+      <div><dt>{{ ui.term('Lease left', 'lease') }}</dt><dd>{% if lease_now is none %}Unknown{% elif lease_now > 0 %}About {{ lease_now }} year{{ '' if lease_now == 1 else 's' }}{% else %}Run out{% endif %}</dd></div>
+      <div><dt>Highest floor</dt><dd>{{ b.max_floor|unknown }}</dd></div>
+      <div>
+        <dt>Flats</dt>
+        <dd>
+          {% if b.supply is none %}Unknown
+          {% elif not b.supply %}No flats
+          {% else %}
+          <ul class="flat-mix">
+            {% for s in b.supply %}<li>{{ s.flat_type|flat_label }}: {{ s.sold + s.rental }}{% if s.rental %} <span class="hint">({{ s.rental }} rental)</span>{% endif %}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </dd>
+      </div>
+    </dl>
+
+    {% if b.lease_commence_year is not none %}
+    <form method="get" action="/block/{{ b.building_id }}#lease" class="lease-check" id="lease" data-lease-year="{{ b.lease_commence_year }}" data-now="{{ now }}">
+      <h3>Lease left later</h3>
+      <div class="lease-fields">
+        <div class="field">
+          <label for="lease-at">In the year</label>
+          <input id="lease-at" name="at" value="{{ lease_values.at }}" inputmode="numeric" maxlength="4" placeholder="{{ now + 15 }}">
+        </div>
+        <span class="lease-or">or</span>
+        <div class="field">
+          <label for="lease-age">Your age now</label>
+          <input id="lease-age" name="age" value="{{ lease_values.age }}" inputmode="numeric" maxlength="3">
+        </div>
+        <div class="field">
+          <label for="lease-at-age">At age</label>
+          <input id="lease-at-age" name="at_age" value="{{ lease_values.at_age }}" inputmode="numeric" maxlength="3">
+        </div>
+        <div class="field">
+          <label for="lease-min">Warn me below (years)</label>
+          <input id="lease-min" name="min_left" value="{{ lease_values.min_left }}" inputmode="numeric" maxlength="2" placeholder="Optional">
+        </div>
+        <button type="submit" class="secondary">Check</button>
+      </div>
+      {% if lease_errors %}
+      <div class="bad" role="alert"><ul>{% for e in lease_errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+      {% endif %}
+      <p class="lease-result" aria-live="polite">
+        {%- if check -%}
+          {%- if check.expired -%}In {{ check.year }}{% if check.age %}, at age {{ check.age }}{% endif %}, the lease will have run out.
+          {%- else -%}In {{ check.year }}{% if check.age %}, at age {{ check.age }}{% endif %}, about <strong>{{ check.left }} year{{ '' if check.left == 1 else 's' }}</strong> of lease will be left.{% if check.below %} <span class="warn">That is below your {{ check.min_left }} years.</span>{% elif check.min_left %} That is at least your {{ check.min_left }} years.{% endif %}
+          {%- endif -%}
+        {%- endif -%}
+      </p>
+      <p class="hint">CPF and loan rules depend on the lease left and change over time. <a href="{{ cpf_url }}" rel="noopener">See CPF’s rules</a>.</p>
+    </form>
+    {% endif %}
+  </section>
+
+  {% if map %}
+  <figure class="map-figure profile-map">
+    <div id="block-map" class="map" data-map data-source="map-data" data-tiles="{{ tile_url }}" data-attribution="{{ attribution }}" data-max-zoom="{{ max_zoom }}" role="region" aria-label="Map of this block and its nearest hawker centres"></div>
+    <figcaption>
+      <span class="map-fallback" hidden>The map could not load. </span>The block and its {{ food.nearest|length if food else 0 }} nearest open hawker centres, also listed under Food nearby.
+    </figcaption>
+  </figure>
+  <script type="application/json" id="map-data">{{ map|tojson }}</script>
+  {% else %}
+  <div class="map-missing"><p>Location not available, so there is no map or food access for this block.</p></div>
+  {% endif %}
+</div>
+
+<section aria-labelledby="prices-h">
+  <div class="section-head">
+    <h2 id="prices-h">Recent prices</h2>
+    <span class="hint">last 12 months</span>
+  </div>
+  {% if recent %}
+  <div class="table-wrap">
+  <table class="recent">
+    <caption class="sr">Recent prices by flat type</caption>
+    <thead><tr><th>Flat type</th><th>Sales</th><th>{{ ui.term('Typical price', 'typical-price') }}</th><th>Average per sqm</th><th>Against {{ town }}</th></tr></thead>
+    <tbody>
+      {% for row in recent %}
+      {% set r = row.r %}
+      <tr><td class="nowrap">{{ r.flat_type|flat_label }}</td><td class="nowrap">{{ r.n }}{{ ui.few(r.n, few_sales) }}</td><td>{{ r.median_price|money }}</td><td>{{ r.avg_psm|money }}</td><td>{% if row.tags is none %}<span class="hint">Too few town sales to compare</span>{% else %}{{ ui.tag_list(row.tags, town) }}{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% elif b.stats.txn_count %}
+  <p class="empty">No resale sales recorded in the last 12 months. The latest was in {{ b.stats.last_txn_month|month }}.</p>
+  {% else %}
+  <p class="empty">No resale sales recorded for this block.</p>
+  {% endif %}
+</section>
+
+{% if b.recent_sales %}
+<section aria-labelledby="sales-h">
+  <div class="section-head">
+    <h2 id="sales-h">Latest sales</h2>
+    <a href="{{ sales_link }}">Show all {{ b.stats.txn_count }}</a>
+  </div>
+  <div class="table-wrap">
+  <table class="sales">
+    <caption class="sr">Latest sales</caption>
+    <thead><tr><th>Month</th><th>Flat type</th><th>Storey</th><th>Area (sqm)</th><th>Price</th><th>Per sqm</th><th>Model</th></tr></thead>
+    <tbody>
+      {% for r in b.recent_sales %}
+      <tr><td class="nowrap">{{ r.txn_month|month }}</td><td class="nowrap">{{ r.flat_type|flat_label }}</td><td class="nowrap">{{ r.storey_min|storey(r.storey_max) }}</td><td>{{ r.floor_area_sqm }}</td><td>{{ r.resale_price|money }}</td><td>{{ r.price_psm|money }}</td><td>{{ r.flat_model }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <details class="more">
+    <summary>All {{ b.stats.txn_count }} sales on record, by flat type</summary>
+    <p>Typical price {{ b.stats.median_price|money }}, average {{ b.stats.avg_psm|money }} per sqm, latest {{ b.stats.last_txn_month|month }}.</p>
+    <div class="table-wrap">
+    <table class="stats">
+      <caption class="sr">All sales on record by flat type</caption>
+      <thead><tr><th>Flat type</th><th>Sales</th><th>Typical price</th><th>Average per sqm</th></tr></thead>
+      <tbody>
+        {% for f in b.stats.by_flat_type %}
+        <tr><td class="nowrap">{{ f.flat_type|flat_label }}</td><td>{{ f.txn_count }}</td><td>{{ f.median_price|money }}</td><td>{{ f.avg_psm|money }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+</section>
+{% endif %}
+
+<section aria-labelledby="food-h" class="food-near">
+  <h2 id="food-h">Food nearby</h2>
+  {% if food is none %}
+  <p class="empty">Location not available, so food access is not known.</p>
+  {% elif not food.nearest %}
+  <p class="empty">No open hawker centres.</p>
+  {% else %}
+  <p>{{ food.within_1km }} open hawker {{ 'centre' if food.within_1km == 1 else 'centres' }} within 1 km. The {{ food.nearest|length }} nearest, as the crow flies; centres under construction are left out.</p>
+  <ol class="hawker-list">
+    {% for h in food.nearest %}
+    <li>
+      <span class="hawker-name"><strong>{{ h.name }}</strong><span class="hint">{{ h.address|unknown }}{% if h.stall_count is not none %} · {{ h.stall_count }} cooked food stalls{% endif %}</span></span>
+      <span class="hawker-distance">{% if loop.index <= food.within_1km %}<span class="badge fit">Within 1 km</span> {% endif %}{{ h.distance_m|distance }}</span>
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+</section>
+
+<section aria-labelledby="shortlist-h" id="shortlist" class="card shortlist">
+  <h2 id="shortlist-h">Your shortlist</h2>
+  {% if not account %}
+  <p><a href="/login">Sign in</a> to save this block to your shortlist with a note.</p>
+  {% elif saved %}
+  <p>You saved this block on {{ saved.saved_at|stamp }}. <a href="/saved?db={{ db_mode }}">See your shortlist</a>.</p>
+  <form method="post" action="/saved/note?db={{ db_mode }}" class="saveform">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="building_id" value="{{ b.building_id }}">
+    <input type="hidden" name="back" value="building">
+    <label for="note">Note</label>
+    <textarea id="note" name="note" rows="3" maxlength="500">{{ saved.note or '' }}</textarea>
+    <div class="form-actions">
+      <button type="submit">Update note</button>
+      <button type="submit" class="secondary" form="remove-form">Remove from shortlist</button>
+    </div>
+  </form>
+  <form method="post" action="/saved/remove?db={{ db_mode }}" id="remove-form" hidden>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="building_id" value="{{ b.building_id }}">
+    <input type="hidden" name="back" value="building">
+  </form>
+  {% else %}
+  <form method="post" action="/saved?db={{ db_mode }}" class="saveform">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="building_id" value="{{ b.building_id }}">
+    <input type="hidden" name="back" value="building">
+    <label for="note">Note (optional, at most 500 characters)</label>
+    <textarea id="note" name="note" rows="3" maxlength="500" placeholder="For example: near the MRT, ask about the corridor"></textarea>
+    {% if demo %}
+    <label class="demo"><input type="checkbox" name="simulate_failure" value="1"> Simulate failure (rollback demonstration)</label>
+    <p class="demo">
+      {% if db_mode == 'pg' %}With this ticked, PostgreSQL inserts the saved block and updates your last active time inside one transaction, then fails on purpose before commit, so both changes are rolled back.
+      {% else %}MongoDB normally saves with one atomic update. With this ticked it runs the same update inside a multi-document transaction, then fails on purpose, so the transaction is aborted. The transaction is used only for this demonstration.
+      {% endif %}
+    </p>
+    {% endif %}
+    <div class="form-actions"><button type="submit">Save to shortlist</button></div>
+  </form>
+  {% endif %}
+</section>
+
+<details class="more">
+  <summary>More about this block</summary>
+  <dl class="facts">
+    <div><dt>Town</dt><dd>{{ town }} ({{ b.town_code }})</dd></div>
+    <div><dt>Total flats</dt><dd>{{ b.total_units|unknown }}</dd></div>
+    <div><dt>Latitude</dt><dd>{{ b.latitude|unknown }}</dd></div>
+    <div><dt>Longitude</dt><dd>{{ b.longitude|unknown }}</dd></div>
+    <div>
+    <dt>Land use</dt>
+    <dd>
+      {% if b.land_use is none %}Unknown
+      {% else %}
+      <ul>
+        {% for key, label in land_labels.items() %}<li>{{ label }}: {{ 'Yes' if b.land_use[key] else 'No' }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </dd>
+    </div>
+  </dl>
+</details>
+{% endblock %}
+{% block scripts %}
+{% if map %}
+<script src="{{ url_for('static', path='vendor/leaflet.js') }}"></script>
+<script src="{{ url_for('static', path='map.js') }}"></script>
+{% endif %}
+{% if b.lease_commence_year is not none %}<script src="{{ url_for('static', path='lease.js') }}"></script>{% endif %}
+{% endblock %}

@@ -11,6 +11,7 @@ from __future__ import annotations
 from pymongo.database import Database
 
 from app.repos.dto import BlockFoodAccess, HawkerDistance
+from app.repos.mongo.building import coord
 from app.services.food import EXCLUDED_STATUS, NEAREST_COUNT, RADIUS_M, round_metres
 
 _OPEN = {"properties.STATUS": {"$ne": EXCLUDED_STATUS}}
@@ -67,6 +68,8 @@ def _hawker(doc: dict) -> HawkerDistance:
         address=p["ADDRESS_MYENV"],
         status=p["STATUS"],
         stall_count=p["NUMBER_OF_COOKED_FOOD_STALLS"],
+        latitude=coord(doc["geometry"]["coordinates"][1]),
+        longitude=coord(doc["geometry"]["coordinates"][0]),
         distance_m=round_metres(doc["d"]),
     )
 

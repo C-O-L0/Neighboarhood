@@ -95,6 +95,18 @@ def test_distances_are_tolerant_within_one_metre_and_checked_independently(pg_co
     assert worst <= 1  # the report quotes the unrounded maximum, measured separately
 
 
+def test_centres_carry_their_stored_coordinates_in_both(pg_conn, mongo_db):
+    stored = {
+        h: (lat, lon)
+        for h, lat, lon in pg_conn.execute("SELECT hawker_id, latitude, longitude FROM hawker_centre").fetchall()
+    }
+    for p in food_block_params(pg_conn)[:50]:
+        for access in both_block(pg_conn, mongo_db, p["building_id"]):
+            for h in access.nearest:
+                assert (h.latitude, h.longitude) == stored[h.hawker_id]
+                assert h.latitude.as_tuple().exponent == -6 and h.longitude.as_tuple().exponent == -6
+
+
 def test_a_block_with_no_open_centre_within_1km_counts_zero_in_both(pg_conn, mongo_db):
     zero = [
         p["building_id"]

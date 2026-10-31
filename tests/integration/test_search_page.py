@@ -140,7 +140,7 @@ def test_row_formatting(db):
     assert re.search(r"\$\d{1,3}(,\d{3})+\.\d{2}", page)
     assert re.search(r"\d\d TO \d\d", page)
     assert re.search(r"\d+ years?( \d\d months?)?", page)
-    assert re.search(r'<a href="/building/\d+[^"]*">QUEEN&#39;S RD</a>', page)
+    assert re.search(r'<a href="/block/\d+[^"]*">QUEEN&#39;S RD</a>', page)
 
 
 @pytest.mark.parametrize("db", ["pg", "mongo"])

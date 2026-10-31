@@ -53,7 +53,7 @@ def test_home_offers_flat_types_with_their_recent_ranges(db, name):
     assert "How many rooms?" in page and "What is your budget?" in page and "Want to be near somewhere?" in page
     assert re.search(r"4 room About \d+ sqm · usually \$\d+k to \$[\d.]+[kM]", page)
     assert TIMING.findall(resp.text) == [("flat type ranges", name)]
-    assert 'action="/explore"' in resp.text and 'action="/building/find"' in resp.text
+    assert 'action="/explore"' in resp.text and 'action="/block/find"' in resp.text
 
 
 def test_home_keeps_the_values_it_is_given():
@@ -187,7 +187,7 @@ def test_the_map_has_a_pin_for_every_located_block_on_the_page(pg_rw):
     data = map_of(resp)
     ids = [
         int(i)
-        for i in re.findall(r'<li class="block-row">\s*<div class="block-name">\s*<a href="/building/(\d+)"', resp.text)
+        for i in re.findall(r'<li class="block-row">\s*<div class="block-name">\s*<a href="/block/(\d+)"', resp.text)
     ]
     located = {r[0] for r in pg_rw.execute("SELECT building_id FROM building WHERE latitude IS NOT NULL").fetchall()}
     assert [int(p["href"].rsplit("/", 1)[1]) for p in data["pins"]] == [i for i in ids if i in located]

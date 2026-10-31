@@ -3,7 +3,8 @@
 The latest month sorts on the type_month index and keeps the last month per flat type ($group with $last),
 which the planner runs as a DISTINCT_SCAN: one index key per flat type. The window aggregates $match on
 flat_type and txn_month, the same index. Percentiles sort the price arrays and take the element PostgreSQL's
-percentile_disc picks: position ceil(p * n) counting from 1, with p as a double so the rounding matches.
+percentile_disc picks: position ceil(p * n) counting from 1, with p as a double so the rounding matches. A
+block's own recent figures $match on building_id and txn_month (the building_month index).
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from decimal import Decimal
 from bson.decimal128 import Decimal128
 from pymongo.database import Database
 
-from app.repos.dto import BlockFit, BlockFitPage, FlatTypeRange, TownBaseline, TownFit
+from app.repos.dto import BlockFit, BlockFitPage, FlatTypeRange, FlatTypeRecent, TownBaseline, TownFit
 from app.repos.mongo.building import coord
 from app.services.explore import PAGE_SIZE, BlockFilter, Window
 from app.services.food import round_metres
@@ -100,6 +101,31 @@ def baselines_pipeline(flat_type: str, window: Window) -> list[dict]:
             }
         },
         {"$sort": {"_id": 1}},
+    ]
+
+
+def block_recent_pipeline(building_id: int, window: Window) -> list[dict]:
+    return [
+        {"$match": {"building_id": building_id, "txn_month": _in_window(window)}},
+        {
+            "$group": {
+                "_id": "$flat_type",
+                "n": {"$sum": 1},
+                "prices": {"$push": "$resale_price"},
+                "sum_psm": {"$sum": {"$divide": ["$resale_price", "$floor_area_sqm"]}},
+                "storeys": {"$push": {"$add": ["$storey_min", "$storey_max"]}},
+                "areas": {"$push": "$floor_area_sqm"},
+            }
+        },
+        {
+            "$project": {
+                "n": 1,
+                "median_price": at_percentile("$prices", "$n", 0.5),
+                "avg_psm": {"$round": [{"$divide": ["$sum_psm", "$n"]}, 2]},
+                "storey_sum": at_percentile("$storeys", "$n", 0.5),
+                "area_median": at_percentile("$areas", "$n", 0.5),
+            }
+        },
     ]
 
 
@@ -285,6 +311,21 @@ class MongoExploreRepo:
             )
             for d in docs
         ]
+
+    def block_recent(self, building_id: int, window: Window) -> list[FlatTypeRecent]:
+        docs = self.db.resale_transactions.aggregate(block_recent_pipeline(building_id, window))
+        rows = [
+            FlatTypeRecent(
+                flat_type=d["_id"],
+                n=d["n"],
+                median_price=d["median_price"].to_decimal(),
+                avg_psm=d["avg_psm"].to_decimal(),
+                storey_sum=d["storey_sum"],
+                area_median=d["area_median"].to_decimal(),
+            )
+            for d in docs
+        ]
+        return sorted(rows, key=lambda r: r.flat_type)  # code-point order, as PostgreSQL's COLLATE "C"
 
     def blocks_fit(self, f: BlockFilter) -> BlockFitPage:
         if f.place is None:

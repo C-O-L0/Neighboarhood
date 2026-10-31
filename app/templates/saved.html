@@ -14,7 +14,7 @@
   <tbody>
     {% for s in blocks %}
     <tr>
-      <td><a href="/building/{{ s.building_id }}?db={{ db_mode }}">{{ s.block }} {{ s.street }}</a></td>
+      <td><a href="/block/{{ s.building_id }}?db={{ db_mode }}">{{ s.block }} {{ s.street }}</a></td>
       <td>{{ s.town }}</td>
       <td>{{ s.saved_at|stamp }}</td>
       <td>

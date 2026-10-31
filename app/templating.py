@@ -99,8 +99,9 @@ def distance(metres: Decimal | None) -> str:
     """A walking-scale distance: "120 m" (to 10 m) below 1 km, "1.4 km" (to 0.1 km) from 1 km."""
     if metres is None:
         return "Unknown"
-    if metres < 1000:
-        return f"{metres.quantize(Decimal('1E1'), ROUND_HALF_UP):.0f} m"
+    tens = metres.quantize(Decimal("1E1"), ROUND_HALF_UP)
+    if tens < 1000:  # 999.9 m rounds to 1000, so it is shown as 1.0 km
+        return f"{tens:.0f} m"
     return f"{(metres / 1000).quantize(Decimal('0.1'), ROUND_HALF_UP)} km"
 
 

@@ -18,7 +18,7 @@ _DIST = f"""2 * {EARTH_RADIUS_M} * asin(sqrt(
     + cos(radians(b.latitude::double precision)) * cos(radians(h.latitude::double precision))
       * sin((radians(h.longitude::double precision) - radians(b.longitude::double precision)) / 2) ^ 2))"""
 
-_COLUMNS_SQL = sql.SQL("h.hawker_id, h.name, h.address, h.status, h.stall_count")
+_COLUMNS_SQL = sql.SQL("h.hawker_id, h.name, h.address, h.status, h.stall_count, h.latitude, h.longitude")
 _DIST_SQL = sql.SQL(_DIST)
 _RADIUS_SQL = sql.SQL(str(RADIUS_M))
 _FIVE_SQL = sql.SQL(str(NEAREST_COUNT))
@@ -27,7 +27,7 @@ _ONE_SQL = sql.SQL("1")
 _BLOCK = sql.SQL(
     """
 SELECT b.building_id, b.block, b.street,
-       n.hawker_id, n.name, n.address, n.status, n.stall_count, n.dist, c.within_1km
+       n.hawker_id, n.name, n.address, n.status, n.stall_count, n.latitude, n.longitude, n.dist, c.within_1km
 FROM building b
 CROSS JOIN LATERAL (
     SELECT count(*)::int AS within_1km
@@ -49,7 +49,7 @@ ORDER BY n.dist, n.hawker_id
 _TOWN = sql.SQL(
     """
 SELECT b.building_id, b.block, b.street,
-       n.hawker_id, n.name, n.address, n.status, n.stall_count, n.dist, c.within_1km
+       n.hawker_id, n.name, n.address, n.status, n.stall_count, n.latitude, n.longitude, n.dist, c.within_1km
 FROM building b
 JOIN town tw ON tw.town_id = b.town_id
 CROSS JOIN LATERAL (
@@ -71,7 +71,7 @@ ORDER BY n.dist, b.building_id
 
 
 def _hawker(row) -> HawkerDistance:
-    return HawkerDistance(row[3], row[4], row[5], row[6], row[7], round_metres(row[8]))
+    return HawkerDistance(*row[3:10], round_metres(row[10]))
 
 
 class PgFoodRepo:
@@ -88,9 +88,9 @@ class PgFoodRepo:
             return None
         first = rows[0]
         nearest = [_hawker(r) for r in rows if r[3] is not None]
-        return BlockFoodAccess(first[0], first[1], first[2], nearest, first[9])
+        return BlockFoodAccess(first[0], first[1], first[2], nearest, first[11])
 
     def town(self, town: str) -> list[BlockFoodAccess]:
         """Every geocoded block of the town with its nearest open centre, nearest first then building id."""
         rows = self.conn.execute(_TOWN, {"town": town, "status": EXCLUDED_STATUS}).fetchall()
-        return [BlockFoodAccess(r[0], r[1], r[2], [_hawker(r)], r[9]) for r in rows]
+        return [BlockFoodAccess(r[0], r[1], r[2], [_hawker(r)], r[11]) for r in rows]

@@ -87,7 +87,7 @@ def map_data(rows, place, radius_m: int) -> dict | None:
             "label": money_short(b.median_price),
             "name": f"{b.block} {proper(b.street)}",
             "detail": f"{money(b.median_price)} typical · {b.n} sale{'' if b.n == 1 else 's'}",
-            "href": f"/building/{b.building_id}",
+            "href": f"/block/{b.building_id}",
             "chosen": place is not None and b.building_id == place.building_id,
         }
         for b in rows

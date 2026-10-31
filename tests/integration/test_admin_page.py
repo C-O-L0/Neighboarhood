@@ -117,7 +117,7 @@ def state_of(mode, cleanup):
 
 def building_page(session, mode, plan):
     """The block's page without the timing footer, which differs on every request."""
-    return session.get(f"/building/{plan.a_id}", mode).text.split('<footer class="timings">')[0]
+    return session.get(f"/block/{plan.a_id}", mode).text.split('<footer class="timings">')[0]
 
 
 def recorded_id(resp):

@@ -34,7 +34,7 @@
   <thead><tr><th>Block</th><th>Street</th><th>Nearest hawker centre</th><th>Distance (m)</th><th>Centres within 1 km</th></tr></thead>
   <tbody>
     {% for r in blocks %}
-    <tr><td><a href="/building/{{ r.building_id }}?db={{ db_mode }}">{{ r.block }}</a></td><td>{{ r.street }}</td><td>{{ r.nearest[0].name }}</td><td>{{ r.nearest[0].distance_m }}</td><td>{{ r.within_1km }}</td></tr>
+    <tr><td><a href="/block/{{ r.building_id }}?db={{ db_mode }}">{{ r.block }}</a></td><td>{{ r.street }}</td><td>{{ r.nearest[0].name }}</td><td>{{ r.nearest[0].distance_m }}</td><td>{{ r.within_1km }}</td></tr>
     {% endfor %}
   </tbody>
 </table>

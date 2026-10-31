@@ -138,7 +138,7 @@
     {% set b = row.b %}
     <li class="block-row">
       <div class="block-name">
-        <a href="/building/{{ b.building_id }}">{{ b.block }} {{ b.street|proper }}</a>
+        <a href="/block/{{ b.building_id }}">{{ b.block }} {{ b.street|proper }}</a>
         <span class="hint">
           {{ b.town|proper }} · {{ b.n }} sale{{ '' if b.n == 1 else 's' }}{{ ui.few(b.n, few_sales) }}
           {% if row.lease_left is not none %} · about {{ row.lease_left }} years lease left{% endif %}

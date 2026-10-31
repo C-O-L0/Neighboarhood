@@ -1,4 +1,4 @@
-"""Building page, DB-mode switch, timing footer and block lookup through the running web app."""
+"""Block profile (S3), DB-mode switch, timing footer and block lookup through the running web app."""
 
 import os
 import re
@@ -47,46 +47,47 @@ def ids(pg_rw):
 
 @pytest.mark.parametrize("kind", ["normal", "stub", "zero_units", "teban"])
 def test_same_rendered_values_from_both_databases(ids, kind):
-    pg = get(f"/building/{ids[kind]}?db=pg")
-    mongo = get(f"/building/{ids[kind]}?db=mongo")
+    pg = get(f"/block/{ids[kind]}?db=pg")
+    mongo = get(f"/block/{ids[kind]}?db=mongo")
     assert pg.status_code == mongo.status_code == 200
     a, b = main_of(pg), main_of(mongo)
     assert a == b
 
 
 def test_stub_shows_unknown_and_zero_units_shows_zero(ids):
-    stub = main_of(get(f"/building/{ids['stub']}?db=pg"))
-    assert "<dt>Completion year</dt><dd>Unknown</dd>" in stub
+    stub = main_of(get(f"/block/{ids['stub']}?db=pg"))
+    assert "<dt>Completed</dt><dd>Unknown</dd>" in stub
     assert "<dt>Highest floor</dt><dd>Unknown</dd>" in stub
-    assert "<dt>Total dwelling units</dt><dd>Unknown</dd>" in stub
+    assert "<dt>Total flats</dt><dd>Unknown</dd>" in stub
     assert "<dt>Land use</dt> <dd> Unknown" in stub
-    assert "<h2>Units by flat type</h2> <p>Unknown</p>" in stub
-    zero = main_of(get(f"/building/{ids['zero_units']}?db=mongo"))
-    assert "<dt>Total dwelling units</dt><dd>0</dd>" in zero
-    assert "No dwelling units" in zero
+    assert "<dt>Flats</dt> <dd> Unknown" in stub
+    zero = main_of(get(f"/block/{ids['zero_units']}?db=mongo"))
+    assert "<dt>Total flats</dt><dd>0</dd>" in zero
+    assert "<dt>Flats</dt> <dd> No flats" in zero
 
 
 def test_teban_lease_year(ids):
     for db in ("pg", "mongo"):
-        assert "<dt>Lease start year</dt><dd>1966</dd>" in main_of(get(f"/building/{ids['teban']}?db={db}"))
+        page = main_of(get(f"/block/{ids['teban']}?db={db}"))
+        assert re.search(r"Lease start<a [^>]+>\?</a></dt><dd>1966</dd>", page)
 
 
 def test_typical_price_is_labelled_and_links_to_the_glossary(ids):
-    page = get(f"/building/{ids['normal']}").text
+    page = get(f"/block/{ids['normal']}").text
     assert "Typical price" in page and 'href="/glossary#typical-price"' in page
     assert "median*" not in page.lower()
 
 
 @pytest.mark.parametrize("db", ["pg", "mongo"])
 def test_unknown_building_is_404(db):
-    resp = get(f"/building/2000000000?db={db}")
+    resp = get(f"/block/2000000000?db={db}")
     assert resp.status_code == 404
-    assert get(f"/building/99999999999?db={db}").status_code == 404
+    assert get(f"/block/99999999999?db={db}").status_code == 404
 
 
 def test_invalid_db_is_400():
     assert get("/?db=xyz").status_code == 400
-    assert get("/building/1?db=").status_code == 400
+    assert get("/block/1?db=").status_code == 400
 
 
 def test_valid_db_sets_the_cookie_with_its_attributes():
@@ -101,7 +102,7 @@ def test_valid_db_sets_the_cookie_with_its_attributes():
 
 
 def test_in_demo_mode_the_cookie_decides_the_mode_and_default_is_pg(ids):
-    path = f"/building/{ids['normal']}"
+    path = f"/block/{ids['normal']}"
     assert {m[1] for m in TIMING.findall(get(path).text)} == {"PostgreSQL"}
     with httpx.Client(base_url=BASE, cookies={**DEMO, "db_mode": "mongo"}, timeout=15) as client:
         assert {m[1] for m in TIMING.findall(client.get(path).text)} == {"MongoDB"}
@@ -113,26 +114,39 @@ def test_in_demo_mode_the_cookie_decides_the_mode_and_default_is_pg(ids):
 
 @pytest.mark.parametrize("db,name", [("pg", "PostgreSQL"), ("mongo", "MongoDB")])
 def test_demo_bar_has_one_timing_line_per_repo_call_naming_the_database(ids, db, name):
-    timings = TIMING.findall(get(f"/building/{ids['normal']}?db={db}").text)
-    assert timings == [("building page", name), ("food access", name)]  # the normal block is geocoded
+    page = get(f"/block/{ids['normal']}?db={db}").text
+    timings = TIMING.findall(page)
+    assert timings[:3] == [("block profile", name), ("food access", name), ("recent prices", name)]
+    rows = len(re.findall(r"<tr><td", page.split('<table class="recent">')[1].split("</table>")[0]))
+    assert timings[3:] == [("town baselines", name)] * rows  # one baseline per flat type sold recently
 
 
 def test_header_links_keep_other_parameters_and_encode_them():
-    page = get("/building/find?block=1+2&street=A%26B&db=pg").text  # 422 page still has the header
-    assert 'href="/building/find?block=1+2&amp;street=A%26B&amp;db=mongo"' in page
-    assert 'href="/building/find?block=1+2&amp;street=A%26B&amp;db=pg"' in page
+    page = get("/block/find?block=1+2&street=A%26B&db=pg").text  # 422 page still has the header
+    assert 'href="/block/find?block=1+2&amp;street=A%26B&amp;db=mongo"' in page
+    assert 'href="/block/find?block=1+2&amp;street=A%26B&amp;db=pg"' in page
 
 
 @pytest.mark.parametrize("db", ["pg", "mongo"])
 def test_find_redirects_to_the_building(ids, db):
-    resp = get(f"/building/find?block=37&street=teban++gdns rd&db={db}", follow_redirects=False)
+    resp = get(f"/block/find?block=37&street=teban++gdns rd&db={db}", follow_redirects=False)
     assert resp.status_code == 303
-    assert resp.headers["location"] == f"/building/{ids['teban']}"
+    assert resp.headers["location"] == f"/block/{ids['teban']}"
+
+
+def test_the_old_building_paths_redirect_to_the_block_keeping_the_query(ids):
+    resp = get(f"/building/{ids['teban']}?db=mongo&at=2040", follow_redirects=False)
+    assert resp.status_code == 308
+    assert resp.headers["location"] == f"/block/{ids['teban']}?db=mongo&at=2040"
+    resp = get("/building/find?block=37&street=teban+gdns+rd", follow_redirects=False)
+    assert resp.status_code == 308 and resp.headers["location"] == "/block/find?block=37&street=teban+gdns+rd"
+    found = get("/building/find?block=37&street=teban+gdns+rd", follow_redirects=True)
+    assert found.url.path == f"/block/{ids['teban']}"
 
 
 @pytest.mark.parametrize("db", ["pg", "mongo"])
 def test_find_not_found_is_404(db):
-    resp = get(f"/building/find?block=99999&street=NO SUCH ROAD&db={db}", follow_redirects=False)
+    resp = get(f"/block/find?block=99999&street=NO SUCH ROAD&db={db}", follow_redirects=False)
     assert resp.status_code == 404
     assert "not found" in resp.text.lower()
     assert len(TIMING.findall(resp.text)) == 1
@@ -150,7 +164,7 @@ def test_find_not_found_is_404(db):
     ],
 )
 def test_find_rejects_bad_input_with_422_and_no_lookup(query):
-    resp = get(f"/building/find?{query}", follow_redirects=False)
+    resp = get(f"/block/find?{query}", follow_redirects=False)
     assert resp.status_code == 422
     # The home page it returns to loads its flat type ranges; the block lookup itself never runs.
     assert [t[0] for t in TIMING.findall(resp.text)] == ["flat type ranges"]
@@ -159,7 +173,7 @@ def test_find_rejects_bad_input_with_422_and_no_lookup(query):
 def test_home_page_has_the_lookup_form():
     resp = get("/")
     assert resp.status_code == 200
-    assert 'action="/building/find"' in resp.text
+    assert 'action="/block/find"' in resp.text
 
 
 def test_health_still_works():
@@ -187,12 +201,12 @@ def test_toggle_links_stay_on_this_origin(path):
 
 
 def test_toggle_links_keep_a_normal_path(ids):
-    page = get(f"/building/{ids['normal']}?db=pg").text
-    assert f'href="/building/{ids["normal"]}?db=mongo"' in page
-    assert f'href="/building/{ids["normal"]}?db=pg"' in page
+    page = get(f"/block/{ids['normal']}?db=pg").text
+    assert f'href="/block/{ids["normal"]}?db=mongo"' in page
+    assert f'href="/block/{ids["normal"]}?db=pg"' in page
 
 
 @pytest.mark.parametrize("db", ["pg", "mongo"])
 def test_find_accepts_full_street_words(ids, db):
-    resp = get(f"/building/find?block=17&street=marine+terrace&db={db}", follow_redirects=False)
-    assert resp.status_code == 303 and re.fullmatch(r"/building/\d+", resp.headers["location"])
+    resp = get(f"/block/find?block=17&street=marine+terrace&db={db}", follow_redirects=False)
+    assert resp.status_code == 303 and re.fullmatch(r"/block/\d+", resp.headers["location"])
