@@ -18,11 +18,10 @@
         Neighboar
       </a>
       <nav class="menu" aria-label="Main">
-        {% for href, label in [('/', 'Find a home'), ('/price-check', 'Check a price'), ('/search', 'Search'), ('/trends', 'Town trends'), ('/rankings', 'Rankings'), ('/food', 'Food')] %}
+        {% for href, label in [('/', 'Find a home'), ('/price-check', 'Check a price'), ('/trends', 'Town trends'), ('/rankings', 'Rankings'), ('/food', 'Food')] %}
         <a href="{{ href }}"{% if path == href %} aria-current="page"{% endif %}>{{ label }}</a>
         {% endfor %}
         {% if account %}<a href="/shortlist"{% if path in ('/shortlist', '/household') %} aria-current="page"{% endif %}>Shortlist{% if shortlist %} <span class="menu-count">{{ shortlist.count }}</span>{% endif %}</a>{% endif %}
-        {% if account and account.is_admin %}<a href="/admin?db={{ db_mode }}"{% if path == '/admin' %} aria-current="page"{% endif %}>Admin</a>{% endif %}
       </nav>
       <div class="account">
         {% if account %}
@@ -34,6 +33,7 @@
           <div class="account-pop">
             <a href="/account?db={{ db_mode }}">Your account</a>
             <a href="/household">Household{% if shortlist and shortlist.invitations %} <span class="invite-badge">{{ shortlist.invitations }} new</span>{% endif %}</a>
+            {% if account.is_admin %}<a href="/admin?db={{ db_mode }}"{% if path == '/admin' %} aria-current="page"{% endif %}>Admin</a>{% endif %}
             <form method="post" action="/logout?db={{ db_mode }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <button type="submit" class="linkish">Sign out</button>
@@ -78,6 +78,7 @@
       {% if data_month %}<span>Sales registered up to {{ data_month|month }}</span>{% endif %}
       <span>Past sales, not listings</span>
       <a href="/glossary">Glossary</a>
+      <a href="/search"{% if path == '/search' %} aria-current="page"{% endif %}>Advanced search</a>
       <form method="post" action="/demo" class="demo-toggle">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="next" value="{{ here }}">

@@ -1,7 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Search sales · Neighboar{% endblock %}
+{% block title %}Advanced search · Neighboar{% endblock %}
 {% block content %}
-<h1>Search resale sales</h1>
+{% set sort_labels = {'month': 'Month', 'price': 'Price', 'area': 'Floor area'} %}
+{% set order_labels = {'desc': 'Newest or highest first', 'asc': 'Oldest or lowest first'} %}
+<header class="page-head">
+  <div>
+    <h1>Advanced search</h1>
+    <p class="lede">Every registered resale sale since 2017, filtered any way you like. Street names can be typed in full: "street" finds "ST".</p>
+  </div>
+</header>
 {% if errors %}
 <div class="bad" role="alert">
   <p>Please correct the following.</p>
@@ -12,12 +19,11 @@
 </div>
 {% endif %}
 <form method="get" action="/search" class="searchform">
-  <input type="hidden" name="db" value="{{ db_mode }}">
   <div class="field">
     <label for="town">Town</label>
     <select id="town" name="town">
       <option value="">Any</option>
-      {% for t in towns %}<option value="{{ t }}"{% if f.town == t %} selected{% endif %}>{{ t }}</option>
+      {% for t in towns %}<option value="{{ t }}"{% if f.town == t %} selected{% endif %}>{{ t|proper }}</option>
       {% endfor %}
     </select>
   </div>
@@ -25,7 +31,7 @@
     <label for="flat_type">Flat type</label>
     <select id="flat_type" name="flat_type">
       <option value="">Any</option>
-      {% for t in flat_types %}<option value="{{ t }}"{% if f.flat_type == t %} selected{% endif %}>{{ t }}</option>
+      {% for t in flat_types %}<option value="{{ t }}"{% if f.flat_type == t %} selected{% endif %}>{{ t|flat_label }}</option>
       {% endfor %}
     </select>
   </div>
@@ -37,8 +43,8 @@
       {% endfor %}
     </select>
   </div>
-  <div class="field"><label for="month_from">From month</label><input id="month_from" name="month_from" value="{{ f.month_from }}" placeholder="2024-01" maxlength="7"></div>
-  <div class="field"><label for="month_to">To month</label><input id="month_to" name="month_to" value="{{ f.month_to }}" placeholder="2024-12" maxlength="7"></div>
+  <div class="field"><label for="month_from">From <span class="optional">(YYYY-MM)</span></label><input id="month_from" name="month_from" value="{{ f.month_from }}" placeholder="All months" maxlength="7" inputmode="numeric"></div>
+  <div class="field"><label for="month_to">To <span class="optional">(YYYY-MM)</span></label><input id="month_to" name="month_to" value="{{ f.month_to }}" placeholder="All months" maxlength="7" inputmode="numeric"></div>
   <div class="field"><label for="price_min">Minimum price</label><input id="price_min" name="price_min" value="{{ f.price_min }}" inputmode="decimal" maxlength="20"></div>
   <div class="field"><label for="price_max">Maximum price</label><input id="price_max" name="price_max" value="{{ f.price_max }}" inputmode="decimal" maxlength="20"></div>
   <div class="field"><label for="area_min">Minimum area (sqm)</label><input id="area_min" name="area_min" value="{{ f.area_min }}" inputmode="decimal" maxlength="20"></div>
@@ -48,18 +54,18 @@
   <div class="field">
     <label for="sort">Sort by</label>
     <select id="sort" name="sort">
-      {% for s in sorts %}<option value="{{ s }}"{% if (f.sort or 'month') == s %} selected{% endif %}>{{ s }}</option>
+      {% for s in sorts %}<option value="{{ s }}"{% if (f.sort or 'month') == s %} selected{% endif %}>{{ sort_labels.get(s, s) }}</option>
       {% endfor %}
     </select>
   </div>
   <div class="field">
     <label for="order">Order</label>
     <select id="order" name="order">
-      {% for o in orders %}<option value="{{ o }}"{% if (f.order or 'desc') == o %} selected{% endif %}>{{ o }}</option>
+      {% for o in orders %}<option value="{{ o }}"{% if (f.order or 'desc') == o %} selected{% endif %}>{{ order_labels.get(o, o) }}</option>
       {% endfor %}
     </select>
   </div>
-  <button type="submit">Search</button>
+  <div class="form-actions"><button type="submit">Search</button></div>
 </form>
 
 {% if result %}
@@ -71,13 +77,13 @@
   <thead><tr><th>Month</th><th>Town</th><th>Block</th><th>Street</th><th>Flat type</th><th>Model</th><th>Storey</th><th>Area (sqm)</th><th>Lease start</th><th>Remaining lease</th><th>Price</th><th>Price per sqm</th></tr></thead>
   <tbody>
     {% for r in result.rows %}
-    <tr><td class="nowrap">{{ r.txn_month|month }}</td><td>{{ r.town }}</td><td>{{ r.block }}</td><td><a href="/block/{{ r.building_id }}">{{ r.street }}</a></td><td>{{ r.flat_type }}</td><td>{{ r.flat_model }}</td><td class="nowrap">{{ r.storey_min|storey(r.storey_max) }}</td><td>{{ r.floor_area_sqm }}</td><td>{{ r.lease_commence_year|unknown }}</td><td>{{ r.remaining_lease_months|lease }}</td><td>{{ r.resale_price|money }}</td><td>{{ r.price_psm|money }}</td></tr>
+    <tr><td class="nowrap">{{ r.txn_month|month }}</td><td>{{ r.town|proper }}</td><td>{{ r.block }}</td><td class="nowrap"><a href="/block/{{ r.building_id }}">{{ r.street|proper }}</a></td><td class="nowrap">{{ r.flat_type|flat_label }}</td><td>{{ r.flat_model }}</td><td class="nowrap">{{ r.storey_min|storey(r.storey_max) }}</td><td>{{ r.floor_area_sqm }}</td><td>{{ r.lease_commence_year|unknown }}</td><td class="nowrap">{{ r.remaining_lease_months|lease }}</td><td class="nowrap">{{ r.resale_price|money }}</td><td class="nowrap">{{ r.price_psm|per_sqm }}</td></tr>
     {% endfor %}
   </tbody>
 </table>
 </div>
 {% else %}
-<p>No sales match.</p>
+<p class="empty">No sales match. Remove a filter or widen the months.</p>
 {% endif %}
 <nav class="pager" aria-label="Pages">
   {% if prev_link %}<a rel="prev" href="{{ prev_link }}">Previous</a>{% endif %}
