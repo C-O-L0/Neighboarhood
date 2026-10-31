@@ -11,6 +11,7 @@ from app.repos.dto import (
     BlockFitPage,
     BlockFoodAccess,
     BuildingDetail,
+    Comparable,
     Duplicate,
     FlatTypeRange,
     FlatTypeRecent,
@@ -26,6 +27,7 @@ from app.repos.dto import (
     TrendPoint,
 )
 from app.services.explore import BlockFilter, Window
+from app.services.prices import Scope
 from app.services.rankings import RankingQuery
 from app.services.search import SearchQuery
 from app.services.trends import TrendQuery
@@ -167,5 +169,13 @@ class PlaceRepo(Protocol):
     def near(self, building_id: int, radius_m: int) -> list[NearBlock] | None:
         """Located blocks within radius_m of the block, nearest first (then building id), the block itself and
         blocks marked non-residential left out. None when the block is unknown or has no coordinates.
+        """
+        ...
+
+
+class PriceRepo(Protocol):
+    def comparables(self, scope: Scope) -> list[Comparable]:
+        """Sales of the scope's flat type in its window (and storey band, when set) at its level: the block, the
+        block's street in its town, or its town. Latest first, then the higher txn_id.
         """
         ...

@@ -16,6 +16,7 @@
   <p class="profile-tags"><span class="hint">{{ top.flat_type|flat_label }} sales here, compared with {{ town }}:</span> {{ ui.tag_list(top_tags, town) }}</p>
   {% endif %}
   <nav class="actions" aria-label="Next steps">
+    <a class="button secondary" href="{{ price_link }}">Check a price</a>
     <a class="button secondary" href="{{ trend_link }}">{{ town }} trends</a>
     <a class="button secondary" href="{{ near_link }}">Blocks near this</a>
     {% if saved %}<a class="button secondary" href="#shortlist">On your shortlist</a>
@@ -111,7 +112,7 @@
     <tbody>
       {% for row in recent %}
       {% set r = row.r %}
-      <tr><td class="nowrap">{{ r.flat_type|flat_label }}</td><td class="nowrap">{{ r.n }}{{ ui.few(r.n, few_sales) }}</td><td>{{ r.median_price|money }}</td><td>{{ r.avg_psm|money }}</td><td>{% if row.tags is none %}<span class="hint">Too few town sales to compare</span>{% else %}{{ ui.tag_list(row.tags, town) }}{% endif %}</td></tr>
+      <tr><td class="nowrap">{{ r.flat_type|flat_label }}</td><td class="nowrap">{{ r.n }}{{ ui.few(r.n, few_sales) }}</td><td>{{ r.median_price|money }}</td><td>{{ r.avg_psm|per_sqm }}</td><td>{% if row.tags is none %}<span class="hint">Too few town sales to compare</span>{% else %}{{ ui.tag_list(row.tags, town) }}{% endif %}</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -135,21 +136,21 @@
     <thead><tr><th>Month</th><th>Flat type</th><th>Storey</th><th>Area (sqm)</th><th>Price</th><th>Per sqm</th><th>Model</th></tr></thead>
     <tbody>
       {% for r in b.recent_sales %}
-      <tr><td class="nowrap">{{ r.txn_month|month }}</td><td class="nowrap">{{ r.flat_type|flat_label }}</td><td class="nowrap">{{ r.storey_min|storey(r.storey_max) }}</td><td>{{ r.floor_area_sqm }}</td><td>{{ r.resale_price|money }}</td><td>{{ r.price_psm|money }}</td><td>{{ r.flat_model }}</td></tr>
+      <tr><td class="nowrap">{{ r.txn_month|month }}</td><td class="nowrap">{{ r.flat_type|flat_label }}</td><td class="nowrap">{{ r.storey_min|storey(r.storey_max) }}</td><td>{{ r.floor_area_sqm }}</td><td>{{ r.resale_price|money }}</td><td>{{ r.price_psm|per_sqm }}</td><td>{{ r.flat_model }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
   </div>
   <details class="more">
     <summary>All {{ b.stats.txn_count }} sales on record, by flat type</summary>
-    <p>Typical price {{ b.stats.median_price|money }}, average {{ b.stats.avg_psm|money }} per sqm, latest {{ b.stats.last_txn_month|month }}.</p>
+    <p>Typical price {{ b.stats.median_price|money }}, average {{ b.stats.avg_psm|per_sqm }} per sqm, latest {{ b.stats.last_txn_month|month }}.</p>
     <div class="table-wrap">
     <table class="stats">
       <caption class="sr">All sales on record by flat type</caption>
       <thead><tr><th>Flat type</th><th>Sales</th><th>Typical price</th><th>Average per sqm</th></tr></thead>
       <tbody>
         {% for f in b.stats.by_flat_type %}
-        <tr><td class="nowrap">{{ f.flat_type|flat_label }}</td><td>{{ f.txn_count }}</td><td>{{ f.median_price|money }}</td><td>{{ f.avg_psm|money }}</td></tr>
+        <tr><td class="nowrap">{{ f.flat_type|flat_label }}</td><td>{{ f.txn_count }}</td><td>{{ f.median_price|money }}</td><td>{{ f.avg_psm|per_sqm }}</td></tr>
         {% endfor %}
       </tbody>
     </table>

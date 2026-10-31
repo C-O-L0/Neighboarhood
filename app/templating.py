@@ -26,6 +26,11 @@ def money(value: Decimal | None) -> str:
     return f"{sign}${abs(q):,.2f}"
 
 
+def per_sqm(value: Decimal | None) -> str:
+    """A price per sqm in whole dollars, rounded half up ($7,596), so a column of them lines up."""
+    return money(None if value is None else value.quantize(Decimal(1), ROUND_HALF_UP))
+
+
 def month(value: date | None) -> str:
     return "Unknown" if value is None else f"{_MONTHS[value.month - 1]} {value.year}"
 
@@ -127,6 +132,7 @@ def _context(request: Request) -> dict:
 templates = Jinja2Templates(directory=BASE / "templates", context_processors=[_context])
 templates.env.filters.update(
     money=money,
+    per_sqm=per_sqm,
     month=month,
     lease=lease,
     storey=storey,
