@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Household · Neighboar{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Household</h1>
+    <p class="lede">Share one shortlist with your partner. Both of you can add blocks, remove them and write notes; it holds up to {{ cap }} blocks.</p>
+  </div>
+</header>
+{% if demo %}{{ ui.r5_notice('household', db_mode_name) }}{% endif %}
+{% include "_notice.html" %}
+
+{% if household %}
+<section class="card" aria-labelledby="member-h">
+  <h2 id="member-h">You share a shortlist with {{ partner.display_name or partner.email if partner else 'nobody else' }}</h2>
+  {% if partner %}<p class="hint">{{ partner.email }}</p>{% endif %}
+  <p>{{ household.saved_count }} of {{ cap }} blocks. <a href="/shortlist">Open the shortlist</a>.</p>
+  <form method="post" action="/household/leave?db={{ db_mode }}" class="leave-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <p class="warn-note">If you leave, {{ partner.display_name or partner.email if partner else 'the household' }} keeps the shortlist and its notes. Yours starts empty.</p>
+    <button type="submit" class="secondary danger">Leave household</button>
+  </form>
+</section>
+{% else %}
+{% for inv in invitations.received %}
+{{ ui.invitation(inv, own, cap, csrf_token, db_mode) }}
+{% endfor %}
+
+{% if invitations.sent %}
+<section class="card" aria-labelledby="sent-h">
+  <h2 id="sent-h">Invitation sent</h2>
+  {% set who = invitations.sent.invitee %}
+  <p>You invited {{ who.display_name or who.email }}{% if who.display_name %} ({{ who.email }}){% endif %} on {{ invitations.sent.created_at|day }}. It shows on their shortlist page when they sign in.</p>
+  <form method="post" action="/household/cancel?db={{ db_mode }}" class="inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="secondary">Cancel invitation</button>
+  </form>
+</section>
+{% else %}
+<section class="card" aria-labelledby="invite-h">
+  <h2 id="invite-h">Invite your partner</h2>
+  <p class="hint">Your partner needs an account in this database already{% if demo %} ({{ db_mode_name }}){% endif %}. When they accept, your saved blocks start the shared shortlist.</p>
+  <form method="post" action="/household/invite?db={{ db_mode }}" class="invite-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="field">
+      <label for="invite-email">Partner's email</label>
+      <input id="invite-email" name="email" type="email" maxlength="254" autocomplete="off" placeholder="alex@example.com" required>
+    </div>
+    <button type="submit">Send invitation</button>
+  </form>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

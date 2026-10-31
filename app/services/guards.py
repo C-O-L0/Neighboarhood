@@ -42,11 +42,13 @@ async def csrf_guard(request: Request) -> None:
 
 
 def load_account(request: Request) -> None:
-    """Set request.state.account to the account signed in under this request's DB mode, or None.
+    """Set request.state.account to the account signed in under this request's DB mode, or None, and
+    request.state.shortlist to its ShortlistSummary (the count in the menu and the invitation badge).
 
-    This lookup is not timed or listed in the page footer: it serves the header, not the page's own query.
+    These lookups are not timed or listed in the page footer: they serve the header, not the page's own query.
     """
     request.state.account = None
+    request.state.shortlist = None
     mode = getattr(request.state, "db_mode", None)
     uid = session_uid(request.session, mode) if mode else None
     if uid is None:
@@ -55,11 +57,18 @@ def load_account(request: Request) -> None:
         # Admin routes never touch app_rw or app, so the account behind them is read as app_admin.
         admin = is_admin_path(request.url.path)
         pg_cls, mongo_cls = REPOS["accounts"]
+        pg_households, mongo_households = REPOS["households"]
+        summary = None
         if mode == "pg":
             with pg_conn(request, admin=admin) as conn:
                 account = pg_cls(conn).by_id(uid)
+                if account is not None and request.method in SAFE_METHODS:
+                    summary = pg_households(conn).summary(uid)
         else:
-            account = mongo_cls(mongo_db(request, admin=admin)).by_id(uid)
+            db = mongo_db(request, admin=admin)
+            account = mongo_cls(db).by_id(uid)
+            if account is not None and request.method in SAFE_METHODS:
+                summary = mongo_households(db).summary(uid)
     except Exception as exc:
         # A database outage must not break every page (health reports it as 503). Keep the uid so the
         # user is still signed in when the database returns; log the error type only, never the session.
@@ -68,6 +77,7 @@ def load_account(request: Request) -> None:
     if account is None:  # the account was deleted since sign-in
         del request.session["uid"][mode]
     request.state.account = account
+    request.state.shortlist = summary
 
 
 def load_data_month(request: Request) -> None:

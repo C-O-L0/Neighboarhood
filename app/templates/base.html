@@ -21,18 +21,19 @@
         {% for href, label in [('/', 'Find a home'), ('/price-check', 'Check a price'), ('/search', 'Search'), ('/trends', 'Town trends'), ('/rankings', 'Rankings'), ('/food', 'Food')] %}
         <a href="{{ href }}"{% if path == href %} aria-current="page"{% endif %}>{{ label }}</a>
         {% endfor %}
-        {% if account %}<a href="/saved?db={{ db_mode }}"{% if path == '/saved' %} aria-current="page"{% endif %}>Shortlist</a>{% endif %}
+        {% if account %}<a href="/shortlist"{% if path in ('/shortlist', '/household') %} aria-current="page"{% endif %}>Shortlist{% if shortlist %} <span class="menu-count">{{ shortlist.count }}</span>{% endif %}</a>{% endif %}
         {% if account and account.is_admin %}<a href="/admin?db={{ db_mode }}"{% if path == '/admin' %} aria-current="page"{% endif %}>Admin</a>{% endif %}
       </nav>
       <div class="account">
         {% if account %}
         <details class="account-menu">
           <summary>
-            <span class="avatar" aria-hidden="true">{{ (account.display_name or account.email)[:1]|upper }}</span>
-            <span class="sr">Signed in as</span> {{ account.display_name or account.email }}
+            <span class="avatar" aria-hidden="true">{{ (account.display_name or account.email)[:1]|upper }}{% if shortlist and shortlist.invitations %}<span class="avatar-dot"></span>{% endif %}</span>
+            <span><span class="sr">Signed in as </span>{{ account.display_name or account.email }}{% if shortlist and shortlist.invitations %}<span class="sr">, {{ shortlist.invitations }} invitation{{ '' if shortlist.invitations == 1 else 's' }} waiting</span>{% endif %}</span>
           </summary>
           <div class="account-pop">
             <a href="/account?db={{ db_mode }}">Your account</a>
+            <a href="/household">Household{% if shortlist and shortlist.invitations %} <span class="invite-badge">{{ shortlist.invitations }} new</span>{% endif %}</a>
             <form method="post" action="/logout?db={{ db_mode }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <button type="submit" class="linkish">Sign out</button>
@@ -40,7 +41,7 @@
           </div>
         </details>
         {% else %}
-        <a href="/login?db={{ db_mode }}">Sign in</a>
+        <a href="/login?{{ ({'db': db_mode} if path in ('/', '/login', '/register') else {'db': db_mode, 'next': here})|urlencode }}">Sign in</a>
         <a class="button" href="/register?db={{ db_mode }}">Register</a>
         {% endif %}
       </div>

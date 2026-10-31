@@ -84,9 +84,9 @@ def test_signed_out_visitors_are_sent_to_sign_in(mode):
     try:
         for path in ROUTES:
             resp = browser.post(path, mode, building_id="1", note="x")
-            assert resp.status_code == 303 and resp.headers["location"] == f"/login?db={mode}"
-        resp = browser.http.get(f"/saved?db={mode}")
-        assert resp.status_code == 303 and resp.headers["location"] == f"/login?db={mode}"
+            assert resp.status_code == 303 and resp.headers["location"] == f"/login?next=%2Fshortlist&db={mode}"
+        resp = browser.http.get(f"/shortlist?db={mode}")
+        assert resp.status_code == 303 and resp.headers["location"] == f"/login?next=%2Fshortlist&db={mode}"
         assert "to save this block to your shortlist" in browser.http.get(f"/block/1?db={mode}").text
     finally:
         browser.close()
@@ -110,29 +110,29 @@ def test_save_edit_and_remove_through_the_pages(mode, make_user, blocks, pg_rw, 
     resp = browser.post("/saved", mode, building_id=str(blocks[0]), note="  near the MRT  ", back="building")
     assert resp.headers["location"].startswith(f"/block/{blocks[0]}?")
     page = follow(browser, resp)
-    assert notice(page) == "Block saved."
+    assert notice(page) == "Saved to your shortlist."
     assert "near the MRT" in page.text and "Update note" in page.text and "Remove from shortlist" in page.text
     assert "saved list: " in page.text  # the timing footer
 
     resp = browser.post("/saved", mode, building_id=str(blocks[0]), note="", back="building")
-    assert notice(follow(browser, resp)) == "That block is already in your saved list."
+    assert notice(follow(browser, resp)) == "That block is already on your shortlist."
     resp = browser.post("/saved", mode, building_id="2000000000", note="")
     assert notice(follow(browser, resp)) == "There is no such block."
 
-    page = browser.http.get(f"/saved?db={mode}")
-    assert page.status_code == 200 and "near the MRT" in page.text and f"/block/{blocks[0]}?db={mode}" in page.text
+    page = browser.http.get(f"/shortlist?db={mode}")
+    assert page.status_code == 200 and "near the MRT" in page.text and f'href="/block/{blocks[0]}"' in page.text
     assert "saved list: " in page.text
 
     resp = browser.post("/saved/note", mode, building_id=str(blocks[0]), note="new note")
     assert notice(follow(browser, resp)) == "Note updated."
-    assert "new note" in browser.http.get(f"/saved?db={mode}").text
+    assert "new note" in browser.http.get(f"/shortlist?db={mode}").text
     resp = browser.post("/saved/note", mode, building_id=str(blocks[1]), note="x")
-    assert notice(follow(browser, resp)) == "That block is not in your saved list."
+    assert notice(follow(browser, resp)) == "That block is not on your shortlist."
 
     resp = browser.post("/saved/remove", mode, building_id=str(blocks[0]))
-    assert notice(follow(browser, resp)) == "Block removed from your saved list."
+    assert notice(follow(browser, resp)) == "Removed from your shortlist."
     resp = browser.post("/saved/remove", mode, building_id=str(blocks[0]))
-    assert notice(follow(browser, resp)) == "That block is not in your saved list."
+    assert notice(follow(browser, resp)) == "That block is not on your shortlist."
     assert saved_ids(mode, bid, pg_rw, mongo_app) == []
 
 
@@ -165,12 +165,12 @@ def test_the_rollback_demo_changes_nothing(mode, make_user, blocks, pg_rw, mongo
         assert text.startswith("Rolled back: the transaction matched 1 buyer document")
     assert saved_ids(mode, bid, pg_rw, mongo_app) == ids_before == [blocks[0]]
     assert last_active(mode, bid, pg_rw, mongo_app) == active_before
-    assert 'value="demo"' not in browser.http.get(f"/saved?db={mode}").text  # the rolled-back note
+    assert 'value="demo"' not in browser.http.get(f"/shortlist?db={mode}").text  # the rolled-back note
 
     resp = browser.post("/saved", mode, building_id=str(blocks[1]), note="demo")
-    assert notice(follow(browser, resp)) == "Block saved."
+    assert notice(follow(browser, resp)) == "Saved to your shortlist."
     assert saved_ids(mode, bid, pg_rw, mongo_app) == [blocks[0], blocks[1]]
-    assert 'value="demo"' in browser.http.get(f"/saved?db={mode}").text
+    assert 'value="demo"' in browser.http.get(f"/shortlist?db={mode}").text
 
 
 @pytest.mark.parametrize("mode", MODES)

@@ -126,7 +126,7 @@
 <section class="card shortlist" aria-labelledby="save-h">
   <h2 id="save-h">Keep this block</h2>
   {% if not account %}
-  <p><a href="/login">Sign in</a> to save {{ place.block }} {{ place.street|proper }} to your shortlist with this price.</p>
+  <p><a href="{{ signin_link }}">Sign in</a> to save {{ place.block }} {{ place.street|proper }} to your shortlist with this price.</p>
   {% elif saved %}
   <p>{{ place.block }} {{ place.street|proper }} is already on your shortlist. <a href="/block/{{ place.building_id }}#shortlist">Add this price to its note</a>.</p>
   {% else %}

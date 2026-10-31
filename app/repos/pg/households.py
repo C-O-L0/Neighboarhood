@@ -20,6 +20,7 @@ from app.repos.dto import (
     Invitations,
     Member,
     Person,
+    ShortlistSummary,
 )
 
 CAP = 50
@@ -46,6 +47,12 @@ JOIN buyer a ON a.buyer_id = i.inviter_id
 JOIN buyer e ON e.buyer_id = i.invitee_id
 WHERE i.inviter_id = %(buyer)s OR i.invitee_id = %(buyer)s
 ORDER BY i.created_at, i.inviter_id
+"""
+_SUMMARY = """
+SELECT (SELECT count(*)::int FROM saved_building WHERE buyer_id = %(buyer)s)
+       + (SELECT count(*)::int FROM household_member m JOIN household_saved s ON s.household_id = m.household_id
+          WHERE m.buyer_id = %(buyer)s),
+       (SELECT count(*)::int FROM household_invitation WHERE invitee_id = %(buyer)s)
 """
 _INVITE = """
 INSERT INTO household_invitation (inviter_id, invitee_id) VALUES (%s, %s)
@@ -123,6 +130,9 @@ class PgHouseholdRepo:
             else:
                 received.append(inv)
         return Invitations(sent, received)
+
+    def summary(self, buyer_id: int) -> ShortlistSummary:
+        return ShortlistSummary(*self.conn.execute(_SUMMARY, {"buyer": buyer_id}).fetchone())
 
     # ---------------------------------------------------------------- writes
 

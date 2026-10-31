@@ -26,6 +26,7 @@ from app.repos.dto import (
     Invitations,
     Member,
     Person,
+    ShortlistSummary,
 )
 from app.repos.mongo.accounts import utc
 
@@ -79,6 +80,16 @@ class MongoHouseholdRepo:
         )
         sent = next((i for i in found if i.inviter.buyer_id == buyer_id), None)
         return Invitations(sent, [i for i in found if i.inviter.buyer_id != buyer_id])
+
+    def summary(self, buyer_id: int) -> ShortlistSummary:
+        buyer = self.db.buyers.find_one({"_id": buyer_id}, {"household_id": 1, "count": {"$size": "$saved"}})
+        if buyer is None:
+            return ShortlistSummary(0, 0)
+        count = buyer["count"]
+        if buyer.get("household_id") is not None:
+            shared = self.db.households.find_one({"_id": buyer["household_id"]}, {"count": {"$size": "$saved"}})
+            count = shared["count"] if shared else 0
+        return ShortlistSummary(count, self.db.invitations.count_documents({"invitee_id": buyer_id}))
 
     # ---------------------------------------------------------------- writes
 

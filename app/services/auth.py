@@ -12,6 +12,7 @@ import threading
 import time
 from collections.abc import Callable, MutableMapping
 from typing import Any
+from urllib.parse import parse_qsl, urlencode
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
@@ -169,3 +170,25 @@ def sign_in(session: MutableMapping[str, Any], mode: str, buyer_id: int) -> None
     ensure_session(session)
     session["uid"][mode] = buyer_id
     session["csrf"] = new_token()
+
+
+NEXT_MAX = 300  # a return path longer than this is ignored
+_NEXT_PATH = re.compile(r"/(?!/)[A-Za-z0-9._~-]*(/[A-Za-z0-9._~-]+)*")  # the same rule as dbmode._SAFE_PATH
+
+
+def return_path(raw: str | None) -> str | None:
+    """Where to send a buyer after signing in (UC5 E1, UC4 A3): a local path of plain segments with an optional
+    query, the `db` parameter dropped (the redirect sets it). None for anything else, such as //host or a URL."""
+    if not raw or len(raw) > NEXT_MAX or not raw.isprintable():
+        return None
+    path, _, query = raw.partition("?")
+    if not _NEXT_PATH.fullmatch(path):
+        return None
+    kept = [(k, v) for k, v in parse_qsl(query, keep_blank_values=True) if k != "db"]
+    return f"{path}?{urlencode(kept)}" if kept else path
+
+
+def login_link(path: str, query: str = "") -> str:
+    """/login with this page as the place to return to."""
+    target = f"{path}?{query}" if query else path
+    return "/login?" + urlencode({"next": target})

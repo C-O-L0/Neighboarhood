@@ -43,14 +43,14 @@ def parse_building_id(raw: str) -> int | None:
 
 
 _TEXT = {
-    ("save", Outcome.OK): ("ok", "Block saved."),
-    ("save", Outcome.ALREADY_SAVED): ("bad", "That block is already in your saved list."),
+    ("save", Outcome.OK): ("ok", "Saved to your shortlist."),
+    ("save", Outcome.ALREADY_SAVED): ("bad", "That block is already on your shortlist."),
     ("save", Outcome.NO_SUCH_BUILDING): ("bad", "There is no such block."),
-    ("save", Outcome.CAP_REACHED): ("bad", "You can save at most 50 blocks. Remove one first."),
+    ("save", Outcome.CAP_REACHED): ("bad", "A shortlist holds at most 50 blocks. Remove one first."),
     ("edit", Outcome.OK): ("ok", "Note updated."),
-    ("edit", Outcome.NOT_SAVED): ("bad", "That block is not in your saved list."),
-    ("remove", Outcome.OK): ("ok", "Block removed from your saved list."),
-    ("remove", Outcome.NOT_SAVED): ("bad", "That block is not in your saved list."),
+    ("edit", Outcome.NOT_SAVED): ("bad", "That block is not on your shortlist."),
+    ("remove", Outcome.OK): ("ok", "Removed from your shortlist."),
+    ("remove", Outcome.NOT_SAVED): ("bad", "That block is not on your shortlist."),
     ("note", None): ("bad", TOO_LONG),
     ("input", None): ("bad", "Choose a valid block."),
 }

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}{{ 'Our' if household else 'Your' }} shortlist · Neighboar{% endblock %}
+{% block content %}
+{% set n = blocks|length %}
+<header class="page-head">
+  <div>
+    <h1>{{ 'Our' if household else 'Your' }} shortlist</h1>
+    <p class="lede">
+      {%- if partner %}Shared with {{ partner.display_name or partner.email }}. Either of you can add blocks, remove them and write notes.
+      {%- else %}Blocks you are considering, with your notes.{% endif -%}
+    </p>
+  </div>
+  <p class="count-pill"><strong>{{ n }}</strong> of {{ cap }}</p>
+</header>
+{% if demo %}{{ ui.r5_notice('shortlist', db_mode_name) }}{% endif %}
+{% include "_notice.html" %}
+
+{% if not household %}
+{% for inv in invitations.received %}
+{{ ui.invitation(inv, n, cap, csrf_token, db_mode) }}
+{% endfor %}
+{% endif %}
+
+<div class="shortlist-layout">
+  <section aria-labelledby="blocks-h" class="shortlist-main">
+    <h2 id="blocks-h" class="sr">Blocks</h2>
+    {% if blocks %}
+    <ol class="shortlist-items">
+      {% for s in blocks %}
+      {% set by = 'you' if s.saved_by in (none, me) else names.get(s.saved_by, 'a former member') %}
+      <li class="short-item">
+        <div class="short-top">
+          <div class="block-name">
+            <a href="/block/{{ s.building_id }}">{{ s.block }} {{ s.street|proper }}</a>
+            <span class="hint">{{ s.town|proper }} · saved {{ s.saved_at|day }} by {{ by }}</span>
+          </div>
+          <form method="post" action="/saved/remove?db={{ db_mode }}" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="building_id" value="{{ s.building_id }}">
+            <button type="submit" class="secondary compact">Remove<span class="sr"> {{ s.block }} {{ s.street|proper }}</span></button>
+          </form>
+        </div>
+        <form method="post" action="/saved/note?db={{ db_mode }}" class="noteform">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="building_id" value="{{ s.building_id }}">
+          <label class="sr" for="note-{{ s.building_id }}">Note for {{ s.block }} {{ s.street|proper }}</label>
+          <input id="note-{{ s.building_id }}" name="note" type="text" maxlength="500" value="{{ s.note or '' }}" placeholder="Add a note">
+          <button type="submit">Save note</button>
+        </form>
+        {% if s.note and household %}
+        <p class="note-by hint">Note by {{ 'you' if s.note_by in (none, me) else names.get(s.note_by, 'a former member') }}</p>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <div class="empty">
+      <p>Nothing saved yet. Open a block and use <strong>Save to shortlist</strong>.</p>
+      <p><a href="/">Find blocks that fit your budget</a></p>
+    </div>
+    {% endif %}
+  </section>
+
+  <aside class="shortlist-side" aria-label="Household">
+    {% if household %}
+    <a class="side-card" href="/household">
+      <span class="hint">Household</span>
+      <strong>You and {{ partner.display_name or partner.email if partner else 'nobody else' }}</strong>
+      <span class="hint">Manage the household or leave it.</span>
+    </a>
+    {% elif invitations.sent %}
+    <a class="side-card" href="/household">
+      <span class="hint">Invitation sent</span>
+      <strong>Waiting for {{ invitations.sent.invitee.display_name or invitations.sent.invitee.email }}</strong>
+      <span class="hint">Sent {{ invitations.sent.created_at|day }}. Manage it on the household page.</span>
+    </a>
+    {% else %}
+    <a class="side-card" href="/household">
+      <span class="hint">Buying with someone?</span>
+      <strong>Share with your partner</strong>
+      <span class="hint">Keep one shortlist between you, with notes from both.</span>
+    </a>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}
