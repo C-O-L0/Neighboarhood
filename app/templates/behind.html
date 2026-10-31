@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Behind the scenes · Neighboar{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Behind the scenes</h1>
+    <p class="lede">For the presenter: both databases, what the last page asked them, and how they compared in the benchmark.</p>
+  </div>
+</header>
+
+<section aria-labelledby="health-h">
+  <h2 id="health-h">Databases</h2>
+  <div class="health-grid">
+    {% for name, s in [('PostgreSQL', health.postgres), ('MongoDB', health.mongodb)] %}
+    <div class="card health-card">
+      <p class="health-name"><strong>{{ name }}</strong> <span class="badge {{ 'fit' if s.ok else 'over' }}">{{ 'Up' if s.ok else 'Down' }}</span></p>
+      {% if s.ok %}
+      <dl class="health-list">
+        <div><dt>Connected as</dt><dd><code>{{ s.user }}</code></dd></div>
+        <div><dt>Version</dt><dd>{{ s.version }}</dd></div>
+        {% if s.replica_set %}<div><dt>Replica set</dt><dd>{{ s.replica_set }}{{ ' (primary)' if s.primary }}</dd></div>{% endif %}
+        <div><dt>Check took</dt><dd>{{ '%.1f'|format(s.ms) }} ms</dd></div>
+      </dl>
+      {% else %}
+      <p class="bad">{{ s.error }}</p>
+      <p class="hint">Pages in {{ name }} mode are unavailable until it is back. The other database still works.</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section aria-labelledby="queries-h">
+  <div class="section-head">
+    <h2 id="queries-h">What the last page ran</h2>
+    {% if page and not want_plans %}<a href="/demo?plans=1#queries-h">Show the query plans</a>{% elif page %}<a href="/demo#queries-h">Hide the plans</a>{% endif %}
+  </div>
+  {% if not demo %}
+  <p class="empty">Turn on demo mode in the footer, open any page, then come back here to see its queries in each database.</p>
+  {% elif not page %}
+  <p class="empty">Open any page that looks something up, then come back here. Its queries appear here, with the time each took.</p>
+  {% else %}
+  <p>Behind <a href="{{ page.path }}">{{ page.path }}</a> in <strong>{{ 'PostgreSQL' if page.calls[0].mode == 'pg' else 'MongoDB' }}</strong>. Switch database in the bar above, open the page again and come back to compare.</p>
+  <ol class="query-list">
+    {% for call in page.calls %}
+    {% set i = loop.index0 %}
+    <li class="card query-card">
+      <p class="query-head"><strong>{{ call.label }}</strong> <span class="hint">{{ '%.1f'|format(call.ms) }} ms, query and fetch</span></p>
+      {% if call.mode == 'pg' %}
+        {% for st in call.pg %}
+        <details class="stmt">
+          <summary><code>{{ summary_pg(st.text) }}</code></summary>
+          <pre class="code"><code>{{ st.text|trim }}</code></pre>
+          {% if st.params %}<p class="plan-title">Parameters</p><pre class="code"><code>{{ show_params(st.params) }}</code></pre>{% endif %}
+        </details>
+        {% else %}<p class="hint">No statement.</p>{% endfor %}
+      {% else %}
+        {% for c in call.mongo %}
+        <details class="stmt">
+          <summary><code>{{ summary_mongo(c) }}</code></summary>
+          <pre class="code"><code>{{ show_mongo(c) }}</code></pre>
+        </details>
+        {% else %}<p class="hint">No command.</p>{% endfor %}
+      {% endif %}
+      {% if plans.get(i) %}
+      <p class="plan-title">Plan{{ '' if plans[i]|length == 1 else 's' }} ({{ 'EXPLAIN ANALYZE, rolled back' if call.mode == 'pg' else 'explain, executionStats' }})</p>
+      {% for plan in plans[i] %}<pre class="code plan"><code>{{ plan }}</code></pre>{% endfor %}
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+</section>
+
+<section aria-labelledby="bench-h">
+  <h2 id="bench-h">Benchmark</h2>
+  {% if not bench %}
+  <p class="empty">No benchmark results yet. Run <code>bench/run.sh</code> (see bench/README.md).</p>
+  {% else %}
+  <p>Run <strong>{{ bench.name }}</strong> on the full data, warm cache, 50 timed runs for each of 3 parameter sets per case. The figure is the median of the three medians. Full tables and conditions: <code>bench/results/{{ bench.name }}/RESULTS.md</code>.</p>
+  <div class="table-wrap">
+  <table class="bench">
+    <caption class="sr">Median milliseconds per case in each database</caption>
+    <thead><tr><th>Case</th><th>PostgreSQL (ms)</th><th>MongoDB (ms)</th><th>Lower</th></tr></thead>
+    <tbody>
+      {% for c in bench.cases %}
+      <tr><td><code>{{ c.case }}</code><br><span class="hint">{{ c.pair|replace("_", " ")|capitalize }}</span></td><td>{{ '%.1f'|format(c.pg_ms) if c.pg_ms is not none else '-' }}</td><td>{{ '%.1f'|format(c.mongo_ms) if c.mongo_ms is not none else '-' }}</td><td>{{ c.faster or '-' }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <div class="chart-grid">
+    {% for stem, title in bench.charts %}
+    <figure class="card chart-card">
+      <img src="/demo/charts/{{ stem }}.svg" alt="{{ title }}: chart from the benchmark run {{ bench.name }}">
+      <figcaption>{{ title }}</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

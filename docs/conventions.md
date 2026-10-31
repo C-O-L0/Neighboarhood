@@ -41,7 +41,7 @@ The service layer times only the repo call with `time.perf_counter_ns()`. Connec
 - Demo mode is on while the `demo` cookie is `1`. It is set and cleared by the footer toggle, `POST /demo` (CSRF as every POST). Turning it off also clears `db_mode` and drops `?db=` from the page the browser returns to. The return path is checked like the mode links below; anything with a scheme or host goes to `/`.
 - If the parameter is absent, the `db_mode` cookie decides in demo mode when it holds a valid value; otherwise the mode is `pg`. A buyer who never turns demo mode on always uses PostgreSQL.
 - A request with a valid `?db=` sets `db_mode` on the response (`HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age` 30 days). The `demo` cookie has the same attributes.
-- Only in demo mode, the demo bar under the header shows the current mode, two links to the current path and query with `db=pg` and `db=mongo` (other query parameters kept and URL-encoded), the page's timings and a link to the health page.
+- Only in demo mode, the demo bar under the header shows the current mode, two links to the current path and query with `db=pg` and `db=mongo` (other query parameters kept and URL-encoded), the page's timings and a link to Behind the scenes (`/demo`): the health of both databases, the statements and pipelines the last page ran (recorded only in demo mode, with the recorder's own time subtracted), their plans on request, and the latest benchmark results.
 - The `db_mode` cookie is a display preference, not account state, so switching by link needs no CSRF token.
 
 ## 7. Least privilege

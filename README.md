@@ -55,7 +55,7 @@ cp .env.example .env        # then replace every change-me value (Windows: copy 
 docker compose up --build   # first run pulls images and builds, a few minutes
 ```
 
-Open http://localhost:8000/health. Both databases should show as up, connected as `app_rw` (PostgreSQL) and `app` (MongoDB, replica set `rs0`).
+Open http://localhost:8000/demo ("Behind the scenes"). Both databases should show as up, connected as `app_rw` (PostgreSQL) and `app` (MongoDB, replica set `rs0`). The same check as JSON is http://localhost:8000/api/health.
 
 ## Docker Compose workflow
 

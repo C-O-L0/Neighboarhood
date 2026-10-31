@@ -1,4 +1,4 @@
-/* Draws the trends and rankings charts from the JSON embedded in the page (no other data source). */
+/* Draws the trends chart from the JSON embedded in the page (no other data source). */
 (function () {
   "use strict";
 
@@ -6,7 +6,6 @@
   var BLUE = "#1f6f5c";
   var ORANGE = "#b4520f";
   var GREY = "#d3d9d4";
-  var BARS = "#5d8fc7";
 
   function read(id) {
     var el = document.getElementById(id);
@@ -71,41 +70,10 @@
     });
   }
 
-  function rankings(canvas, data) {
-    var box = canvas.parentElement;
-    box.style.height = Math.max(240, data.towns.length * 22 + 110) + "px";
-    new Chart(canvas, {
-      data: {
-        labels: data.towns,
-        datasets: [
-          { type: "bar", label: "Town typical price", data: data.median.map(num),
-            backgroundColor: BARS, borderColor: BARS, order: 2 },
-          { type: "line", label: "Island typical price", data: data.towns.map(function () { return Number(data.island_median); }),
-            borderColor: ORANGE, backgroundColor: ORANGE, borderWidth: 2, borderDash: [6, 3], pointRadius: 0, order: 1 }
-        ]
-      },
-      options: {
-        indexAxis: "y",
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: true, position: "bottom" },
-          tooltip: { callbacks: { label: function (c) { return c.dataset.label + ": " + dollars(c.parsed.x); } } }
-        },
-        scales: {
-          x: { beginAtZero: true, title: axisTitle("Typical price (SGD)"),
-               ticks: { callback: function (v) { return dollars(v); } } },
-          y: { title: axisTitle("Town (rank order)"), ticks: { autoSkip: false } }
-        }
-      }
-    });
-  }
-
   if (typeof Chart === "undefined") { return; }
   document.querySelectorAll("canvas[data-chart]").forEach(function (canvas) {
     var data = read(canvas.dataset.source);
     if (!data) { return; }
     if (canvas.dataset.chart === "trends") { trends(canvas, data); }
-    if (canvas.dataset.chart === "rankings") { rankings(canvas, data[Number(canvas.dataset.index)]); }
   });
 })();
