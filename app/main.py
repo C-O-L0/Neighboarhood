@@ -15,6 +15,7 @@ from app.routers import (
     admin,
     auth,
     building,
+    compare,
     demo,
     explore,
     food,
@@ -90,6 +91,7 @@ def create_app() -> FastAPI:
     app.include_router(explore.router)
     app.include_router(building.router)
     app.include_router(prices.router)
+    app.include_router(compare.router)
     app.include_router(food.router)
     app.include_router(search.router)
     app.include_router(trends.router)

@@ -1,90 +1,72 @@
-from dataclasses import dataclass, field
-from datetime import date
+"""Compare's input rules, default flat type and row leaders (app/services/compare.py)."""
+
 from decimal import Decimal
 
 import pytest
 
-from app.repos.dto import BuildingStats, FlatTypeStats
-from tests.equivalence.compare import assert_equivalent
+from app.repos.dto import BlockFoodAccess, BuildingDetail, BuildingStats, FlatTypeRecent
+from app.services.compare import best, column, default_flat_type, parse_flat_type, parse_ids, parse_year
 
 
-@dataclass(frozen=True)
-class Row:
-    name: str
-    avg: Decimal | None = field(metadata={"tol": Decimal("0.01")})
-    median: Decimal | None
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        (["1", "2"], [1, 2]),
+        (["3,1", "2"], [3, 1, 2]),
+        (["1", "1", "2"], [1, 2]),  # a repeat counts once
+        (["1"], None),
+        (["1", "1"], None),
+        (["1", "2", "3", "4", "5"], None),
+        (["1", "x"], None),
+        (["1", "0"], None),
+        (["1", "2147483648"], None),
+        (["1", "", "2"], [1, 2]),
+        ([], None),
+    ],
+)
+def test_parse_ids(raw, expected):
+    assert parse_ids(raw) == expected
 
 
-def row(avg="10.00", median="5.00", name="a"):
-    return Row(name, None if avg is None else Decimal(avg), None if median is None else Decimal(median))
+def test_parse_flat_type_and_year():
+    assert parse_flat_type("4 ROOM") == "4 ROOM" and parse_flat_type("4 room") is None
+    assert parse_year("2040", 2026) == 2040 and parse_year("2025", 2026) is None
+    assert parse_year("2147", 2026) is None and parse_year("20x0", 2026) is None
 
 
-def test_equal_values_pass():
-    assert_equivalent(row(), row())
+def recent(flat_type, n, price="500000", psm="5000.40"):
+    return FlatTypeRecent(flat_type, n, Decimal(price), Decimal(psm), 10, Decimal("90"))
 
 
-def test_tolerant_field_within_one_cent_passes():
-    assert_equivalent(row(avg="10.00"), row(avg="10.01"))
+def test_default_flat_type_is_the_most_sold_across_blocks():
+    rows = [[recent("4 ROOM", 3), recent("5 ROOM", 4)], [recent("4 ROOM", 2)], []]
+    assert default_flat_type(rows) == "4 ROOM"
+    assert default_flat_type([[recent("5 ROOM", 2)], [recent("4 ROOM", 2)]]) == "4 ROOM"  # tie: list order
+    assert default_flat_type([[], []]) is None
 
 
-def test_tolerant_field_two_cents_fails():
-    with pytest.raises(AssertionError):
-        assert_equivalent(row(avg="10.00"), row(avg="10.02"))
+def block(i, lease_year=1990):
+    return BuildingDetail(
+        building_id=i, block=str(i), street="X ST", town="BISHAN", town_code="BS", in_property_dataset=True,
+        year_completed=1989, lease_commence_year=lease_year, max_floor=10, land_use=None, latitude=None,
+        longitude=None, supply=None, total_units=None, stats=BuildingStats(0, None, None, None, []), recent_sales=[],
+    )  # fmt: skip
 
 
-def test_non_tolerant_decimal_off_by_a_millionth_fails():
-    with pytest.raises(AssertionError, match=r"root\.median"):
-        assert_equivalent(row(median="5.000000"), row(median="5.000001"))
+def food(i, within):
+    return BlockFoodAccess(i, str(i), "X ST", [], within)
 
 
-def test_coordinate_off_by_a_millionth_fails():
-    a = (Decimal("1.300000"), Decimal("103.800000"))
-    with pytest.raises(AssertionError):
-        assert_equivalent({"lat": a[0]}, {"lat": Decimal("1.300001")})
-
-
-def test_none_versus_value_fails_even_on_a_tolerant_field():
-    with pytest.raises(AssertionError, match=r"root\.avg"):
-        assert_equivalent(row(avg=None), row(avg="10.00"))
-
-
-def test_none_equals_none():
-    assert_equivalent(row(avg=None, median=None), row(avg=None, median=None))
-
-
-def test_list_order_matters():
-    with pytest.raises(AssertionError):
-        assert_equivalent([row(name="a"), row(name="b")], [row(name="b"), row(name="a")])
-
-
-def test_list_length_matters():
-    with pytest.raises(AssertionError, match="lengths"):
-        assert_equivalent([row()], [row(), row()])
-
-
-def test_failure_message_names_the_field_path():
-    def stats(median):
-        return BuildingStats(
-            2,
-            Decimal("1"),
-            Decimal("2.00"),
-            date(2024, 1, 1),
-            [FlatTypeStats("3 ROOM", 1, Decimal("4"), Decimal("5.00")), FlatTypeStats("4 ROOM", 1, median, None)],
-        )
-
-    with pytest.raises(AssertionError) as exc:
-        assert_equivalent(stats(Decimal("9")), stats(Decimal("8")), path="building")
-    assert "building.by_flat_type[1].median_price" in str(exc.value)
-
-
-def test_dicts_compare_by_key_and_value():
-    assert_equivalent({"a": True}, {"a": True})
-    with pytest.raises(AssertionError):
-        assert_equivalent({"a": True}, {"a": False})
-    with pytest.raises(AssertionError):
-        assert_equivalent({"a": True}, {"b": True})
-
-
-def test_float_in_a_dto_is_rejected():
-    with pytest.raises(AssertionError, match="float"):
-        assert_equivalent(1.5, 1.5)
+def test_leaders_per_row_and_none_when_all_equal_or_alone():
+    cols = [
+        column(block(1, 1990), food(1, 2), recent("4 ROOM", 5, "600000", "6000.49"), None, 2026, 2040),
+        column(block(2, 2000), food(2, 2), recent("4 ROOM", 5, "550000", "6000.50"), None, 2026, None),
+        column(block(3, 2000), None, None, None, 2026, None),
+    ]
+    marks = best(cols)
+    assert marks["price"] == {2}
+    assert marks["psm"] == {1}  # $6,000 against $6,001 as the page shows them
+    assert marks["lease"] == {2, 3}
+    assert marks["food"] == set()  # 2 and 2: nobody leads
+    assert cols[0].lease_now == 63 and cols[0].lease_then == 49 and cols[1].lease_then is None
+    assert best(cols[2:])["lease"] == set()
