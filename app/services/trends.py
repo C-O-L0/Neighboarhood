@@ -7,11 +7,14 @@ is reported as missing).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, ValidationError, field_validator, model_validator
 
+from app.repos.dto import TrendPoint
 from app.services.search import RESALE_TYPES, parse_month
 from etl.clean import TOWN_IDS
 
@@ -75,3 +78,36 @@ def error_messages(exc: ValidationError) -> list[str]:
         else:
             out.append(e["msg"].removeprefix("Value error, "))
     return out
+
+
+@dataclass(frozen=True)
+class TrendSummary:
+    """The one-line answer above the chart (UC3): the 12-month typical price up to the last month shown, and
+    the same figure a year earlier. Rolling figures are used so a month with few or no sales does not swing it
+    (UC3 A1). earlier is None when the month a year before had no sales or lies outside the range (A2).
+    """
+
+    month: date
+    median: Decimal
+    n: int
+    earlier: Decimal | None
+
+    @property
+    def year_before(self) -> date:
+        return add_months(self.month, -12)
+
+    @property
+    def change_pct(self) -> Decimal | None:
+        if self.earlier is None:
+            return None
+        return ((self.median - self.earlier) / self.earlier * 100).quantize(Decimal("0.1"), ROUND_HALF_UP)
+
+
+def summarise(points: list[TrendPoint]) -> TrendSummary | None:
+    """None for an empty series."""
+    if not points:
+        return None
+    last = points[-1]
+    year_before = add_months(last.month, -12)
+    earlier = next((p.rolling_median for p in points if p.month == year_before), None)
+    return TrendSummary(last.month, last.rolling_median, last.rolling_n, earlier)

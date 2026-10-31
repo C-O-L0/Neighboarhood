@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 {% import "_ui.html" as ui %}
-{% block title %}Price trends · Neighboar{% endblock %}
+{% block title %}{% if q is defined %}{{ q.flat_type|flat_label }} prices in {{ q.town|proper }}{% else %}Town trends{% endif %} · Neighboar{% endblock %}
 {% block content %}
-<h1>Price trends</h1>
+<header class="results-head">
+  <h1>Are prices going up?</h1>
+  <p class="lede">See how the typical price of a flat type in a town has moved, month by month.</p>
+</header>
 {% if stale_since %}
 <div class="bad notice stale" role="alert">Town figures are stale since {{ stale_since|stamp }}: the refresh after an admin change failed, so the monthly figures may miss recent sales. They update at the next successful refresh.</div>
 {% endif %}
@@ -15,49 +18,74 @@
   </ul>
 </div>
 {% endif %}
-<form method="get" action="/trends" class="searchform">
-  <input type="hidden" name="db" value="{{ db_mode }}">
+<form method="get" action="/trends" class="card trend-form">
   <div class="field">
     <label for="town">Town</label>
     <select id="town" name="town">
       <option value="">Choose a town</option>
-      {% for t in towns %}<option value="{{ t }}"{% if f.town == t %} selected{% endif %}>{{ t }}</option>
+      {% for t in towns %}<option value="{{ t }}"{% if f.town == t %} selected{% endif %}>{{ t|proper }}</option>
       {% endfor %}
     </select>
   </div>
   <div class="field">
-    <label for="flat_type">Flat type</label>
+    <label for="flat_type">{{ ui.term('Flat type', 'flat-type') }}</label>
     <select id="flat_type" name="flat_type">
       <option value="">Choose a flat type</option>
-      {% for t in flat_types %}<option value="{{ t }}"{% if f.flat_type == t %} selected{% endif %}>{{ t }}</option>
+      {% for t in flat_types %}<option value="{{ t }}"{% if f.flat_type == t %} selected{% endif %}>{{ t|flat_label }}</option>
       {% endfor %}
     </select>
   </div>
-  <div class="field"><label for="month_from">From month</label><input id="month_from" name="month_from" value="{{ f.month_from }}" placeholder="2022-01" maxlength="7"></div>
-  <div class="field"><label for="month_to">To month</label><input id="month_to" name="month_to" value="{{ f.month_to }}" placeholder="2024-12" maxlength="7"></div>
-  <button type="submit">Show trend</button>
+  <div class="field"><label for="month_from">From <span class="optional">(YYYY-MM)</span></label><input id="month_from" name="month_from" value="{{ f.month_from }}" placeholder="All months" maxlength="7" inputmode="numeric"></div>
+  <div class="field"><label for="month_to">To <span class="optional">(YYYY-MM)</span></label><input id="month_to" name="month_to" value="{{ f.month_to }}" placeholder="All months" maxlength="7" inputmode="numeric"></div>
+  <div class="form-actions"><button type="submit">Show trend</button></div>
 </form>
 
 {% if points is not none %}
-<h2>{{ f.flat_type }} in {{ f.town }}</h2>
-{% if points %}
+{% set town = q.town|proper %}
+{% set adj = q.flat_type|flat_adj %}
+{% if summary %}
+<section class="verdict trend-summary" aria-labelledby="summary-h">
+  <h2 id="summary-h" class="verdict-line">
+    {%- set pct = summary.change_pct -%}
+    {%- if pct is none -%}The typical {{ adj }} price in {{ town }} over the 12 months to {{ summary.month|month }} was {{ summary.median|money }}.
+    {%- elif pct > 0 -%}{{ q.flat_type|flat_label }} prices in {{ town }} are up {{ pct }}% on a year earlier.
+    {%- elif pct < 0 -%}{{ q.flat_type|flat_label }} prices in {{ town }} are down {{ -pct }}% on a year earlier.
+    {%- else -%}{{ q.flat_type|flat_label }} prices in {{ town }} are unchanged on a year earlier.
+    {%- endif -%}
+  </h2>
+  <p class="hint">
+    {%- if pct is none -%}No year-on-year change: {% if q.month_from and summary.year_before < q.month_from %}{{ summary.year_before|month }} is before the range shown{% else %}there were no sales in {{ summary.year_before|month }}{% endif %}.
+    {%- else -%}{{ ui.term('Typical price', 'typical-price') }} over the 12 months to {{ summary.month|month }}: {{ summary.median|money }}, against {{ summary.earlier|money }} for the 12 months a year earlier.
+    {%- endif %} From {{ summary.n }} sale{{ '' if summary.n == 1 else 's' }}{{ ui.few(summary.n, few_sales) }}.
+  </p>
+</section>
+
 <figure class="chart">
-  <div class="chartbox"><canvas id="trends-chart" data-chart="trends" data-source="trends-data" aria-label="Line chart of the monthly typical price and the 12-month rolling typical price, with the number of sales as bars. The same figures are in the table below."></canvas></div>
+  <div class="chartbox"><canvas id="trends-chart" data-chart="trends" data-source="trends-data" aria-label="Line chart of the monthly typical price and the 12-month typical price, with the number of sales as bars. The same figures are in the monthly table below."></canvas></div>
+  <figcaption class="chart-legend" aria-hidden="true">
+    <span><svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" class="legend-median"/></svg>Typical price each month</span>
+    <span><svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" class="legend-rolling"/></svg>12-month typical price</span>
+    <span><svg width="14" height="12"><rect x="0" y="0" width="14" height="12" class="legend-sales"/></svg>Sales each month</span>
+  </figcaption>
 </figure>
 <script type="application/json" id="trends-data">{{ chart|tojson }}</script>
-<div class="table-wrap">
-<table class="trends">
-  <caption>Monthly sales and typical price, {{ f.flat_type }} in {{ f.town }}</caption>
-  <thead><tr><th>Month</th><th>Sales</th><th>{{ ui.term('Typical price', 'typical-price') }}</th><th>Average price per sqm</th><th>Typical price a year earlier</th><th>YoY change</th><th>YoY %</th><th>12-month sales</th><th>12-month typical price</th></tr></thead>
-  <tbody>
-    {% for p in points %}
-    <tr><td class="nowrap">{{ p.month|month }}</td><td>{{ p.n }}</td><td>{{ p.median_price|money }}</td><td>{{ p.avg_psm|money }}</td><td>{{ p.prev_year_median|money if p.prev_year_median is not none else 'No sales' }}</td><td>{{ p.yoy_change|money if p.yoy_change is not none else '' }}</td><td>{{ p.yoy_pct|pct }}</td><td>{{ p.rolling_n }}</td><td>{{ p.rolling_median|money }}</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
+
+<details class="more">
+  <summary>Show the monthly table ({{ points|length }} month{{ '' if points|length == 1 else 's' }} with sales)</summary>
+  <div class="table-wrap">
+  <table class="trends">
+    <caption>Monthly sales and typical price, {{ adj }} flats in {{ town }}. Months without sales are left out.</caption>
+    <thead><tr><th>Month</th><th>Sales</th><th>Typical price</th><th>Average per sqm</th><th>A year earlier</th><th>Change</th><th>Change %</th><th>12-month sales</th><th>12-month typical price</th></tr></thead>
+    <tbody>
+      {% for p in points %}
+      <tr><td class="nowrap">{{ p.month|month }}</td><td>{{ p.n }}</td><td>{{ p.median_price|money }}</td><td>{{ p.avg_psm|per_sqm }}</td><td>{{ p.prev_year_median|money if p.prev_year_median is not none else 'No sales' }}</td><td>{{ p.yoy_change|money if p.yoy_change is not none else '' }}</td><td>{{ p.yoy_pct|pct }}</td><td>{{ p.rolling_n }}</td><td>{{ p.rolling_median|money }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</details>
 {% else %}
-<p>No sales match.</p>
+<p class="empty">No {{ adj }} sales in {{ town }}{% if q.month_from or q.month_to %} in this period{% endif %}. Try another flat type{% if q.month_from or q.month_to %} or all months{% endif %}.</p>
 {% endif %}
 {% endif %}
 {% endblock %}
