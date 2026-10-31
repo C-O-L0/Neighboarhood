@@ -86,7 +86,7 @@ def test_without_demo_mode_there_is_no_switch_and_no_timing(building_path):
 
 
 def test_current_menu_item_is_marked():
-    assert re.search(r'<a href="/search" aria-current="page">Search</a>', get("/search").text)
+    assert re.search(r'<a href="/search" aria-current="page">Advanced search</a>', get("/search").text)
     assert re.search(r'<a href="/" aria-current="page">Find a home</a>', get("/").text)
     assert 'aria-current="page"' not in get("/glossary").text
 

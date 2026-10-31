@@ -153,7 +153,7 @@ def test_demo_account_signs_in(browser, mode, demo_passwords):
     name = "PostgreSQL" if mode == "pg" else "MongoDB"
     assert DEMO_EMAIL in page.text
     assert "Signed in as" in page.text and f'<th scope="row">Database</th><td>{name}</td>' in page.text
-    assert "Last active" in page.text and "Created" in page.text
+    assert "Last active" in page.text and "Member since" in page.text
 
 
 @pytest.mark.parametrize("mode", MODES)

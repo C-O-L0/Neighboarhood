@@ -1,13 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Admin · Neighboar{% endblock %}
 {% block content %}
-<h1>Admin</h1>
-<p>Record and delete resale sales in the {{ db_mode_name }} database. {% if db_mode == 'pg' %}After each committed change the town figures (a materialised view) are refreshed in a separate step, timed on its own.{% else %}Each change updates the block's statistics and recent sales in the same transaction.{% endif %}</p>
+{% set target %}<p class="target">Goes to <strong>{{ db_mode_name }}</strong> only. The other database is not changed.</p>{% endset %}
+<header class="page-head">
+  <div>
+    <h1>Admin</h1>
+    <p class="lede">Record and delete resale sales. {% if db_mode == 'pg' %}After each committed change the town figures (a materialised view) are refreshed in a separate step, timed on its own.{% else %}Each change updates the block's statistics and recent sales in the same transaction.{% endif %}</p>
+  </div>
+</header>
 {% if stale_since and db_mode == 'pg' %}
 <div class="bad notice stale" role="alert">Town figures are stale since {{ stale_since|stamp }}: a refresh after an admin change failed. Use "Refresh town figures" below or make another change to repair them.</div>
 {% endif %}
 {% if last %}
-<section aria-label="Last action">
+<section class="card last-action" aria-label="Last action">
   <h2>Last action</h2>
   <div class="{{ last.notice.kind }} notice" role="status">{{ last.notice.text }}</div>
   <ul class="steps">
@@ -17,7 +22,10 @@
 </section>
 {% endif %}
 
-<h2>Record a sale</h2>
+<div class="admin-grid">
+<section class="card admin-card" aria-labelledby="record-h">
+<h2 id="record-h">Record a sale</h2>
+{{ target }}
 {% if errors %}
 <div class="bad" role="alert">
   <p>Please correct the following. Nothing was written.</p>
@@ -27,16 +35,16 @@
   </ul>
 </div>
 {% endif %}
-<form method="post" action="/admin/sales?db={{ db_mode }}" class="searchform">
+<form method="post" action="/admin/sales?db={{ db_mode }}" class="admin-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="field"><label for="block">Block</label><input id="block" name="block" value="{{ f.block }}" maxlength="5" required></div>
   <div class="field"><label for="street">Street</label><input id="street" name="street" value="{{ f.street }}" maxlength="40" required></div>
-  <div class="field"><label for="month">Month</label><input id="month" name="month" value="{{ f.month }}" placeholder="2024-03" maxlength="7" required></div>
+  <div class="field"><label for="month">Month</label><input id="month" name="month" value="{{ f.month }}" placeholder="YYYY-MM" maxlength="7" required></div>
   <div class="field">
     <label for="flat_type">Flat type</label>
     <select id="flat_type" name="flat_type" required>
       <option value="">Choose a flat type</option>
-      {% for t in flat_types %}<option value="{{ t }}"{% if f.flat_type == t %} selected{% endif %}>{{ t }}</option>
+      {% for t in flat_types %}<option value="{{ t }}"{% if f.flat_type == t %} selected{% endif %}>{{ t|flat_label }}</option>
       {% endfor %}
     </select>
   </div>
@@ -53,11 +61,16 @@
   <div class="field"><label for="floor_area_sqm">Floor area (sqm, 1 decimal place)</label><input id="floor_area_sqm" name="floor_area_sqm" value="{{ f.floor_area_sqm }}" maxlength="20" inputmode="decimal" required></div>
   <div class="field"><label for="remaining_lease_months">Remaining lease (months, 0 to 1188)</label><input id="remaining_lease_months" name="remaining_lease_months" value="{{ f.remaining_lease_months }}" maxlength="4" inputmode="numeric" required></div>
   <div class="field"><label for="resale_price">Resale price ($, 2 decimal places)</label><input id="resale_price" name="resale_price" value="{{ f.resale_price }}" maxlength="20" inputmode="decimal" required></div>
-  <div class="field demo"><label for="sim-record"><input id="sim-record" type="checkbox" name="simulate_failure" value="1"> Simulate failure (rollback demonstration)</label></div>
-  <button type="submit">Record sale</button>
+  <div class="form-end">
+    <label class="check" for="sim-record"><input id="sim-record" type="checkbox" name="simulate_failure" value="1"> Simulate failure (rollback demonstration)</label>
+    <button type="submit">Record sale</button>
+  </div>
 </form>
+</section>
 
-<h2>Delete a sale</h2>
+<section class="card admin-card" aria-labelledby="delete-h">
+<h2 id="delete-h">Delete a sale</h2>
+{{ target }}
 {% if delete_errors %}
 <div class="bad" role="alert">
   <ul>
@@ -66,14 +79,19 @@
   </ul>
 </div>
 {% endif %}
-<form method="post" action="/admin/sales/delete?db={{ db_mode }}" class="searchform">
+<form method="post" action="/admin/sales/delete?db={{ db_mode }}" class="admin-form single">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <div class="field"><label for="txn_id">Sale id (any sale, including loaded ones)</label><input id="txn_id" name="txn_id" maxlength="19" inputmode="numeric" required></div>
-  <div class="field demo"><label for="sim-delete"><input id="sim-delete" type="checkbox" name="simulate_failure" value="1"> Simulate failure (rollback demonstration)</label></div>
-  <button type="submit">Delete sale</button>
+  <div class="field"><label for="txn_id">Sale id <span class="optional">(any sale, including loaded ones)</span></label><input id="txn_id" name="txn_id" maxlength="19" inputmode="numeric" required></div>
+  <div class="form-end">
+    <label class="check" for="sim-delete"><input id="sim-delete" type="checkbox" name="simulate_failure" value="1"> Simulate failure (rollback demonstration)</label>
+    <button type="submit">Delete sale</button>
+  </div>
 </form>
+</section>
+</div>
 
-<h2>Derived statistics</h2>
+<section class="card" aria-labelledby="derived-h">
+<h2 id="derived-h">Derived statistics</h2>
 {% if db_mode == 'pg' %}
 <form method="post" action="/admin/refresh?db={{ db_mode }}" class="inline">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -87,6 +105,7 @@
 </form>
 <p class="footnote">Recomputes every block's statistics and recent sales with <code>$merge</code>. Admin writes wait while it runs.</p>
 {% endif %}
+</section>
 
 <h2>Sales recorded by admins</h2>
 {% if not sales %}
@@ -101,11 +120,11 @@
     <tr>
       <td>{{ s.txn_id }}</td>
       <td class="nowrap">{{ s.txn_month|month }}</td>
-      <td><a href="/block/{{ s.building_id }}?db={{ db_mode }}">{{ s.block }} {{ s.street }}</a></td>
-      <td>{{ s.town }}</td>
-      <td>{{ s.flat_type }}</td>
+      <td class="nowrap"><a href="/block/{{ s.building_id }}?db={{ db_mode }}">{{ s.block }} {{ s.street|proper }}</a></td>
+      <td>{{ s.town|proper }}</td>
+      <td class="nowrap">{{ s.flat_type|flat_label }}</td>
       <td>{{ s.flat_model }}</td>
-      <td>{{ s.storey_min|storey(s.storey_max) }}</td>
+      <td class="nowrap">{{ s.storey_min|storey(s.storey_max) }}</td>
       <td>{{ s.floor_area_sqm }}</td>
       <td>{{ s.remaining_lease_months|lease }}</td>
       <td>{{ s.resale_price|money }}</td>

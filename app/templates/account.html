@@ -1,17 +1,30 @@
 {% extends "base.html" %}
 {% block title %}Your account · Neighboar{% endblock %}
 {% block content %}
-<h1>Your account</h1>
-<div class="table-wrap">
-<table class="details">
-  <caption>Account details</caption>
-  <tbody>
-    <tr><th scope="row">Email</th><td>{{ account.email }}</td></tr>
-    <tr><th scope="row">Display name</th><td>{{ account.display_name|unknown }}</td></tr>
-    <tr><th scope="row">Created</th><td>{{ account.created_at|stamp }}</td></tr>
-    <tr><th scope="row">Last active</th><td>{{ account.last_active_at|stamp }}</td></tr>
-    <tr><th scope="row">Database</th><td>{{ db_mode_name }}</td></tr>
-  </tbody>
-</table>
+<header class="page-head">
+  <div>
+    <h1>Your account</h1>
+    <p class="lede">Signed in as {{ account.display_name or account.email }}.</p>
+  </div>
+</header>
+<div class="account-layout">
+  <section class="card" aria-labelledby="details-h">
+    <h2 id="details-h">Details</h2>
+    <table class="details">
+      <caption class="sr">Account details</caption>
+      <tbody>
+        <tr><th scope="row">Email</th><td>{{ account.email }}</td></tr>
+        <tr><th scope="row">Name</th><td>{{ account.display_name|unknown }}</td></tr>
+        <tr><th scope="row">Member since</th><td>{{ account.created_at|day }}</td></tr>
+        <tr><th scope="row">Last active</th><td>{{ account.last_active_at|day if account.last_active_at else 'Not yet' }}</td></tr>
+        {% if demo %}<tr><th scope="row">Database</th><td>{{ db_mode_name }}</td></tr>{% endif %}
+      </tbody>
+    </table>
+  </section>
+  <nav class="account-links" aria-label="Your things">
+    <a class="side-card" href="/shortlist"><strong>Shortlist</strong><span class="hint">{{ shortlist.count if shortlist else 0 }} of 50 blocks</span></a>
+    <a class="side-card" href="/household"><strong>Household</strong><span class="hint">Share your shortlist with your partner.</span></a>
+    {% if account.is_admin %}<a class="side-card" href="/admin?db={{ db_mode }}"><strong>Admin</strong><span class="hint">Record and delete sales.</span></a>{% endif %}
+  </nav>
 </div>
 {% endblock %}
