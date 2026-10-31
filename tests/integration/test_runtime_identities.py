@@ -134,11 +134,13 @@ ROUTES: dict[str, tuple[str, Callable[[SimpleNamespace], Req]]] = {
         "buyer",
         lambda c: Req("/explore", {"flat_type": "4 ROOM", "budget": "800000", "place_text": "bishan"}),
     ),
-    "GET /building/find": (
+    "GET /block/find": (
         "buyer",
-        lambda c: Req("/building/find", {"block": c.plan.a_block, "street": c.plan.a_street}),
+        lambda c: Req("/block/find", {"block": c.plan.a_block, "street": c.plan.a_street}),
     ),
-    "GET /building/{building_id:int}": ("buyer", lambda c: Req(f"/building/{c.plan.a_id}")),
+    "GET /block/{building_id:int}": ("buyer", lambda c: Req(f"/block/{c.plan.a_id}")),
+    "GET /building/find": ("anon", lambda c: Req("/building/find", {"block": "1", "street": "X"})),
+    "GET /building/{building_id:int}": ("anon", lambda c: Req(f"/building/{c.plan.a_id}")),
     "GET /food": ("buyer", lambda c: Req("/food", {"town": "BISHAN"})),
     "GET /search": ("buyer", lambda c: Req("/search", {"town": "BISHAN"})),
     "GET /trends": ("buyer", lambda c: Req("/trends", {"town": "BISHAN", "flat_type": "4 ROOM"})),
@@ -174,7 +176,7 @@ def route_keys(application) -> set[str]:
 
 def test_every_route_has_a_request_in_the_table(app):
     found = route_keys(app)
-    assert found >= {"GET /health", "POST /admin/sales", "GET /building/{building_id:int}", "MOUNT /static"}
+    assert found >= {"GET /health", "POST /admin/sales", "GET /block/{building_id:int}", "MOUNT /static"}
     missing = sorted(found - set(ROUTES))
     stale = sorted(set(ROUTES) - found)
     assert not missing, f"add a request for these routes to ROUTES in {__file__}: {missing}"

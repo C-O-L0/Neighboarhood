@@ -87,7 +87,7 @@ def test_signed_out_visitors_are_sent_to_sign_in(mode):
             assert resp.status_code == 303 and resp.headers["location"] == f"/login?db={mode}"
         resp = browser.http.get(f"/saved?db={mode}")
         assert resp.status_code == 303 and resp.headers["location"] == f"/login?db={mode}"
-        assert "Sign in (top right) to save this block." in browser.http.get(f"/building/1?db={mode}").text
+        assert "to save this block to your shortlist" in browser.http.get(f"/block/1?db={mode}").text
     finally:
         browser.close()
 
@@ -104,14 +104,14 @@ def test_posts_without_a_csrf_token_get_403(mode, path, make_user, blocks):
 def test_save_edit_and_remove_through_the_pages(mode, make_user, blocks, pg_rw, mongo_app):
     browser, email = make_user(mode)
     bid = buyer_id(mode, email, pg_rw, mongo_app)
-    page = browser.http.get(f"/building/{blocks[0]}?db={mode}")
-    assert "Save this block" in page.text and "Simulate failure (rollback demonstration)" in page.text
+    page = browser.http.get(f"/block/{blocks[0]}?db={mode}")
+    assert "Save to shortlist" in page.text and "Simulate failure (rollback demonstration)" in page.text
 
     resp = browser.post("/saved", mode, building_id=str(blocks[0]), note="  near the MRT  ", back="building")
-    assert resp.headers["location"].startswith(f"/building/{blocks[0]}?")
+    assert resp.headers["location"].startswith(f"/block/{blocks[0]}?")
     page = follow(browser, resp)
     assert notice(page) == "Block saved."
-    assert "near the MRT" in page.text and "Update note" in page.text and "Remove from saved" in page.text
+    assert "near the MRT" in page.text and "Update note" in page.text and "Remove from shortlist" in page.text
     assert "saved list: " in page.text  # the timing footer
 
     resp = browser.post("/saved", mode, building_id=str(blocks[0]), note="", back="building")
@@ -120,7 +120,7 @@ def test_save_edit_and_remove_through_the_pages(mode, make_user, blocks, pg_rw, 
     assert notice(follow(browser, resp)) == "There is no such block."
 
     page = browser.http.get(f"/saved?db={mode}")
-    assert page.status_code == 200 and "near the MRT" in page.text and f"/building/{blocks[0]}?db={mode}" in page.text
+    assert page.status_code == 200 and "near the MRT" in page.text and f"/block/{blocks[0]}?db={mode}" in page.text
     assert "saved list: " in page.text
 
     resp = browser.post("/saved/note", mode, building_id=str(blocks[0]), note="new note")

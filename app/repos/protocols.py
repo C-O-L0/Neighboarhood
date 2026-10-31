@@ -13,6 +13,7 @@ from app.repos.dto import (
     BuildingDetail,
     Duplicate,
     FlatTypeRange,
+    FlatTypeRecent,
     NearBlock,
     Outcome,
     Place,
@@ -141,6 +142,12 @@ class ExploreRepo(Protocol):
     def baselines(self, flat_type: str, window: Window) -> list[TownBaseline]:
         """Per town with sales of the flat type in the window: count and the typical storey band, lease start
         year and floor area (lower medians). Ordered by town name.
+        """
+        ...
+
+    def block_recent(self, building_id: int, window: Window) -> list[FlatTypeRecent]:
+        """Per flat type of one block's sales in the window: count, typical price, average price per sqm and the
+        typical storey band and floor area (lower medians). Ordered by flat type name; [] when there are none.
         """
         ...
 

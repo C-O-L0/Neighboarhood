@@ -509,6 +509,13 @@ def _blocks_fit(repo, p):
     return repo.blocks_fit(block_filter(q, window_ending(p["end"])))
 
 
+# A block's recent figures (task T8): every building case (building_params) in the two Explore windows, so blocks
+# without recent sales, the stub and unknown sales history all appear. An unknown id gives [] in both.
+def block_recent_params(conn) -> list[dict]:
+    ids = [p["building_id"] for p in building_params(conn)] + [MISSING_BUILDING]
+    return [{**w, "building_id": i} for w in explore_window_params(conn) for i in ids]
+
+
 CASES: list[Case] = [
     Case(
         name="building",
@@ -580,6 +587,12 @@ CASES: list[Case] = [
         pg_call=lambda conn, p: _blocks_fit(PgExploreRepo(conn), p),
         mongo_call=lambda db, p: _blocks_fit(MongoExploreRepo(db), p),
         params=block_fit_params,
+    ),
+    Case(
+        name="explore_block_recent",
+        pg_call=lambda conn, p: PgExploreRepo(conn).block_recent(p["building_id"], window_ending(p["end"])),
+        mongo_call=lambda db, p: MongoExploreRepo(db).block_recent(p["building_id"], window_ending(p["end"])),
+        params=block_recent_params,
     ),
     Case(
         name="explore_towns",

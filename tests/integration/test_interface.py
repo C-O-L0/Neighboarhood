@@ -34,7 +34,7 @@ def chart_json(resp, ident):
 @pytest.fixture(scope="module")
 def building_path():
     page = get("/search?db=pg").text
-    return re.search(r'href="(/building/\d+)"', page).group(1)
+    return re.search(r'href="(/block/\d+)"', page).group(1)
 
 
 @pytest.fixture
@@ -168,7 +168,7 @@ class Access(HTMLParser):
 @pytest.mark.parametrize("db", ["pg", "mongo"])
 def test_accessibility_labels_captions_and_canvas(db, building_path, gap_query):
     paths = [p for p, _ in pages(building_path, gap_query)]
-    paths += ["/trends", "/rankings", "/building/find?block=1&street=x"]
+    paths += ["/trends", "/rankings", "/block/find?block=1&street=x"]
     for path in paths:
         resp = get(path + ("&" if "?" in path else "?") + f"db={db}")
         scan = Access()

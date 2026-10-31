@@ -263,9 +263,51 @@ a.side-card:hover { border-color: var(--field); color: var(--ink); }
 .leaflet-marker-icon:focus-visible .price-pin { outline: 2px solid var(--accent); outline-offset: 2px; }
 .map-popup { display: flex; flex-direction: column; gap: 2px; font: 14px/1.4 Figtree, system-ui, sans-serif; }
 .map-popup a { font-weight: 600; }
+.price-pin.hawker { border-color: var(--warm); color: var(--warm-ink); }
+
+/* Block profile */
+.eyebrow { margin: 0 0 4px; font-size: 14px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.profile-head { margin-bottom: 24px; }
+.profile-head .lede { margin-bottom: 12px; }
+.profile-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.profile-split { display: flex; flex-wrap: wrap; gap: 20px; align-items: stretch; }
+.profile-split > .glance { flex: 1 1 420px; min-width: 0; margin: 0; }
+.profile-split > .map-figure, .profile-split > .map-missing { flex: 1 1 380px; min-width: 0; }
+.profile-map { position: static; }
+.profile-map .map { flex: 1; height: auto; min-height: 360px; }
+.map-missing { display: flex; align-items: center; justify-content: center; min-height: 240px; padding: 24px; border: 1px dashed var(--field); border-radius: var(--radius); background: var(--surface); color: var(--muted); text-align: center; }
+.map-missing p { margin: 0; max-width: 22rem; }
+.glance-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: 16px 20px; margin: 0; }
+.glance-list dt { font-size: 14px; color: var(--muted); }
+.glance-list dd { margin: 0; font-size: 18px; font-weight: 700; }
+.flat-mix { margin: 0; padding: 0; list-style: none; font-size: 16px; }
+.lease-check { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.lease-check h3 { margin-top: 0; }
+.lease-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.lease-fields .field { flex: 0 1 7.5rem; }
+.lease-fields .field:has(#lease-min) { flex-basis: 10rem; }
+.lease-fields input { width: 100%; }
+.lease-or { min-height: 44px; display: inline-flex; align-items: center; color: var(--muted); font-size: 14px; }
+.lease-check div.bad[role="alert"] { margin: 12px 0 0; }
+.lease-result { margin: 12px 0 8px; min-height: 1.5em; font-size: 17px; }
+.warn { color: var(--warm-ink); font-weight: 700; }
+.hawker-list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.hawker-list li { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--line-soft); }
+.hawker-list li:last-child { border-bottom: 0; }
+.hawker-name { display: flex; flex-direction: column; min-width: 0; }
+.hawker-distance { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.more { margin: 0 0 1.5rem; }
+.more > summary { margin-bottom: 12px; font-weight: 600; color: var(--accent); cursor: pointer; }
+.shortlist { margin-top: 2rem; }
+.form-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 
 @media (max-width: 640px) {
   .map-figure { order: -1; position: static; flex-basis: 100%; }
+  .profile-map { order: 0; }
+  .profile-map .map { min-height: 280px; }
+  .actions .button { flex: 1 1 auto; padding: 0 12px; }
+  .hawker-list li { padding: 12px 16px; }
   .map { height: 280px; }
   .home-main h1 { font-size: 30px; }
   .home-side { padding-top: 0; }

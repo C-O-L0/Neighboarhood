@@ -34,7 +34,7 @@ def _login(request: Request) -> RedirectResponse:
 
 
 def _back(request: Request, back: str, building_id: int | None, params: dict[str, str]) -> RedirectResponse:
-    path = f"/building/{building_id}" if back == "building" and building_id is not None else "/saved"
+    path = f"/block/{building_id}" if back == "building" and building_id is not None else "/saved"
     query = urlencode({"db": request.state.db_mode, **params})
     return RedirectResponse(f"{path}?{query}", status_code=303)
 

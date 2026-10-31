@@ -1,4 +1,5 @@
-/* Draws block maps from JSON embedded in the page (no other data source); the list beside it has the same blocks.
+/* Draws block maps from JSON embedded in the page (no other data source); the list beside it has the same places.
+   A pin is a block (with a link to it) or a hawker centre (kind "hawker", no link).
    Every text shown on the map is set with textContent, never parsed as HTML. */
 (function () {
   "use strict";
@@ -14,14 +15,17 @@
     var box = el("div", "map-popup");
     box.appendChild(el("strong", "", pin.name));
     box.appendChild(el("span", "", pin.detail));
-    var link = el("a", "", "Open block");
-    link.href = pin.href;
-    box.appendChild(link);
+    if (pin.href) {
+      var link = el("a", "", "Open block");
+      link.href = pin.href;
+      box.appendChild(link);
+    }
     return box;
   }
 
   function priceIcon(pin) {
-    var label = el("span", pin.chosen ? "price-pin chosen" : "price-pin", pin.label);
+    var kind = pin.chosen ? " chosen" : pin.kind === "hawker" ? " hawker" : "";
+    var label = el("span", "price-pin" + kind, pin.label);
     return L.divIcon({ className: "price-pin-wrap", html: label, iconSize: null, iconAnchor: [0, 0] });
   }
 

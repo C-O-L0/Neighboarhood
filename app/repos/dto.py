@@ -76,6 +76,21 @@ class BuildingDetail:
 
 
 @dataclass(frozen=True)
+class FlatTypeRecent:
+    """A block's sales of one flat type in the recent window, with what its explainer tags need.
+
+    median_price, storey_sum and area_median are lower medians (as TownBaseline); avg_psm is rounded to cents.
+    """
+
+    flat_type: str
+    n: int
+    median_price: Decimal
+    avg_psm: Decimal = field(metadata={"tol": AVG_TOL})
+    storey_sum: int
+    area_median: Decimal
+
+
+@dataclass(frozen=True)
 class SaleRow:
     txn_id: int
     txn_month: date
@@ -252,13 +267,18 @@ DISTANCE_TOL = Decimal("1")  # metres: PostgreSQL Haversine (R = 6378100 m) vs M
 
 @dataclass(frozen=True)
 class HawkerDistance:
-    """One hawker centre and its distance from a block, in metres rounded to 0.1 (sorted on the unrounded value)."""
+    """One hawker centre and its distance from a block, in metres rounded to 0.1 (sorted on the unrounded value).
+
+    latitude and longitude have 6 dp, for the block profile map.
+    """
 
     hawker_id: int
     name: str
     address: str | None
     status: str
     stall_count: int | None
+    latitude: Decimal
+    longitude: Decimal
     distance_m: Decimal = field(metadata={"tol": DISTANCE_TOL})
 
 

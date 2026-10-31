@@ -177,6 +177,61 @@ def test_baselines_match_the_raw_sales(pg_conn, mongo_db, latest, years_back):
     assert checked
 
 
+# ---------------------------------------------------------------- a block's recent figures (T8)
+
+
+@pytest.mark.parametrize("years_back", [0, 2])
+def test_block_recent_matches_the_raw_sales(pg_conn, mongo_db, latest, years_back):
+    window = window_ending(add_months(latest, -12 * years_back))
+    rows = pg_conn.execute(
+        """
+        SELECT building_id, flat_type, resale_price, floor_area_sqm, storey_min + storey_max
+        FROM v_transaction_detail
+        WHERE txn_month BETWEEN %s AND %s
+        """,
+        [window.start, window.end],
+    ).fetchall()
+    by_block = defaultdict(lambda: defaultdict(list))
+    for building_id, flat_type, price, area, storey_sum in rows:
+        by_block[building_id][flat_type].append((price, area, storey_sum))
+    pg, mongo = repos(pg_conn, mongo_db)
+    for building_id in sorted(by_block)[:: 1 if len(by_block) <= 1000 else 25]:
+        expected = [
+            (
+                t,
+                len(v),
+                at_percentile([p for p, _, _ in v], 0.5),
+                (sum(p / a for p, a, _ in v) / len(v)).quantize(Decimal("0.01")),
+                at_percentile([s for _, _, s in v], 0.5),
+                at_percentile([a for _, a, _ in v], 0.5),
+            )
+            for t, v in sorted(by_block[building_id].items())
+        ]
+        for repo in (pg, mongo):
+            got = [
+                (r.flat_type, r.n, r.median_price, r.avg_psm, r.storey_sum, r.area_median)
+                for r in repo.block_recent(building_id, window)
+            ]
+            assert [g[:3] + g[4:] for g in got] == [e[:3] + e[4:] for e in expected], building_id
+            assert all(abs(g[3] - e[3]) <= Decimal("0.01") for g, e in zip(got, expected, strict=True))
+    assert by_block
+
+
+def test_block_recent_is_empty_for_a_block_without_window_sales(pg_conn, mongo_db, latest):
+    window = window_ending(latest)
+    quiet = pg_conn.execute(
+        """
+        SELECT b.building_id FROM building b
+        WHERE NOT EXISTS (SELECT 1 FROM resale_transaction t WHERE t.building_id = b.building_id
+                          AND t.txn_month BETWEEN %s AND %s)
+        ORDER BY b.building_id LIMIT 1
+        """,
+        [window.start, window.end],
+    ).fetchone()[0]
+    pg, mongo = repos(pg_conn, mongo_db)
+    assert pg.block_recent(quiet, window) == mongo.block_recent(quiet, window) == []
+
+
 # ---------------------------------------------------------------- blocks that fit (T5)
 
 

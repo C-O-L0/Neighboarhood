@@ -4,7 +4,8 @@ Every statement filters on (flat_type_id, txn_month), so it can use resale_trans
 latest month is one backward index probe per flat type (LATERAL), and the window queries are index range
 scans for one flat type or for the listed resale types (= ANY). percentile_disc(0.5) is the lower median;
 0.1 and 0.9 give the ends of the middle 80% of prices. The town baselines for explainer tags are the lower
-medians of storey band, lease start year and floor area over the same window.
+medians of storey band, lease start year and floor area over the same window, and a block's own recent figures
+(for the block profile) the same medians over its sales, through resale_transaction_building_month_idx.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from decimal import Decimal
 
 from psycopg import Connection, sql
 
-from app.repos.dto import BlockFit, BlockFitPage, FlatTypeRange, TownBaseline, TownFit
+from app.repos.dto import BlockFit, BlockFitPage, FlatTypeRange, FlatTypeRecent, TownBaseline, TownFit
 from app.repos.pg.places import DISTANCE
 from app.services.explore import PAGE_SIZE, BlockFilter, Window
 from app.services.food import round_metres
@@ -79,6 +80,19 @@ SELECT tw.name, p.n, p.storey_sum, p.lease_year, p.area_median
 FROM per_town p
 JOIN town tw ON tw.town_id = p.town_id
 ORDER BY tw.name COLLATE "C"
+"""
+
+_BLOCK_RECENT = """
+SELECT ft.name, count(*)::int,
+       percentile_disc(0.5) WITHIN GROUP (ORDER BY t.resale_price),
+       round(avg(t.resale_price / t.floor_area_sqm), 2),
+       percentile_disc(0.5) WITHIN GROUP (ORDER BY t.storey_min + t.storey_max),
+       percentile_disc(0.5) WITHIN GROUP (ORDER BY t.floor_area_sqm)
+FROM resale_transaction t
+JOIN flat_type ft ON ft.flat_type_id = t.flat_type_id
+WHERE t.building_id = %s AND t.txn_month >= %s AND t.txn_month <= %s
+GROUP BY ft.name
+ORDER BY ft.name COLLATE "C"
 """
 
 # Blocks that fit: medians per block over the window's sales of the flat type, then the block filters, then
@@ -184,6 +198,10 @@ class PgExploreRepo:
     def baselines(self, flat_type: str, window: Window) -> list[TownBaseline]:
         params = [FLAT_TYPE_IDS[flat_type], window.start, window.end]
         return [TownBaseline(*r) for r in self.conn.execute(_BASELINES, params).fetchall()]
+
+    def block_recent(self, building_id: int, window: Window) -> list[FlatTypeRecent]:
+        rows = self.conn.execute(_BLOCK_RECENT, [building_id, window.start, window.end]).fetchall()
+        return [FlatTypeRecent(*r) for r in rows]
 
     def blocks_fit(self, f: BlockFilter) -> BlockFitPage:
         statement, params = _blocks_statement(f)

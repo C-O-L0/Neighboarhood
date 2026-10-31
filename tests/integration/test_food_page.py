@@ -1,4 +1,4 @@
-"""Food access through the running web app: the building page panel and /food (task 3.4)."""
+"""Food access through the running web app: the block profile panel and /food (task 3.4)."""
 
 import os
 import re
@@ -14,7 +14,7 @@ pytestmark = pytest.mark.integration
 
 MAIN = re.compile(r'<main id="main" class="page">(.*?)</main>', re.S)
 TIMING = re.compile(r"<li>([^<]+): [\d.]+ ms on (PostgreSQL|MongoDB) \(query and fetch\)</li>")
-PANEL = re.compile(r"<h2>Food access</h2>(.*?)<h2>Resale statistics</h2>", re.S)
+PANEL = re.compile(r'<h2 id="food-h">Food nearby</h2>(.*?)</section>', re.S)
 MODES = [("pg", "PostgreSQL"), ("mongo", "MongoDB")]
 
 
@@ -45,33 +45,33 @@ def ids(pg_rw):
 
 @pytest.mark.parametrize("db,name", MODES)
 def test_building_page_shows_the_five_nearest_and_the_count(ids, db, name):
-    resp = get(f"/building/{ids['geocoded']}?db={db}")
+    resp = get(f"/block/{ids['geocoded']}?db={db}")
     assert resp.status_code == 200
-    assert TIMING.findall(resp.text) == [("building page", name), ("food access", name)]
+    assert TIMING.findall(resp.text)[:2] == [("block profile", name), ("food access", name)]
     panel = panel_of(resp)
     assert "open hawker" in panel and "within 1 km" in panel
-    assert len(re.findall(r"<tr><td>", panel)) == 5
-    assert "Distance (m)" in panel and "Under Construction" not in panel
+    assert len(re.findall(r"<li>", panel)) == 5
+    assert "Under Construction" not in panel
 
 
 @pytest.mark.parametrize("db,name", MODES)
 def test_stub_has_real_food_access(ids, db, name):
-    panel = panel_of(get(f"/building/{ids['stub']}?db={db}"))
-    assert "Unknown" not in panel.split("<table")[0]
-    assert len(re.findall(r"<tr><td>", panel)) == 5
+    panel = panel_of(get(f"/block/{ids['stub']}?db={db}"))
+    assert "Unknown" not in panel.split("<ol")[0]
+    assert len(re.findall(r"<li>", panel)) == 5
 
 
 @pytest.mark.parametrize("db", ["pg", "mongo"])
 def test_ungeocoded_block_shows_unknown_without_a_database_error(ids, db):
-    resp = get(f"/building/{ids['ungeocoded']}?db={db}")
+    resp = get(f"/block/{ids['ungeocoded']}?db={db}")
     assert resp.status_code == 200
-    assert panel_of(resp) == "<p>Unknown</p>"
-    assert [t[0] for t in TIMING.findall(resp.text)] == ["building page"]
+    assert panel_of(resp) == '<p class="empty">Location not available, so food access is not known.</p>'
+    assert "food access" not in [t[0] for t in TIMING.findall(resp.text)]
 
 
 def test_panel_is_the_same_in_both_modes(ids):
     for kind in ("geocoded", "stub", "ungeocoded"):
-        assert panel_of(get(f"/building/{ids[kind]}?db=pg")) == panel_of(get(f"/building/{ids[kind]}?db=mongo"))
+        assert panel_of(get(f"/block/{ids[kind]}?db=pg")) == panel_of(get(f"/block/{ids[kind]}?db=mongo"))
 
 
 def test_unavailable_address_renders_as_unknown(pg_rw):
@@ -85,7 +85,7 @@ def test_unavailable_address_renders_as_unknown(pg_rw):
     if row is None:
         pytest.skip("no geocoded block has an address-less centre as its nearest")
     for db in ("pg", "mongo"):
-        assert "<td>Unknown</td>" in panel_of(get(f"/building/{row[0]}?db={db}"))
+        assert '<span class="hint">Unknown' in panel_of(get(f"/block/{row[0]}?db={db}"))
 
 
 @pytest.mark.parametrize("db,name", MODES)

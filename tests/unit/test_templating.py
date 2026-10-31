@@ -91,7 +91,8 @@ def test_distance():
     assert distance(Decimal("0")) == "0 m"
     assert distance(Decimal("124.9")) == "120 m"
     assert distance(Decimal("125.0")) == "130 m"  # half up
-    assert distance(Decimal("999.4")) == "1000 m"
+    assert distance(Decimal("994.9")) == "990 m"
+    assert distance(Decimal("999.4")) == "1.0 km"  # rounds to 1000 m, so it is shown in km
     assert distance(Decimal("1449.9")) == "1.4 km"
     assert distance(Decimal("4999.9")) == "5.0 km"
     assert distance(None) == "Unknown"
