@@ -159,6 +159,15 @@ dl.facts dd ul, dl.details dd ul { margin: 0; padding: 0; list-style: none; font
 /* Charts */
 .chart { margin: 1rem 0; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .chartbox { position: relative; width: 100%; height: 360px; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 12px; font-size: 14px; color: var(--ink-soft); }
+.chart-legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend-median { stroke: var(--accent); stroke-width: 2.5; }
+.legend-rolling { stroke: var(--warm); stroke-width: 2.5; stroke-dasharray: 6 3; }
+.legend-sales { fill: #d3d9d4; }
+.trend-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); align-items: end; gap: 16px; }
+.trend-form .field { min-width: 0; }
+.trend-form select, .trend-form input:not([type="hidden"]) { width: 100%; min-width: 0; }
+.trend-form .form-actions button { width: 100%; }
 
 /* Paging */
 .count { color: var(--muted); }
@@ -311,6 +320,7 @@ a.side-card:hover { border-color: var(--field); color: var(--ink); }
 .price-form .form-actions { align-self: end; }
 .price-form .form-actions button { width: 100%; }
 .verdict { margin: 0 0 1.5rem; padding: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.verdict > :last-child { margin-bottom: 0; }
 .verdict-line { margin: 0 0 8px; font-size: 26px; line-height: 1.25; font-weight: 800; }
 .verdict .notice { margin: 12px 0; background: var(--ground); }
 .range { margin: 24px 0 0; }
@@ -334,6 +344,8 @@ a.side-card:hover { border-color: var(--field); color: var(--ink); }
   .price-form .wide, .price-form .form-actions { grid-column: 1 / -1; }
   .verdict { padding: 18px 16px; }
   .verdict-line { font-size: 21px; }
+  .trend-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px 12px; padding: 18px 16px; }
+  .trend-form .form-actions { grid-column: 1 / -1; }
   .map { height: 280px; }
   .home-main h1 { font-size: 30px; }
   .home-side { padding-top: 0; }

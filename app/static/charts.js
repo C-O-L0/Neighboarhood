@@ -2,9 +2,10 @@
 (function () {
   "use strict";
 
-  var BLUE = "#2a78d6";
-  var ORANGE = "#eb6834";
-  var GREY = "#c9c9c4";
+  // The site palette (app.css): accent for the monthly figure, warm for the rolling one, a quiet grey for counts.
+  var BLUE = "#1f6f5c";
+  var ORANGE = "#b4520f";
+  var GREY = "#d3d9d4";
   var BARS = "#5d8fc7";
 
   function read(id) {
@@ -20,6 +21,16 @@
     return "$" + Number(v).toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  function whole(v) {
+    return "$" + Number(v).toLocaleString("en-SG", { maximumFractionDigits: 0 });
+  }
+
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  function monthLabel(text) {  // "2026-09" is "Sep 2026", as the tables write months
+    return MONTHS[Number(text.slice(5, 7)) - 1] + " " + text.slice(0, 4);
+  }
+
   function axisTitle(text) {
     return { display: true, text: text };
   }
@@ -27,14 +38,15 @@
   function trends(canvas, data) {
     new Chart(canvas, {
       data: {
-        labels: data.months,
+        labels: data.months.map(monthLabel),
         datasets: [
-          { type: "line", label: "Typical price", data: data.median.map(num), yAxisID: "y",
-            borderColor: BLUE, backgroundColor: BLUE, spanGaps: false, tension: 0, pointRadius: 2, order: 1 },
+          { type: "line", label: "Typical price each month", data: data.median.map(num), yAxisID: "y",
+            borderColor: BLUE, backgroundColor: BLUE, spanGaps: false, tension: 0, order: 1,
+            pointRadius: data.months.length > 36 ? 0 : 2, pointHoverRadius: 4 },  // dots crowd a long series
           { type: "line", label: "12-month typical price", data: data.rolling_median.map(num), yAxisID: "y",
             borderColor: ORANGE, backgroundColor: ORANGE, borderDash: [6, 3], spanGaps: false, tension: 0,
             pointRadius: 0, order: 2 },
-          { type: "bar", label: "Sales (count)", data: data.n, yAxisID: "y1",
+          { type: "bar", label: "Sales each month", data: data.n, yAxisID: "y1",
             backgroundColor: GREY, borderColor: GREY, order: 3 }
         ]
       },
@@ -43,16 +55,16 @@
         maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
         plugins: {
-          legend: { display: true, position: "bottom" },
+          legend: { display: false },  // the page draws its own legend, with the dashed line as a line
           tooltip: { callbacks: { label: function (c) {
             return c.dataset.label + ": " + (c.dataset.yAxisID === "y" ? dollars(c.parsed.y) : c.parsed.y);
           } } }
         },
         scales: {
-          x: { title: axisTitle("Month (YYYY-MM)") },
+          x: { ticks: { maxRotation: 0, autoSkipPadding: 16 } },
           y: { position: "left", title: axisTitle("Typical price (SGD)"),
-               ticks: { callback: function (v) { return dollars(v); } } },
-          y1: { position: "right", beginAtZero: true, title: axisTitle("Sales (count per month)"),
+               ticks: { callback: function (v) { return whole(v); } } },
+          y1: { position: "right", beginAtZero: true, title: axisTitle("Sales each month"),
                 grid: { drawOnChartArea: false }, ticks: { precision: 0 } }
         }
       }

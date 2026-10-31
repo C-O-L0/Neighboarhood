@@ -1,4 +1,4 @@
-"""Trends page through the running web app: validation, both databases, formatting."""
+"""Town trend (S5) through the running web app: validation, summary, both databases, formatting."""
 
 import os
 import re
@@ -70,10 +70,10 @@ def test_trends_shows_table_labels_and_timings(db, name):
     assert resp.status_code == 200
     assert TIMING.findall(resp.text) == [("trends", name)]
     page = main_of(resp)
-    assert "Typical price" in page and "12-month typical price" in page and "Typical price a year earlier" in page
+    assert "Typical price" in page and "12-month typical price" in page and "<th>A year earlier</th>" in page
     assert 'href="/glossary#typical-price"' in page and "median*" not in page.lower()
     assert re.search(r'<td class="nowrap">[A-Z][a-z]{2} \d{4}</td>', page)
-    assert re.search(r"\$\d{1,3}(,\d{3})+\.\d{2}", page)
+    assert re.search(r"<td>\$\d{1,3}(,\d{3})+</td>", page)
     assert re.search(r"-?\d+\.\d%", page)  # a YoY percentage
 
 
@@ -96,4 +96,52 @@ def test_both_databases_render_the_same_table():
 @pytest.mark.parametrize("db", ["pg", "mongo"])
 def test_range_without_sales_says_so(db):
     page = main_of(get(f"/trends?{SERIES}&month_from=2999-01&db={db}"))
-    assert "No sales match." in page and "<table" not in page
+    assert "No 4-room sales in Bishan in this period." in page and "<table" not in page
+    assert 'id="summary-h"' not in page
+
+
+SUMMARY = re.compile(r'<h2 id="summary-h" class="verdict-line">([^<]+)</h2>')
+
+
+@pytest.mark.parametrize("db", ["pg", "mongo"])
+def test_a_summary_sentence_leads_the_results(db):
+    resp = get(f"/trends?{SERIES}&db={db}")
+    sentence = SUMMARY.search(resp.text).group(1)
+    assert re.fullmatch(
+        r"4 room prices in Bishan are (up \d+\.\d%|down \d+\.\d%|unchanged) on a year earlier\.", sentence
+    )
+    page = main_of(resp)
+    assert re.search(r"over the 12 months to [A-Z][a-z]{2} \d{4}: \$[\d,]+, against \$[\d,]+ for the 12 months", page)
+    assert page.index('id="summary-h"') < page.index("<canvas")
+
+
+def test_the_summary_is_the_same_from_both_databases():
+    for query in (SERIES, "town=BUKIT+TIMAH&flat_type=5+ROOM", f"{SERIES}&month_to=2022-06"):
+        pg, mongo = (main_of(get(f"/trends?{query}&db={db}")).split("<figure")[0] for db in ("pg", "mongo"))
+        assert pg == mongo, query
+
+
+@pytest.mark.parametrize("db", ["pg", "mongo"])
+def test_without_a_year_earlier_in_range_there_is_no_change(db):
+    resp = get(f"/trends?{SERIES}&month_from=2026-01&db={db}")
+    sentence = SUMMARY.search(resp.text).group(1)
+    assert sentence.startswith("The typical 4-room price in Bishan over the 12 months to ")
+    assert re.search(r"No year-on-year change: [A-Z][a-z]{2} 2025 is before the range shown\.", main_of(resp))
+
+
+def test_the_form_says_all_months_and_the_table_starts_collapsed():
+    page = get(f"/trends?{SERIES}").text
+    assert page.count('placeholder="All months"') == 2
+    assert re.search(
+        r'<details class="more">\s*<summary>Show the monthly table \(\d+ months with sales\)</summary>', page
+    )
+    assert '<details class="more" open' not in page
+
+
+def test_the_legend_draws_the_rolling_line_dashed():
+    page = get(f"/trends?{SERIES}").text
+    assert 'class="legend-rolling"' in page and 'class="legend-median"' in page and 'class="legend-sales"' in page
+    css = get("/static/app.css").text
+    assert re.search(r"\.legend-rolling \{[^}]*stroke-dasharray", css)
+    js = get("/static/charts.js").text
+    assert "legend: { display: false }" in js and "borderDash: [6, 3]" in js

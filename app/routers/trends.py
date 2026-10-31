@@ -1,4 +1,4 @@
-"""Price trends: monthly median, year-on-year change and rolling 12-month median."""
+"""Town trend (S5, UC3): a summary sentence, the monthly and rolling 12-month typical price, and the sales count."""
 
 from __future__ import annotations
 
@@ -7,9 +7,10 @@ from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
 from app.services.charts import trends_chart
+from app.services.explore import FEW_SALES
 from app.services.repos import call_repo
 from app.services.search import RESALE_TYPES
-from app.services.trends import FIELDS, TrendQuery, error_messages
+from app.services.trends import FIELDS, TrendQuery, error_messages, summarise
 from app.templating import templates
 from etl.clean import TOWNS
 
@@ -28,6 +29,7 @@ def trends(request: Request):
         "flat_types": RESALE_TYPES,
         "errors": [],
         "points": None,
+        "few_sales": FEW_SALES,
         # Set after a failed refresh of the town-month view; only PostgreSQL reads that view.
         "stale_since": request.app.state.admin.stale_since if request.state.db_mode == "pg" else None,
     }
@@ -40,4 +42,6 @@ def trends(request: Request):
         return templates.TemplateResponse(request, "trends.html", context, status_code=422)
     context["points"] = call_repo(request, "trends", "trend", query, label="trends")
     context["chart"] = trends_chart(context["points"])
+    context["summary"] = summarise(context["points"])
+    context["q"] = query
     return templates.TemplateResponse(request, "trends.html", context)
