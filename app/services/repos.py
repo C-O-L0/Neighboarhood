@@ -12,6 +12,7 @@ from app.repos.mongo.admin import MongoAdminRepo
 from app.repos.mongo.building import MongoBuildingRepo
 from app.repos.mongo.explore import MongoExploreRepo
 from app.repos.mongo.food import MongoFoodRepo
+from app.repos.mongo.households import MongoHouseholdRepo
 from app.repos.mongo.places import MongoPlaceRepo
 from app.repos.mongo.prices import MongoPriceRepo
 from app.repos.mongo.rankings import MongoRankingRepo
@@ -23,6 +24,7 @@ from app.repos.pg.admin import PgAdminRepo
 from app.repos.pg.building import PgBuildingRepo
 from app.repos.pg.explore import PgExploreRepo
 from app.repos.pg.food import PgFoodRepo
+from app.repos.pg.households import PgHouseholdRepo
 from app.repos.pg.places import PgPlaceRepo
 from app.repos.pg.prices import PgPriceRepo
 from app.repos.pg.rankings import PgRankingRepo
@@ -40,6 +42,7 @@ REPOS = {
     "rankings": (PgRankingRepo, MongoRankingRepo),
     "accounts": (PgAccountRepo, MongoAccountRepo),
     "saved": (PgSavedRepo, MongoSavedRepo),
+    "households": (PgHouseholdRepo, MongoHouseholdRepo),
     "admin": (PgAdminRepo, MongoAdminRepo),
     "food": (PgFoodRepo, MongoFoodRepo),
     "explore": (PgExploreRepo, MongoExploreRepo),

@@ -149,7 +149,7 @@ def test_trigger_b_serialises_an_interleaved_save_in_postgresql(settings, pg_con
         thread = threading.Thread(target=lambda: results.append(PgSavedRepo(c2).save(pg_id, second, None)))
         try:
             with c1.transaction():
-                c1.execute(pg_saved._INSERT, (pg_id, first, None))  # trigger (b) now holds the buyer-row lock
+                c1.execute(pg_saved._P_INSERT, (pg_id, first, None))  # trigger (b) now holds the buyer-row lock
                 c1.execute(pg_saved._TOUCH, (pg_id,))
                 thread.start()
                 wait_for_lock(watcher, c2.info.backend_pid)

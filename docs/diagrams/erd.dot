@@ -1,13 +1,15 @@
-// Neighboar ERD: PostgreSQL schema (db/postgres/001_schema.sql), crow's-foot notation.
+// Neighboar ERD: PostgreSQL schema (db/postgres/001_schema.sql, 006_households.sql), crow's-foot notation.
 // Hand-maintained. tests/integration/test_erd.py fails if a table or column here differs from the live catalogue.
 // Render: python -m docs.diagrams.build
 digraph neighboar_erd {
   graph [rankdir=LR, splines=spline, nodesep=0.35, ranksep=0.9, fontname="Helvetica", fontsize=12, pad=0.3,
-         label="Neighboar relational schema (9 tables, 3NF).\nCrow's foot: | one, O zero, < many. UQ1 = composite unique (block, street).", labelloc=b];
+         label="Neighboar relational schema (13 tables, 3NF).\nCrow's foot: | one, O zero, < many. UQ1 = composite unique (block, street); UQ2 = (household_id, seat).", labelloc=b];
   node [shape=plaintext, fontname="Helvetica", fontsize=11];
   { rank=same; town; flat_type; flat_model; }
   { rank=same; building; buyer; hawker_centre; }
-  { rank=same; resale_transaction; building_flat_supply; saved_building; }
+  { rank=same; resale_transaction; building_flat_supply; saved_building; household_member; household_invitation; }
+  { rank=same; household; }
+  { rank=same; household_saved; }
   edge [fontname="Helvetica", fontsize=9, color="#444444", dir=both, arrowsize=0.9];
 
   town [label=<
@@ -92,6 +94,37 @@ digraph neighboar_erd {
       <TR><TD PORT="note" ALIGN="LEFT">note</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(500)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
       <TR><TD PORT="saved_at" ALIGN="LEFT">saved_at</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">TIMESTAMPTZ</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
     </TABLE>>];
+  household [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#E7EEF7"><B>household</B></TD></TR>
+      <TR><TD PORT="household_id" ALIGN="LEFT"><U>household_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK</FONT></TD></TR>
+      <TR><TD PORT="created_at" ALIGN="LEFT">created_at</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">TIMESTAMPTZ</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+    </TABLE>>];
+  household_member [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#E7EEF7"><B>household_member</B></TD></TR>
+      <TR><TD PORT="buyer_id" ALIGN="LEFT"><U>buyer_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK, FK</FONT></TD></TR>
+      <TR><TD PORT="household_id" ALIGN="LEFT">household_id</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">FK, UQ2</FONT></TD></TR>
+      <TR><TD PORT="seat" ALIGN="LEFT">seat</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">SMALLINT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">UQ2, 1 or 2</FONT></TD></TR>
+      <TR><TD PORT="joined_at" ALIGN="LEFT">joined_at</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">TIMESTAMPTZ</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+    </TABLE>>];
+  household_invitation [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#E7EEF7"><B>household_invitation</B></TD></TR>
+      <TR><TD PORT="inviter_id" ALIGN="LEFT"><U>inviter_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK, FK</FONT></TD></TR>
+      <TR><TD PORT="invitee_id" ALIGN="LEFT">invitee_id</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">FK, &lt;&gt; inviter</FONT></TD></TR>
+      <TR><TD PORT="created_at" ALIGN="LEFT">created_at</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">TIMESTAMPTZ</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+    </TABLE>>];
+  household_saved [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="3" BGCOLOR="#E7EEF7"><B>household_saved</B></TD></TR>
+      <TR><TD PORT="household_id" ALIGN="LEFT"><U>household_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK, FK</FONT></TD></TR>
+      <TR><TD PORT="building_id" ALIGN="LEFT"><U>building_id</U></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">PK, FK</FONT></TD></TR>
+      <TR><TD PORT="note" ALIGN="LEFT">note</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">VARCHAR(500)</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+      <TR><TD PORT="note_by" ALIGN="LEFT">note_by</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">FK, null</FONT></TD></TR>
+      <TR><TD PORT="saved_by" ALIGN="LEFT">saved_by</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">INT</FONT></TD><TD ALIGN="LEFT"><FONT COLOR="#555555">FK, null</FONT></TD></TR>
+      <TR><TD PORT="saved_at" ALIGN="LEFT">saved_at</TD><TD ALIGN="LEFT"><FONT COLOR="#555555">TIMESTAMPTZ</FONT></TD><TD ALIGN="LEFT"> </TD></TR>
+    </TABLE>>];
   hawker_centre [label=<
     <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
       <TR><TD COLSPAN="3" BGCOLOR="#F5F2E4"><B>hawker_centre</B></TD></TR>
@@ -113,5 +146,12 @@ digraph neighboar_erd {
   flat_model -> resale_transaction [arrowtail=teetee, arrowhead=crowodot, label="flat_model_id"];
   buyer -> saved_building [arrowtail=teetee, arrowhead=crowodot, label="buyer_id"];
   building -> saved_building [arrowtail=teetee, arrowhead=crowodot, label="building_id"];
+  household_member -> household [arrowtail=crowodot, arrowhead=teetee, label="household_id\n(at most 2)"];
+  buyer -> household_member [arrowtail=teetee, arrowhead=teeodot, label="buyer_id\n(at most 1)"];
+  buyer -> household_invitation [arrowtail=teetee, arrowhead=teeodot, label="inviter_id"];
+  buyer -> household_invitation [arrowtail=teetee, arrowhead=crowodot, label="invitee_id"];
+  household -> household_saved [arrowtail=teetee, arrowhead=crowodot, label="household_id"];
+  building -> household_saved [arrowtail=teetee, arrowhead=crowodot, label="building_id"];
+  buyer -> household_saved [arrowtail=teeodot, arrowhead=crowodot, style=dotted, label="saved_by, note_by"];
   hawker_centre -> building [style=dashed, dir=none, color="#999999", label="distance computed\n(Haversine), no FK"];
 }

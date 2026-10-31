@@ -42,6 +42,8 @@ IDENTITY = {
     "resale_transactions": "mongo_admin",
     "buyers": "mongo_app",
     "counters": "mongo_app",
+    "households": "mongo_app",
+    "invitations": "mongo_app",
 }
 
 
@@ -143,7 +145,30 @@ def counter():
     return {"_id": "txn", "seq": 0}
 
 
-BASES = {"P": property_block, "S": stub_block, "H": hawker, "T": sale, "B": buyer, "C": counter}
+def household():
+    # Member ids no real buyer has, so the unique index on members.buyer_id never meets a live household.
+    return {
+        "_id": -9501,
+        "created_at": STAMP,
+        "members": [
+            {"buyer_id": -9601, "seat": 1, "joined_at": STAMP},
+            {"buyer_id": -9602, "seat": 2, "joined_at": STAMP},
+        ],
+        "saved": [
+            {"building_id": 1, "block": "1", "street": "X", "town": "Y", "note": "n", "note_by": -9601,
+             "saved_by": -9601, "saved_at": STAMP}
+        ],
+    }  # fmt: skip
+
+
+def invitation():
+    return {"_id": -9701, "invitee_id": -9702, "created_at": STAMP}
+
+
+BASES = {
+    "P": property_block, "S": stub_block, "H": hawker, "T": sale, "B": buyer, "C": counter, "HH": household,
+    "IV": invitation,
+}  # fmt: skip
 
 # ------------------------------------------------------------------------------------------------ cases
 # key -> (collection, baseline, operations, expected observed keys). Operations are ("set", dotted.path, value or
@@ -437,6 +462,48 @@ props(
     maxlen={"block": LONG[5], "street": LONG[40], "town": LONG[40], "note": LONG[500]},
 )
 
+add(BY, "B", f"{J}.household_id:bsonType", put_("household_id", X))
+
+# ---- households (T11)
+HO = "households"
+add(HO, "HH", f"{J}:required._id", del_("_id"), expect=f"{J}._id:bsonType")
+add(HO, "HH", f"{J}:bsonType", expect=UNREACHABLE)
+props(
+    HO,
+    "HH",
+    "",
+    required=("created_at", "members", "saved"),
+    bson={"_id": X, "created_at": X, "members": X, "saved": X},
+)
+add(HO, "HH", f"{J}.members:minItems", put_("members", lambda d: d["members"][:1]))
+add(
+    HO,
+    "HH",
+    f"{J}.members:maxItems",
+    put_("members", lambda d: [*d["members"], {**d["members"][0], "buyer_id": -9603}]),
+)
+add(HO, "HH", f"{J}.members.items:bsonType", put_("members", [1, 2]))
+props(HO, "HH", "members.0", required=("buyer_id", "seat", "joined_at"), bson={"buyer_id": X, "joined_at": X})
+add(HO, "HH", f"{J}.members.items.seat:enum", put_("members.0.seat", 3))
+add(HO, "HH", f"{J}.saved:maxItems", put_("saved", lambda d: [{**d["saved"][0], "building_id": i} for i in range(51)]))
+add(HO, "HH", f"{J}.saved.items:bsonType", put_("saved", [1]))
+props(
+    HO,
+    "HH",
+    "saved.0",
+    required=("building_id", "block", "street", "town", "saved_at"),
+    bson={
+        "building_id": X, "block": 1, "street": 1, "town": 1, "note": 1, "note_by": X, "saved_by": X, "saved_at": X,
+    },
+    maxlen={"block": LONG[5], "street": LONG[40], "town": LONG[40], "note": LONG[500]},
+)  # fmt: skip
+
+# ---- invitations (T11)
+IV = "invitations"
+add(IV, "IV", f"{J}:required._id", del_("_id"), expect=f"{J}._id:bsonType")
+add(IV, "IV", f"{J}:bsonType", expect=UNREACHABLE)
+props(IV, "IV", "", required=("invitee_id", "created_at"), bson={"_id": X, "invitee_id": X, "created_at": X})
+
 # ---- counters
 CT = "counters"
 add(CT, "C", f"{J}:required._id", del_("_id"), expect=f"{J}._id:enum")
@@ -584,7 +651,12 @@ UNIQUE = {
     "hawker_centres._id_": ("hawker_centres", "H", [put_("properties.OBJECTID", 9202)], "_id_"),
     "resale_transactions._id_": ("resale_transactions", "T", [put_("block", "ZZ8")], "_id_"),
     "buyers._id_": ("buyers", "B", [put_("email", "neg2@example.com")], "_id_"),
-}
+    "households.member_unique": ("households", "HH", [put_("_id", -9502)], "member_unique"),
+    "households._id_": (
+        "households", "HH", [put_("members.0.buyer_id", -9603), put_("members.1.buyer_id", -9604)], "_id_",
+    ),
+    "invitations._id_": ("invitations", "IV", [put_("invitee_id", -9703)], "_id_"),
+}  # fmt: skip
 
 
 @pytest.mark.parametrize("name", list(UNIQUE), ids=list(UNIQUE))

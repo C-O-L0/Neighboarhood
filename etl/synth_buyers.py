@@ -1,4 +1,4 @@
-"""Synthetic buyers and saved blocks, loaded identically into PostgreSQL and MongoDB.
+"""Synthetic buyers, saved blocks and households, loaded identically into PostgreSQL and MongoDB.
 
 200 buyers with ids 1 to 200 and about 1,000 saved blocks from a fixed seed:
 
@@ -7,13 +7,19 @@
   3 - 200  buyerNNN@example.com                  random password, discarded
 
 The random generator (seed 65) draws only names, saves, notes and time offsets, in a fixed
-order, so the data is identical on every run. Passwords never come from it. Each password is
-hashed once with argon2 and the same hash string goes to both databases.
+order, so the data is identical on every run. Households are fixed, not drawn: buyers 3 and 4,
+5 and 6, ... 21 and 22 share a shortlist (households 1 to 10, the odd buyer invited the even
+one), made as accepting with merge makes it; buyers 23 to 32 hold 5 pending invitations
+(23 invited 24, and so on). Buyers 1 and 2, the demo accounts, are in neither.
+
+Passwords never come from the generator. Each password is hashed once with argon2 and the same
+hash string goes to both databases.
 
 Before any write, both databases are checked for a clash: an id from 1 to 200 holding a
 different email, or a synthetic email held by a different id. A clash raises SynthCollision
 and nothing is written anywhere. Buyers above id 200 (real registrations) are never touched.
-Re-running replaces the 200 buyers and their saves and never moves an id sequence backwards.
+Re-running replaces the 200 buyers, their saves, every household with a synthetic member and
+every invitation involving one, and never moves an id sequence backwards.
 
 Usage (both databases loaded, DEMO_* variables set; the etl service has them):
     docker compose run --rm etl python -m etl.synth_buyers
@@ -24,7 +30,7 @@ from __future__ import annotations
 import random
 import secrets
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
 import psycopg
@@ -44,6 +50,11 @@ SAVED_BASE = datetime(2026, 10, 15, tzinfo=UTC)
 CREATED_SPREAD = 14 * 86_400  # whole seconds after CREATED_BASE
 SAVED_SPREAD = 13 * 86_400  # whole seconds after SAVED_BASE
 MIN_PASSWORD, MAX_PASSWORD = 10, 128
+HOUSEHOLD_PAIRS = [(i, i + 1) for i in range(3, 23, 2)]  # (inviter, invitee); household ids 1 to 10
+INVITATION_PAIRS = [(i, i + 1) for i in range(23, 33, 2)]
+JOINED_AT = datetime(2026, 10, 29, 9, 0, tzinfo=UTC)
+INVITED_AT = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
+CAP = 50
 
 ADJECTIVES = [
     "Amber", "Brisk", "Calm", "Daring", "Eager", "Fair", "Gentle", "Hardy", "Ivory", "Jolly",
@@ -92,6 +103,38 @@ class Buyer:
     created_at: datetime
     password_hash: str
     saved: list[Save]
+
+
+@dataclass(frozen=True)
+class Shared:
+    save: Save
+    saved_by: int
+    note_by: int | None
+
+
+@dataclass(frozen=True)
+class SynthHousehold:
+    household_id: int
+    inviter_id: int
+    invitee_id: int
+    saved: list[Shared]
+
+
+def pair_up(buyers: list[Buyer]) -> tuple[list[Buyer], list[SynthHousehold]]:
+    """The fixed households, as accepting with merge builds them: the inviter's saves, then the invitee's that
+    are not shared yet, oldest first, while they fit. Members keep no personal saves."""
+    by_id = {b.buyer_id: b for b in buyers}
+    households = []
+    for household_id, (inviter, invitee) in enumerate(HOUSEHOLD_PAIRS, start=1):
+        shared = [Shared(v, inviter, inviter if v.note is not None else None) for v in by_id[inviter].saved]
+        have = {v.building_id for v in by_id[inviter].saved}
+        more = sorted(
+            (v for v in by_id[invitee].saved if v.building_id not in have), key=lambda v: (v.saved_at, v.building_id)
+        )
+        shared += [Shared(v, invitee, invitee if v.note is not None else None) for v in more[: CAP - len(shared)]]
+        households.append(SynthHousehold(household_id, inviter, invitee, shared))
+    members = {i for pair in HOUSEHOLD_PAIRS for i in pair}
+    return [replace(b, saved=[]) if b.buyer_id in members else b for b in buyers], households
 
 
 def synthetic_email(buyer_id: int) -> str:
@@ -254,9 +297,26 @@ SELECT setval(
 """
 
 
-def write_pg(conn: psycopg.Connection, buyers: list[Buyer]) -> None:
+_HOUSEHOLD_SETVAL = """
+SELECT setval(
+    pg_get_serial_sequence('household', 'household_id'),
+    GREATEST((SELECT last_value FROM household_household_id_seq), (SELECT max(household_id) FROM household)),
+    true
+)
+"""
+
+
+def write_pg(conn: psycopg.Connection, buyers: list[Buyer], households: list[SynthHousehold]) -> None:
     ids = [b.buyer_id for b in buyers]
     with conn.transaction(), conn.cursor() as cur:
+        # Households first: their members may not have personal saves (trigger d), and ids 1 to 10 are reused.
+        cur.execute(
+            "DELETE FROM household WHERE household_id IN"
+            " (SELECT household_id FROM household_member WHERE buyer_id = ANY(%s))"
+            " OR household_id = ANY(%s)",
+            (ids, [h.household_id for h in households]),
+        )
+        cur.execute("DELETE FROM household_invitation WHERE inviter_id = ANY(%s) OR invitee_id = ANY(%s)", (ids, ids))
         cur.executemany(
             _UPSERT, [(b.buyer_id, b.email, b.password_hash, b.display_name, b.is_admin, b.created_at) for b in buyers]
         )
@@ -266,9 +326,45 @@ def write_pg(conn: psycopg.Connection, buyers: list[Buyer]) -> None:
             [(b.buyer_id, s.building_id, s.note, s.saved_at) for b in buyers for s in b.saved],
         )
         cur.execute(_SETVAL)
+        for h in households:
+            cur.execute("INSERT INTO household (household_id, created_at) VALUES (%s, %s)", (h.household_id, JOINED_AT))
+            cur.executemany(
+                "INSERT INTO household_member (buyer_id, household_id, seat, joined_at) VALUES (%s, %s, %s, %s)",
+                [(h.inviter_id, h.household_id, 1, JOINED_AT), (h.invitee_id, h.household_id, 2, JOINED_AT)],
+            )
+            cur.executemany(
+                "INSERT INTO household_saved (household_id, building_id, note, note_by, saved_by, saved_at)"
+                " VALUES (%s, %s, %s, %s, %s, %s)",
+                [
+                    (h.household_id, x.save.building_id, x.save.note, x.note_by, x.saved_by, x.save.saved_at)
+                    for x in h.saved
+                ],
+            )
+        cur.execute(_HOUSEHOLD_SETVAL)
+        cur.executemany(
+            "INSERT INTO household_invitation (inviter_id, invitee_id, created_at) VALUES (%s, %s, %s)",
+            [(a, b, INVITED_AT) for a, b in INVITATION_PAIRS],
+        )
 
 
-def write_mongo(db: Database, buyers: list[Buyer]) -> None:
+def _entry(s: Save) -> dict:
+    return {
+        "building_id": s.building_id,
+        "block": s.block,
+        "street": s.street,
+        "town": s.town,
+        "note": s.note,
+        "saved_at": s.saved_at,
+    }
+
+
+def write_mongo(db: Database, buyers: list[Buyer], households: list[SynthHousehold]) -> None:
+    ids = [b.buyer_id for b in buyers]
+    db.households.delete_many(
+        {"$or": [{"members.buyer_id": {"$in": ids}}, {"_id": {"$in": [h.household_id for h in households]}}]}
+    )
+    db.invitations.delete_many({"$or": [{"_id": {"$in": ids}}, {"invitee_id": {"$in": ids}}]})
+    household_of = {m: h.household_id for h in households for m in (h.inviter_id, h.invitee_id)}
     for b in buyers:
         doc = {
             "_id": b.buyer_id,
@@ -278,35 +374,41 @@ def write_mongo(db: Database, buyers: list[Buyer]) -> None:
             "is_admin": b.is_admin,
             "created_at": b.created_at,
             "last_active_at": None,
-            "saved": [
-                {
-                    "building_id": s.building_id,
-                    "block": s.block,
-                    "street": s.street,
-                    "town": s.town,
-                    "note": s.note,
-                    "saved_at": s.saved_at,
-                }
-                for s in b.saved
-            ],
+            "saved": [_entry(s) for s in b.saved],
+            "household_id": household_of.get(b.buyer_id),
         }
         db.buyers.replace_one({"_id": b.buyer_id}, doc, upsert=True)
+    for h in households:
+        db.households.insert_one(
+            {
+                "_id": h.household_id,
+                "created_at": JOINED_AT,
+                "members": [
+                    {"buyer_id": h.inviter_id, "seat": 1, "joined_at": JOINED_AT},
+                    {"buyer_id": h.invitee_id, "seat": 2, "joined_at": JOINED_AT},
+                ],
+                "saved": [{**_entry(x.save), "note_by": x.note_by, "saved_by": x.saved_by} for x in h.saved],
+            }
+        )
+    db.invitations.insert_many([{"_id": a, "invitee_id": b, "created_at": INVITED_AT} for a, b in INVITATION_PAIRS])
+    db.counters.update_one({"_id": "household"}, {"$max": {"seq": len(households)}}, upsert=True)
     top = next(iter(db.buyers.find({}, {"_id": 1}).sort("_id", -1).limit(1)))["_id"]
     # $max never lowers the counter, even when registrations have moved it past the highest id.
     db.counters.update_one({"_id": "buyer"}, {"$max": {"seq": top}}, upsert=True)
 
 
 def synthesise(pg: psycopg.Connection, db: Database, buyer_password: str, admin_password: str) -> tuple[int, int]:
-    """Check both databases, then write the same buyers to both. Returns (buyers, saves)."""
+    """Check both databases, then write the same buyers and households to both. Returns (buyers, saves), where
+    saves counts personal and shared blocks."""
     check_demo_passwords(buyer_password, admin_password)
     pg_rows, mongo_rows = pg_buildings(pg), mongo_buildings(db)
     require_same_buildings(pg_rows, mongo_rows)
     find_collision(pg_buyer_rows(pg), "PostgreSQL")
     find_collision(mongo_buyer_rows(db), "MongoDB")
-    buyers = build(pg_rows, buyer_password, admin_password)
-    write_pg(pg, buyers)
-    write_mongo(db, buyers)
-    return len(buyers), sum(len(b.saved) for b in buyers)
+    buyers, households = pair_up(build(pg_rows, buyer_password, admin_password))
+    write_pg(pg, buyers, households)
+    write_mongo(db, buyers, households)
+    return len(buyers), sum(len(b.saved) for b in buyers) + sum(len(h.saved) for h in households)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -328,7 +430,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     finally:
         client.close()
-    print(f"[synth_buyers] wrote {n_buyers} buyers and {n_saves} saved blocks to both databases", flush=True)
+    print(
+        f"[synth_buyers] wrote {n_buyers} buyers, {len(HOUSEHOLD_PAIRS)} households, {len(INVITATION_PAIRS)}"
+        f" invitations and {n_saves} saved blocks to both databases",
+        flush=True,
+    )
     return 0
 
 

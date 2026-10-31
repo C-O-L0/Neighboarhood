@@ -88,6 +88,13 @@
           }
         }
       }
+    },
+    "household_id": {
+      "bsonType": [
+        "int",
+        "long",
+        "null"
+      ]
     }
   }
 }

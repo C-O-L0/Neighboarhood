@@ -4,7 +4,7 @@
 // Render: python -m docs.diagrams.build
 digraph neighboar_mongo {
   graph [rankdir=TB, splines=spline, nodesep=0.4, ranksep=0.7, fontname="Helvetica", fontsize=12, pad=0.3,
-         label="Neighboar MongoDB model: 5 collections.\nShaded = embedded. Dashed = reference by _id.", labelloc=b];
+         label="Neighboar MongoDB model: 7 collections.\nShaded = embedded. Dashed = reference by _id.", labelloc=b];
   node [shape=plaintext, fontname="Helvetica", fontsize=11];
   edge [fontname="Helvetica", fontsize=9, color="#444444", style=dashed, arrowhead=vee];
 
@@ -41,7 +41,25 @@ digraph neighboar_mongo {
       <TR><TD ALIGN="LEFT"><U>_id</U></TD><TD ALIGN="LEFT">int (counters.buyer)</TD></TR>
       <TR><TD ALIGN="LEFT">email</TD><TD ALIGN="LEFT">string, lowercase, unique</TD></TR>
       <TR><TD ALIGN="LEFT">password_hash, display_name,<BR ALIGN="LEFT"/>is_admin, created_at,<BR ALIGN="LEFT"/>last_active_at<BR ALIGN="LEFT"/></TD><TD ALIGN="LEFT"> </TD></TR>
-      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">saved [ ≤50 ]</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">{building_id, block, street,<BR ALIGN="LEFT"/>town, note, saved_at}<BR ALIGN="LEFT"/>extended reference<BR ALIGN="LEFT"/></TD></TR>
+      <TR><TD ALIGN="LEFT">household_id</TD><TD ALIGN="LEFT">int | null: reference</TD></TR>
+      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">saved [ ≤50 ]</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">{building_id, block, street,<BR ALIGN="LEFT"/>town, note, saved_at}<BR ALIGN="LEFT"/>extended reference;<BR ALIGN="LEFT"/>empty while in a household<BR ALIGN="LEFT"/></TD></TR>
+    </TABLE>>];
+
+  households [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="2" BGCOLOR="#E7EEF7"><B>households</B></TD></TR>
+      <TR><TD ALIGN="LEFT"><U>_id</U></TD><TD ALIGN="LEFT">int (counters.household)</TD></TR>
+      <TR><TD ALIGN="LEFT">created_at</TD><TD ALIGN="LEFT">date</TD></TR>
+      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">members [ 2 ]</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">{buyer_id, seat 1 | 2, joined_at}<BR ALIGN="LEFT"/>buyer_id unique across households<BR ALIGN="LEFT"/></TD></TR>
+      <TR><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">saved [ ≤50 ]</TD><TD ALIGN="LEFT" BGCOLOR="#F3F3F3">as buyers.saved, plus<BR ALIGN="LEFT"/>saved_by, note_by<BR ALIGN="LEFT"/></TD></TR>
+    </TABLE>>];
+
+  invitations [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD COLSPAN="2" BGCOLOR="#E7EEF7"><B>invitations</B></TD></TR>
+      <TR><TD ALIGN="LEFT"><U>_id</U></TD><TD ALIGN="LEFT">int (= inviter's buyer id)</TD></TR>
+      <TR><TD ALIGN="LEFT">invitee_id</TD><TD ALIGN="LEFT">int: reference</TD></TR>
+      <TR><TD ALIGN="LEFT">created_at</TD><TD ALIGN="LEFT">date</TD></TR>
     </TABLE>>];
 
   hawker_centres [label=<
@@ -56,12 +74,16 @@ digraph neighboar_mongo {
   counters [label=<
     <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
       <TR><TD COLSPAN="2" BGCOLOR="#EEEEEE"><B>counters</B></TD></TR>
-      <TR><TD ALIGN="LEFT"><U>_id</U></TD><TD ALIGN="LEFT">"buyer" | "txn"</TD></TR>
+      <TR><TD ALIGN="LEFT"><U>_id</U></TD><TD ALIGN="LEFT">"buyer" | "household" | "txn"</TD></TR>
       <TR><TD ALIGN="LEFT">seq</TD><TD ALIGN="LEFT">int ($inc for new ids)</TD></TR>
     </TABLE>>];
 
   resale_transactions -> building_profiles [label="building_id"];
   buyers -> building_profiles [label="saved.building_id"];
+  buyers -> households [label="household_id"];
+  households -> buyers [label="members.buyer_id"];
+  households -> building_profiles [label="saved.building_id"];
+  invitations -> buyers [label="_id, invitee_id"];
   hawker_centres -> building_profiles [style=dotted, dir=none, color="#999999", label="$geoNear\n(computed)"];
   { rank=same; resale_transactions; buyers; }
   { rank=same; hawker_centres; counters; }

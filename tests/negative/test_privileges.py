@@ -35,8 +35,8 @@ def _readable(extra_rw: frozenset = NONE, extra_admin: frozenset = NONE) -> dict
 
 
 # Relations: every table, view and materialised view the owner creates gives the three roles SELECT (default
-# privileges in db/migrate.py). Accounts and saved blocks are writable by app_rw and app_admin; sales only by
-# app_admin; the migration log is closed to all three (005_grants.sql).
+# privileges in db/migrate.py). Accounts, saved blocks and households are writable by app_rw and app_admin; sales
+# only by app_admin; the migration log is closed to all three (005_grants.sql, 006_households.sql).
 RELATIONS: dict[str, dict[str, frozenset]] = {
     "town": _readable(),
     "flat_type": _readable(),
@@ -47,6 +47,10 @@ RELATIONS: dict[str, dict[str, frozenset]] = {
     "resale_transaction": _readable(extra_admin=DML),
     "buyer": _readable(extra_rw=DML),
     "saved_building": _readable(extra_rw=DML),
+    "household": _readable(extra_rw=DML),
+    "household_member": _readable(extra_rw=DML),
+    "household_invitation": _readable(extra_rw=DML),
+    "household_saved": _readable(extra_rw=DML),
     "schema_migration": {r: NONE for r in ROLES},
     "v_transaction_detail": _readable(),
     "v_building_units": _readable(),
@@ -54,19 +58,22 @@ RELATIONS: dict[str, dict[str, frozenset]] = {
     "mv_town_month_stats": _readable(),
 }
 
-# Sequences: only the two that the app's own inserts draw from. Nobody writes building ids at runtime.
+# Sequences: only the three that the app's own inserts draw from. Nobody writes building ids at runtime.
 SEQUENCES: dict[str, dict[str, frozenset]] = {
     "building_building_id_seq": {r: NONE for r in ROLES},
     "buyer_buyer_id_seq": {"app_rw": frozenset({"USAGE"}), "app_admin": frozenset({"USAGE"}), "app_ro": NONE},
     "resale_transaction_txn_id_seq": {"app_rw": NONE, "app_admin": frozenset({"USAGE"}), "app_ro": NONE},
+    "household_household_id_seq": {"app_rw": frozenset({"USAGE"}), "app_admin": frozenset({"USAGE"}), "app_ro": NONE},
 }
 
-# Functions: the refresh is for app_admin only (EXECUTE revoked from PUBLIC). The two trigger functions are
+# Functions: the refresh is for app_admin only (EXECUTE revoked from PUBLIC). The trigger functions are
 # internal; a trigger needs no EXECUTE grant, so nobody has one.
 FUNCTIONS: dict[str, dict[str, bool]] = {
     "refresh_town_stats": {"app_rw": False, "app_admin": True, "app_ro": False},
     "check_resale_transaction": {r: False for r in ROLES},
     "check_saved_building_cap": {r: False for r in ROLES},
+    "check_household_saved_cap": {r: False for r in ROLES},
+    "check_saved_building_owner": {r: False for r in ROLES},
 }
 
 
@@ -184,6 +191,10 @@ PG_DENIED = [
     ("app_ro", "INSERT INTO resale_transaction (txn_id) VALUES (-1)"),
     ("app_ro", "SELECT refresh_town_stats()"),
     ("app_ro", "SELECT nextval('buyer_buyer_id_seq')"),
+    ("app_ro", "DELETE FROM household_saved WHERE household_id = -1"),
+    ("app_ro", "INSERT INTO household_invitation (inviter_id, invitee_id) VALUES (-1, -2)"),
+    ("app_ro", "SELECT nextval('household_household_id_seq')"),
+    ("app_admin", "TRUNCATE household"),
     ("app_ro", "CREATE TABLE privilege_probe (x int)"),
 ]
 
@@ -202,6 +213,8 @@ def test_the_permitted_writes_are_not_refused(pg_rw, pg_admin):
     assert pg_rw.execute("DELETE FROM saved_building WHERE buyer_id = -1").rowcount == 0
     assert pg_rw.execute("UPDATE buyer SET is_admin = is_admin WHERE buyer_id = -1").rowcount == 0
     assert pg_admin.execute("DELETE FROM resale_transaction WHERE txn_id = -1").rowcount == 0
+    assert pg_rw.execute("DELETE FROM household_member WHERE buyer_id = -1").rowcount == 0
+    assert pg_rw.execute("UPDATE household_saved SET note = note WHERE household_id = -1").rowcount == 0
     pg_rw.rollback()
     pg_admin.rollback()
 

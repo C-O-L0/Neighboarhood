@@ -29,7 +29,19 @@ INDEXES: dict[str, list[IndexModel]] = {
     "hawker_centres": [
         IndexModel([("geometry", GEOSPHERE)], name="geometry_2dsphere"),
     ],
+    # Households are created at run time, not loaded, so db/migrate.py creates these (APP_COLLECTIONS).
+    "households": [
+        # Multikey and unique: no buyer id can appear in two households, the MongoDB side of PostgreSQL's
+        # household_member primary key. (It does not stop one id appearing twice in one document; the
+        # seats and the app's checks do.)
+        IndexModel([("members.buyer_id", ASCENDING)], name="member_unique", unique=True),
+        IndexModel([("saved.building_id", ASCENDING)], name="saved_building"),
+    ],
+    "invitations": [
+        IndexModel([("invitee_id", ASCENDING)], name="invitee"),
+    ],
 }
+APP_COLLECTIONS = ["households", "invitations"]
 
 
 def create_indexes(db: Database, collections: list[str] | None = None) -> list[str]:

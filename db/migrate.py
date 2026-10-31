@@ -9,7 +9,9 @@ Steps, in order:
   3. PostgreSQL (as neighboar_owner via SET ROLE): apply db/postgres/*.sql in
      name order, recording each file and its checksum in schema_migration.
   4. MongoDB (as root): create or update custom roles and users, then apply
-     collection validators from db/mongo/validators/*.json.
+     collection validators from db/mongo/validators/*.json and create the
+     indexes of the collections the app creates at run time (households,
+     invitations).
 
 Runs automatically on every `docker compose up` (web waits for it to exit 0).
 Re-run by hand with:  docker compose run --rm migrate
@@ -34,6 +36,7 @@ from pymongo import MongoClient
 from pymongo.errors import OperationFailure, PyMongoError
 
 from app.config import Settings, get_settings
+from db.mongo.indexes import APP_COLLECTIONS, create_indexes
 
 ROOT = Path(__file__).resolve().parent
 PG_DIR = ROOT / "postgres"
@@ -46,7 +49,8 @@ MONGO_MEMBER_HOST = "mongodb:27017"
 MONGO_ROLES = {
     "neighboar_read": [{"collection": "", "actions": ["find"]}],
     "neighboar_app_write": [
-        {"collection": c, "actions": ["insert", "update", "remove"]} for c in ("buyers", "counters")
+        {"collection": c, "actions": ["insert", "update", "remove"]}
+        for c in ("buyers", "counters", "households", "invitations")
     ],
     "neighboar_admin_write": [
         {"collection": c, "actions": ["insert", "update", "remove"]}
@@ -166,6 +170,9 @@ def mongo_validators(s: Settings) -> None:
             else:
                 db.create_collection(name, **opts)
                 log(f"mongo validator {name}: collection created")
+        # The ETL creates the indexes of the collections it loads; nothing loads these, so they are made here.
+        created = create_indexes(db, APP_COLLECTIONS)
+        log(f"mongo indexes on {', '.join(APP_COLLECTIONS)}: {', '.join(created)}")
     finally:
         client.close()
 
