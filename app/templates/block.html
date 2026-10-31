@@ -181,9 +181,9 @@
 <section aria-labelledby="shortlist-h" id="shortlist" class="card shortlist">
   <h2 id="shortlist-h">Your shortlist</h2>
   {% if not account %}
-  <p><a href="/login">Sign in</a> to save this block to your shortlist with a note.</p>
+  <p><a href="/login?next=/block/{{ b.building_id }}">Sign in</a> to save this block to your shortlist with a note.</p>
   {% elif saved %}
-  <p>You saved this block on {{ saved.saved_at|stamp }}. <a href="/saved?db={{ db_mode }}">See your shortlist</a>.</p>
+  <p>You saved this block on {{ saved.saved_at|stamp }}. <a href="/shortlist">See your shortlist</a>.</p>
   <form method="post" action="/saved/note?db={{ db_mode }}" class="saveform">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="building_id" value="{{ b.building_id }}">

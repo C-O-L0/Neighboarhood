@@ -181,7 +181,7 @@ def test_recent_prices_have_tags_against_the_town(ids, db):
 
 def test_signed_out_buyers_are_asked_to_sign_in_to_save(ids):
     page = main_of(get(f"/block/{ids['recent']}"))
-    assert re.search(r'<a href="/login">Sign in</a> to save this block to your shortlist', page)
+    assert re.search(r'<a href="/login\?next=/block/\d+">Sign in</a> to save this block to your shortlist', page)
 
 
 def test_the_rollback_demonstration_is_only_offered_in_demo_mode(ids):

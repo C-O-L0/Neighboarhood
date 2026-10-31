@@ -137,7 +137,7 @@ def test_signed_out_visitors_and_ordinary_buyers_get_403_on_every_admin_route(mo
     admin = make_user(mode, admin=True)
     page = admin.get("/admin", mode)
     assert page.status_code == 200 and "Record a sale" in page.text
-    assert f'href="/admin?db={mode}"' in page.text and "/admin?" not in ordinary.get("/saved", mode).text
+    assert f'href="/admin?db={mode}"' in page.text and "/admin?" not in ordinary.get("/shortlist", mode).text
 
 
 @pytest.mark.parametrize("mode", MODES)

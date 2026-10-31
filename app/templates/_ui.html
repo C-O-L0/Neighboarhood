@@ -19,3 +19,38 @@
 {% macro few(n, threshold) -%}
 {% if n < threshold %} <a class="few" href="/glossary#few-sales">few sales</a>{% endif %}
 {%- endmacro %}
+
+{# Demo mode only (USE_CASES R5): this page shows the current database's own data. #}
+{% macro r5_notice(what, db_name) -%}
+<p class="notice demo-note" role="note">This is the {{ what }} in {{ db_name }}. Each database keeps its own accounts, shortlists and households, so switching database shows a different one.</p>
+{%- endmacro %}
+
+{# An invitation waiting for the buyer (UC10 steps 3 and 4, A4): accept, with the merge choice when they have saved
+   blocks of their own, or decline. #}
+{% macro invitation(inv, own, cap, csrf_token, db_mode) -%}
+{% set who = inv.inviter.display_name or inv.inviter.email %}
+<section class="card invite-banner" aria-labelledby="inv-{{ inv.inviter.buyer_id }}">
+  <h2 id="inv-{{ inv.inviter.buyer_id }}">{{ who }} invited you to share a shortlist</h2>
+  <p class="hint">{{ inv.inviter.email }} · sent {{ inv.created_at|day }}. Their saved blocks start the shared shortlist.</p>
+  <form method="post" action="/household/accept?db={{ db_mode }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="inviter_id" value="{{ inv.inviter.buyer_id }}">
+    {% if own %}
+    <fieldset class="merge-choice">
+      <legend>Your {{ own }} saved block{{ '' if own == 1 else 's' }}</legend>
+      <label><input type="radio" name="merge" value="1" checked> Add {{ 'it' if own == 1 else 'them' }} to the shared shortlist</label>
+      <label><input type="radio" name="merge" value="0"> Leave {{ 'it' if own == 1 else 'them' }} out ({{ 'it is' if own == 1 else 'they are' }} removed)</label>
+      <p class="hint">The shared shortlist holds up to {{ cap }} blocks. If both lists together have more, your oldest are added first until it is full.</p>
+    </fieldset>
+    {% endif %}
+    <div class="form-actions">
+      <button type="submit">Accept</button>
+      <button type="submit" class="secondary" form="decline-{{ inv.inviter.buyer_id }}">Decline</button>
+    </div>
+  </form>
+  <form method="post" action="/household/decline?db={{ db_mode }}" id="decline-{{ inv.inviter.buyer_id }}" hidden>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="inviter_id" value="{{ inv.inviter.buyer_id }}">
+  </form>
+</section>
+{%- endmacro %}

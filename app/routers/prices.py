@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
 from app.repos.dto import Place
+from app.services.auth import login_link
 from app.services.explain import Subject, tags
 from app.services.places import SUGGESTIONS, parse_place
 from app.services.prices import (
@@ -180,4 +181,5 @@ def price_check(request: Request):
         note=note,
         saved=saved,
         trend_link="/trends?" + urlencode({"town": place.town, "flat_type": query.flat_type}),
+        signin_link=login_link("/price-check", urlencode(values)),
     )

@@ -267,6 +267,14 @@ class Invitations:
 
 
 @dataclass(frozen=True)
+class ShortlistSummary:
+    """What the page header shows a signed-in buyer: blocks on their shortlist and invitations waiting for them."""
+
+    count: int
+    invitations: int
+
+
+@dataclass(frozen=True)
 class AcceptResult:
     """merged: the partner's own blocks added to the shared shortlist; left_out: those that did not fit under the
     cap (they are dropped, as are all of them when the partner chose not to merge). Blocks the inviter had

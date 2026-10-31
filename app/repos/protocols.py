@@ -25,6 +25,7 @@ from app.repos.dto import (
     RolledBack,
     SavedBlock,
     SearchResult,
+    ShortlistSummary,
     TownBaseline,
     TownFit,
     TownRank,
@@ -116,6 +117,10 @@ class HouseholdRepo(Protocol):
 
     def invitations(self, buyer_id: int) -> Invitations:
         """The invitation the buyer sent (if any) and those they received, oldest first."""
+        ...
+
+    def summary(self, buyer_id: int) -> ShortlistSummary:
+        """Blocks on the buyer's shortlist (the household's when in one) and invitations waiting for them."""
         ...
 
     def invite(self, inviter_id: int, email: str) -> HouseholdOutcome:

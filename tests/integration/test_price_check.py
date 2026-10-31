@@ -91,7 +91,7 @@ def test_enough_sales_in_the_block_give_a_verdict_on_the_block(blocks, db):
     assert "Not enough sales" not in page and "across all storeys" in page
     assert [t[0] for t in TIMING.findall(resp.text)] == ["block lookup", "comparables (block)"]
     assert "<th>Block</th>" not in page and "Save with this price" not in page  # signed out
-    assert '<a href="/login">Sign in</a> to save' in page
+    assert re.search(r'<a href="/login\?next=%2Fprice-check%3F[^"]+">Sign in</a> to save', page)
 
 
 @pytest.mark.parametrize("db", MODES)

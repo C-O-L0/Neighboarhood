@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from app.services.dbmode import MODE_NAMES, mode_links
 
 BASE = Path(__file__).resolve().parent
+SGT = timezone(timedelta(hours=8), "SGT")
 _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
@@ -33,6 +34,14 @@ def per_sqm(value: Decimal | None) -> str:
 
 def month(value: date | None) -> str:
     return "Unknown" if value is None else f"{_MONTHS[value.month - 1]} {value.year}"
+
+
+def day(value: datetime | None) -> str:
+    """A date for people: "21 Oct 2026", in Singapore time (UTC+8), as buyers read it."""
+    if value is None:
+        return "Unknown"
+    local = value.astimezone(SGT)
+    return f"{local.day} {_MONTHS[local.month - 1]} {local.year}"
 
 
 def lease(months: int | None) -> str:
@@ -118,6 +127,7 @@ def _context(request: Request) -> dict:
     return {
         "csrf_token": session.get("csrf", ""),
         "account": getattr(state, "account", None),
+        "shortlist": getattr(state, "shortlist", None),
         "db_mode": mode,
         "db_mode_name": MODE_NAMES[mode],
         "demo": getattr(state, "demo", False),
@@ -134,6 +144,7 @@ templates.env.filters.update(
     money=money,
     per_sqm=per_sqm,
     month=month,
+    day=day,
     lease=lease,
     storey=storey,
     pct=pct,
