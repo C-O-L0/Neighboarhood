@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Compare blocks · Neighboar{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Compare blocks</h1>
+    <p class="lede">{% if columns %}{{ columns|length }} blocks side by side, using {{ flat_type|flat_label|lower }} sales from the last 12 months.{% else %}Pick {{ min_blocks }} to {{ max_blocks }} blocks on your shortlist to see them side by side.{% endif %}</p>
+  </div>
+</header>
+
+{% if not columns %}
+<div class="bad" role="alert"><p>{{ message }}</p></div>
+<p><a href="/shortlist">Back to your shortlist</a></p>
+{% else %}
+<form method="get" action="/compare" class="card compare-form">
+  {% for i in ids %}<input type="hidden" name="ids" value="{{ i }}">{% endfor %}
+  <div class="field">
+    <label for="cmp-type">{{ ui.term('Flat type', 'flat-type') }}</label>
+    <select id="cmp-type" name="flat_type">
+      {% for t in flat_types %}<option value="{{ t }}"{% if t == flat_type %} selected{% endif %}>{{ t|flat_label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="cmp-at">Lease left in the year</label>
+    <input id="cmp-at" name="at" value="{{ at_text }}" inputmode="numeric" maxlength="4" placeholder="{{ now + 15 }}"{% if at_error %} aria-invalid="true" aria-describedby="cmp-at-error"{% endif %}>
+  </div>
+  <div class="form-actions"><button type="submit" class="secondary">Update</button></div>
+  {% if at_error %}<p id="cmp-at-error" class="bad field-error">Year must be from {{ now }} to {{ now + 120 }}.</p>{% endif %}
+</form>
+
+<div class="compare-wrap" role="region" aria-label="Comparison table" tabindex="0">
+<table class="compare">
+  <caption class="sr">The blocks side by side, one column each</caption>
+  <thead>
+    <tr>
+      <th scope="col"><span class="sr">Measure</span></th>
+      {% for c in columns %}
+      <th scope="col">
+        <a href="/block/{{ c.b.building_id }}">{{ c.b.block }} {{ c.b.street|proper }}</a>
+        {% if columns|length > min_blocks %}<a class="drop" href="{{ drop[c.b.building_id] }}">Drop<span class="sr"> {{ c.b.block }} {{ c.b.street|proper }}</span></a>{% endif %}
+      </th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    <tr><th scope="row">Town</th>{% for c in columns %}<td>{{ c.b.town|proper }}</td>{% endfor %}</tr>
+    <tr>
+      <th scope="row">{{ ui.term('Typical price', 'typical-price') }}</th>
+      {% for c in columns %}<td>{% if c.recent %}<strong>{{ c.recent.median_price|money }}</strong>{% if c.b.building_id in best.price %} <span class="badge fit">Lowest</span>{% endif %}<br><span class="hint">{{ c.recent.n }} sale{{ '' if c.recent.n == 1 else 's' }}{{ ui.few(c.recent.n, few_sales) }}</span>{% else %}<span class="hint">No {{ flat_type|flat_adj }} sales</span>{% endif %}</td>{% endfor %}
+    </tr>
+    <tr>
+      <th scope="row">{{ ui.term('Price per sqm', 'price-per-sqm') }}</th>
+      {% for c in columns %}<td>{% if c.recent %}{{ c.recent.avg_psm|per_sqm }}{% if c.b.building_id in best.psm %} <span class="badge fit">Lowest</span>{% endif %}{% else %}<span class="hint">-</span>{% endif %}</td>{% endfor %}
+    </tr>
+    <tr>
+      <th scope="row">{{ ui.term('Lease left', 'lease') }}</th>
+      {% for c in columns %}<td>{% if c.lease_now is none %}Unknown{% elif c.lease_now > 0 %}About {{ c.lease_now }} years{% if c.b.building_id in best.lease %} <span class="badge fit">Longest</span>{% endif %}{% else %}Run out{% endif %}</td>{% endfor %}
+    </tr>
+    {% if at %}
+    <tr>
+      <th scope="row">Lease left in {{ at }}</th>
+      {% for c in columns %}<td>{% if c.lease_then is none %}Unknown{% elif c.lease_then > 0 %}About {{ c.lease_then }} years{% else %}Run out{% endif %}</td>{% endfor %}
+    </tr>
+    {% endif %}
+    <tr><th scope="row">Completed</th>{% for c in columns %}<td>{{ c.b.year_completed|unknown }}</td>{% endfor %}</tr>
+    <tr>
+      <th scope="row">Hawker centres within 1 km</th>
+      {% for c in columns %}<td>{% if c.food is none %}<span class="hint">Location not available</span>{% else %}{{ c.food.within_1km }}{% if c.b.building_id in best.food %} <span class="badge fit">Most</span>{% endif %}{% if c.food.nearest %}<br><span class="hint">nearest {{ c.food.nearest[0].distance_m|distance }}</span>{% endif %}{% endif %}</td>{% endfor %}
+    </tr>
+    <tr>
+      <th scope="row">Against its town</th>
+      {% for c in columns %}<td>{% if c.tags is none %}<span class="hint">{% if c.recent %}Too few town sales to compare{% else %}-{% endif %}</span>{% else %}{{ ui.tag_list(c.tags, c.b.town|proper) }}{% endif %}</td>{% endfor %}
+    </tr>
+  </tbody>
+</table>
+</div>
+<p class="hint">"Lowest", "Longest" and "Most" mark the leader in a row; they are not a recommendation. Lease left counts whole years from the lease start year. <a href="/shortlist">Back to your shortlist</a></p>
+{% endif %}
+{% endblock %}

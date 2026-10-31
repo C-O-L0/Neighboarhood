@@ -26,11 +26,18 @@
   <section aria-labelledby="blocks-h" class="shortlist-main">
     <h2 id="blocks-h" class="sr">Blocks</h2>
     {% if blocks %}
+    {% if blocks|length >= 2 %}
+    <form method="get" action="/compare" id="compare-form" class="compare-bar">
+      <p class="hint">Tick 2 to 4 blocks to see them side by side.</p>
+      <button type="submit" class="secondary">Compare selected</button>
+    </form>
+    {% endif %}
     <ol class="shortlist-items">
       {% for s in blocks %}
       {% set by = 'you' if s.saved_by in (none, me) else names.get(s.saved_by, 'a former member') %}
       <li class="short-item">
         <div class="short-top">
+          {% if blocks|length >= 2 %}<input type="checkbox" class="pick" name="ids" value="{{ s.building_id }}" form="compare-form" id="pick-{{ s.building_id }}" aria-label="Compare {{ s.block }} {{ s.street|proper }}">{% endif %}
           <div class="block-name">
             <a href="/block/{{ s.building_id }}">{{ s.block }} {{ s.street|proper }}</a>
             <span class="hint">{{ s.town|proper }} · saved {{ s.saved_at|day }} by {{ by }}</span>
