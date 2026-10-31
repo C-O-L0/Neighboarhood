@@ -91,6 +91,25 @@ class FlatTypeRecent:
 
 
 @dataclass(frozen=True)
+class Comparable:
+    """A past sale a buyer's asking price is compared with (UC2), with its block's lease start year for tags."""
+
+    txn_id: int
+    txn_month: date
+    block: str
+    street: str
+    storey_min: int
+    storey_max: int
+    floor_area_sqm: Decimal
+    resale_price: Decimal
+    lease_year: int | None
+
+    @property
+    def price_psm(self) -> Decimal:
+        return (self.resale_price / self.floor_area_sqm).quantize(Decimal("0.01"), ROUND_HALF_UP)
+
+
+@dataclass(frozen=True)
 class SaleRow:
     txn_id: int
     txn_month: date
@@ -349,6 +368,7 @@ class Place:
     located: bool
     latitude: Decimal | None = None  # 6 dp, when located
     longitude: Decimal | None = None
+    lease_year: int | None = None  # the block's lease start year, for the price check's tags
 
 
 @dataclass(frozen=True)

@@ -23,6 +23,7 @@ from app.repos.mongo.building import MongoBuildingRepo
 from app.repos.mongo.explore import MongoExploreRepo
 from app.repos.mongo.food import MongoFoodRepo
 from app.repos.mongo.places import MongoPlaceRepo
+from app.repos.mongo.prices import MongoPriceRepo
 from app.repos.mongo.rankings import MongoRankingRepo
 from app.repos.mongo.saved import MongoSavedRepo
 from app.repos.mongo.search import MongoSearchRepo
@@ -32,12 +33,15 @@ from app.repos.pg.building import PgBuildingRepo
 from app.repos.pg.explore import PgExploreRepo
 from app.repos.pg.food import PgFoodRepo
 from app.repos.pg.places import PgPlaceRepo
+from app.repos.pg.prices import PgPriceRepo
 from app.repos.pg.rankings import PgRankingRepo
 from app.repos.pg.saved import PgSavedRepo
 from app.repos.pg.search import PgSearchRepo
 from app.repos.pg.trends import PgTrendRepo
 from app.services.explore import BlocksQuery, FitQuery, block_filter, window_ending
 from app.services.places import RADII_M, SUGGESTIONS, parse_place
+from app.services.prices import Level, Scope
+from app.services.prices import window_ending as price_window
 from app.services.rankings import RankingQuery
 from app.services.search import RESALE_TYPES, SearchQuery
 from app.services.trends import TrendQuery, add_months
@@ -516,6 +520,40 @@ def block_recent_params(conn) -> list[dict]:
     return [{**w, "building_id": i} for w in explore_window_params(conn) for i in ids]
 
 
+# Price check comparables (task T9): blocks with a sale in the 24-month window (every one on the sample, every
+# FULL_DATA_STEP-th on full data), each with the flat type of its latest sale, at every level, across all storeys
+# and in that sale's storey band. A block's sales may also be compared on the street and town of an unrelated level.
+def comparable_params(conn) -> list[dict]:
+    end = PgExploreRepo(conn).latest_month()
+    window = price_window(end)
+    rows = conn.execute(
+        """
+        SELECT DISTINCT ON (t.building_id) t.building_id, b.street, tw.name, ft.name, t.storey_min
+        FROM resale_transaction t
+        JOIN building b USING (building_id)
+        JOIN town tw USING (town_id)
+        JOIN flat_type ft USING (flat_type_id)
+        WHERE t.txn_month BETWEEN %s AND %s
+        ORDER BY t.building_id, t.txn_month DESC, t.txn_id DESC
+        """,
+        [window.start, window.end],
+    ).fetchall()
+    if not is_sample(conn):
+        rows = rows[::FULL_DATA_STEP]
+    return [
+        {"end": end, "level": level, "building_id": b, "street": street, "town": town, "flat_type": t, "storey": s}
+        for b, street, town, t, storey_min in rows
+        for level in Level
+        for s in (None, storey_min)
+    ]
+
+
+def comparable_scope(p: dict) -> Scope:
+    return Scope(
+        Level(p["level"]), p["building_id"], p["street"], p["town"], p["flat_type"], price_window(p["end"]), p["storey"]
+    )
+
+
 CASES: list[Case] = [
     Case(
         name="building",
@@ -593,6 +631,12 @@ CASES: list[Case] = [
         pg_call=lambda conn, p: PgExploreRepo(conn).block_recent(p["building_id"], window_ending(p["end"])),
         mongo_call=lambda db, p: MongoExploreRepo(db).block_recent(p["building_id"], window_ending(p["end"])),
         params=block_recent_params,
+    ),
+    Case(
+        name="prices_comparables",
+        pg_call=lambda conn, p: PgPriceRepo(conn).comparables(comparable_scope(p)),
+        mongo_call=lambda db, p: MongoPriceRepo(db).comparables(comparable_scope(p)),
+        params=comparable_params,
     ),
     Case(
         name="explore_towns",

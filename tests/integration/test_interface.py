@@ -17,7 +17,8 @@ pytestmark = pytest.mark.integration
 
 TIMING = re.compile(r"<li>([^<]+): [\d.]+ ms on (PostgreSQL|MongoDB) \(query and fetch\)</li>")
 TERM = 'href="/glossary#typical-price"'
-NAV = ["/", "/search", "/trends", "/rankings", "/food", "/glossary"]
+NAV = ["/", "/price-check", "/search", "/trends", "/rankings", "/food", "/glossary"]
+PRICE_CHECK = "/price-check?place_text=265+Bishan+St+24&flat_type=4+ROOM&area=104&price=700%2C000"
 JSON_TAG = re.compile(r'<script type="application/json" id="([\w-]+)">(.*?)</script>', re.S)
 
 
@@ -56,6 +57,7 @@ def pages(building_path, gap_query):
         ("/rankings?year=2022", True),
         ("/food?town=BISHAN", True),
         (building_path, True),
+        (PRICE_CHECK, True),
         ("/health", False),
     ]
 

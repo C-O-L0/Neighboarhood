@@ -11,6 +11,7 @@ from app.templating import (
     money_short,
     month,
     pct,
+    per_sqm,
     proper,
     storey,
     templates,
@@ -85,6 +86,12 @@ def test_proper():
     assert proper("C'WEALTH CRES") == "C'wealth Cres"
     assert proper("KALLANG/WHAMPOA") == "Kallang/Whampoa"
     assert proper("273A BISHAN ST 24") == "273A Bishan St 24"
+
+
+def test_per_sqm_is_whole_dollars_half_up():
+    assert per_sqm(Decimal("7596.49")) == "$7,596"
+    assert per_sqm(Decimal("7596.50")) == "$7,597"
+    assert per_sqm(None) == "Unknown"
 
 
 def test_distance():

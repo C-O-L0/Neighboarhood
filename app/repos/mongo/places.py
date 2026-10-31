@@ -32,17 +32,20 @@ def find_pipeline(block: str | None, street: str, limit: int) -> list[dict]:
                 "street": 1,
                 "town": "$town.name",
                 "location": 1,
+                "lease_commence_year": 1,
             }
         },
     ]
 
 
-def _place(building_id: int, block: str, street: str, town: str, location) -> Place:
+def _place(d: dict, town: str) -> Place:
     """located only for a GeoJSON point; a missing or null location has no coordinates."""
+    lease_year = d.get("lease_commence_year")
+    location = d.get("location")
     if not isinstance(location, dict):
-        return Place(building_id, block, street, town, False)
+        return Place(d["_id"], d["block"], d["street"], town, False, lease_year=lease_year)
     lon, lat = location["coordinates"]
-    return Place(building_id, block, street, town, True, coord(lat), coord(lon))
+    return Place(d["_id"], d["block"], d["street"], town, True, coord(lat), coord(lon), lease_year)
 
 
 class MongoPlaceRepo:
@@ -53,15 +56,15 @@ class MongoPlaceRepo:
 
     def get(self, building_id: int) -> Place | None:
         d = self.db.building_profiles.find_one(
-            {"_id": building_id}, {"block": 1, "street": 1, "town": 1, "location": 1}
+            {"_id": building_id}, {"block": 1, "street": 1, "town": 1, "location": 1, "lease_commence_year": 1}
         )
         if d is None:
             return None
-        return _place(d["_id"], d["block"], d["street"], d["town"]["name"], d.get("location"))
+        return _place(d, d["town"]["name"])
 
     def find(self, block: str | None, street: str, limit: int) -> list[Place]:
         docs = self.db.building_profiles.aggregate(find_pipeline(block, street, limit))
-        return [_place(d["_id"], d["block"], d["street"], d["town"], d.get("location")) for d in docs]
+        return [_place(d, d["town"]) for d in docs]
 
     def near(self, building_id: int, radius_m: int) -> list[NearBlock] | None:
         origin = self.db.building_profiles.find_one(

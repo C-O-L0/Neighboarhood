@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Check a price · Neighboar{% endblock %}
+{% block content %}
+<header class="results-head">
+  <h1>Is this price fair?</h1>
+  <p class="lede">Compare an asking price with past sales of the same flat type: in the same block first, then on the street, then in the town.</p>
+</header>
+
+<form method="get" action="/price-check" class="card price-form" novalidate>
+  {% if values.place %}<input type="hidden" name="place" value="{{ values.place }}">{% endif %}
+  <div class="field wide">
+    <label for="pc-place">Block and street</label>
+    <input id="pc-place" name="place_text" value="{{ values.place_text or '' }}" maxlength="60" placeholder="186 Bishan St 13" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="pc-type">{{ ui.term('Flat type', 'flat-type') }}</label>
+    <select id="pc-type" name="flat_type">
+      <option value="">Choose</option>
+      {% for t in flat_types %}<option value="{{ t }}"{% if values.flat_type == t %} selected{% endif %}>{{ t|flat_label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="pc-storey">{{ ui.term('Storey', 'storey-range') }}</label>
+    <select id="pc-storey" name="storey">
+      <option value="">Any storey</option>
+      {% for value, label in storeys %}<option value="{{ value }}"{% if values.storey == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="pc-area">{{ ui.term('Floor area', 'floor-area') }} (sqm)</label>
+    <input id="pc-area" name="area" value="{{ values.area or '' }}" inputmode="decimal" maxlength="5" placeholder="93">
+  </div>
+  <div class="field">
+    <label for="pc-price">Asking price</label>
+    <div class="money-input"><span aria-hidden="true">$</span><input id="pc-price" name="price" value="{{ values.price or '' }}" inputmode="decimal" maxlength="14" placeholder="650,000"></div>
+  </div>
+  <div class="form-actions"><button type="submit">Check this price</button></div>
+</form>
+
+{% if errors %}
+<div class="bad" role="alert"><ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+{% endif %}
+
+{% if choices %}
+<section class="card choose" aria-labelledby="choose-h">
+  <h2 id="choose-h">Which block did you mean?</h2>
+  <p class="hint">{% if not errors %}More than one block matches “{{ values.place_text }}”. {% endif %}Pick one to check the price against it.{% if choices|length >= suggestions %} Only the first {{ suggestions }} are shown: add the block number to narrow it down.{% endif %}</p>
+  <ul>
+    {% for c in choices %}<li><a href="{{ c.href }}">{{ c.p.block }} {{ c.p.street|proper }}</a> <span class="hint">{{ c.p.town|proper }}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if q is defined and place %}
+{% set town = place.town|proper %}
+{% set adj = q.flat_type|flat_adj %}
+{% set where = {'block': 'in ' ~ place.block ~ ' ' ~ place.street|proper, 'street': 'on ' ~ place.street|proper, 'town': 'in ' ~ town} %}
+{% set floors = ' on floors ' ~ (q.storey[0]|storey(q.storey[1])|lower) if q.storey else '' %}
+{% if result %}
+{% set v = result.verdict %}
+<section class="verdict" aria-labelledby="verdict-h">
+  <h2 id="verdict-h" class="verdict-line">
+    {%- if v.below == 0 and v.above == 0 -%}This asking price matches all {{ v.n }} similar sales {{ where[result.level] }}, per sqm.
+    {%- elif v.below >= v.above -%}This asking price is higher than {% if v.below == v.n %}all {{ v.n }}{% else %}{{ v.share_below }}% of{% endif %} similar sales {{ where[result.level] }}.
+    {%- else -%}This asking price is lower than {% if v.above == v.n %}all {{ v.n }}{% else %}{{ v.share_above }}% of{% endif %} similar sales {{ where[result.level] }}.
+    {%- endif -%}
+  </h2>
+  <p class="hint">
+    By {{ ui.term('price per sqm', 'price-per-sqm') }}: {{ v.n }} {{ adj }} sale{{ '' if v.n == 1 else 's' }}{{ floors }} {{ where[result.level] }} registered from {{ window.start|month }} to {{ window.end|month }}{% if not q.storey %}, across all storeys{% endif %}.
+    {%- if result.few %} <a class="few" href="/glossary#few-sales">few sales</a>{% endif %}
+  </p>
+  {% if result.level != 'block' %}
+  <p class="notice" role="status">
+    {%- for lvl, n in result.tried if lvl != result.level -%}
+    {% if loop.first %}Not enough sales {{ where[lvl] }} ({{ n }}){% else %}, nor {{ where[lvl] }} ({{ n }}){% endif %}
+    {%- endfor %}, so we compared with sales {{ where[result.level] }}.
+  </p>
+  {% endif %}
+  {% if result.tags is not none %}
+  <p class="profile-tags"><span class="hint">Your flat against these sales:</span> {{ ui.tag_list(result.tags, 'these sales') }}</p>
+  {% endif %}
+
+  <figure class="range" aria-labelledby="range-cap">
+    <figcaption id="range-cap" class="sr">Price per sqm of these sales, from lowest to highest, with yours marked</figcaption>
+    <div class="range-track" aria-hidden="true">
+      <span class="range-median" style="left: {{ '%.1f'|format(v.position(v.median)) }}%"></span>
+      <span class="range-you{% if v.asking_psm > v.high or v.asking_psm < v.low %} outside{% endif %}" style="left: {{ '%.1f'|format(v.position(v.asking_psm)) }}%"></span>
+    </div>
+    <dl class="range-labels">
+      <div><dt>Lowest</dt><dd>{{ v.low|per_sqm }}</dd></div>
+      <div><dt>Typical</dt><dd>{{ v.median|per_sqm }}</dd></div>
+      <div><dt>Highest</dt><dd>{{ v.high|per_sqm }}</dd></div>
+      <div class="you"><dt>Yours</dt><dd>{{ v.asking_psm|per_sqm }}</dd></div>
+    </dl>
+  </figure>
+</section>
+
+<section aria-labelledby="comp-h">
+  <div class="section-head">
+    <h2 id="comp-h">Comparable sales</h2>
+    <span class="hint">{% if result.verdict.n > result.sales|length %}the latest {{ result.sales|length }} of {{ result.verdict.n }}{% else %}latest first{% endif %}</span>
+  </div>
+  <div class="table-wrap">
+  <table class="comparables">
+    <caption class="sr">Comparable sales, latest first</caption>
+    <thead><tr><th>Month</th>{% if result.level != 'block' %}<th>Block</th>{% endif %}<th>Storey</th><th>Area (sqm)</th><th>Price</th><th>Per sqm</th></tr></thead>
+    <tbody>
+      {% for s in result.sales %}
+      <tr><td class="nowrap">{{ s.txn_month|month }}</td>{% if result.level != 'block' %}<td class="nowrap">{{ s.block }} {{ s.street|proper }}</td>{% endif %}<td class="nowrap">{{ s.storey_min|storey(s.storey_max) }}</td><td>{{ s.floor_area_sqm }}</td><td>{{ s.resale_price|money }}</td><td>{{ s.price_psm|per_sqm }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% else %}
+<div class="notice" role="status">
+  <p>No {{ adj }} sales{{ floors }} in {{ town }} were registered from {{ window.start|month }} to {{ window.end|month }}, so a fair comparison is not possible.</p>
+  <p><a href="{{ trend_link }}">See the {{ town }} {{ adj }} price trend</a>{% if q.storey %} or <a href="/price-check?{{ {'place': place.building_id, 'place_text': values.place_text, 'flat_type': q.flat_type, 'area': values.area, 'price': values.price}|urlencode }}">try across all storeys</a>{% endif %}.</p>
+</div>
+{% endif %}
+
+<section class="card shortlist" aria-labelledby="save-h">
+  <h2 id="save-h">Keep this block</h2>
+  {% if not account %}
+  <p><a href="/login">Sign in</a> to save {{ place.block }} {{ place.street|proper }} to your shortlist with this price.</p>
+  {% elif saved %}
+  <p>{{ place.block }} {{ place.street|proper }} is already on your shortlist. <a href="/block/{{ place.building_id }}#shortlist">Add this price to its note</a>.</p>
+  {% else %}
+  <form method="post" action="/saved?db={{ db_mode }}" class="saveform">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="building_id" value="{{ place.building_id }}">
+    <input type="hidden" name="back" value="building">
+    <label for="note">Note</label>
+    <textarea id="note" name="note" rows="2" maxlength="500">{{ note }}</textarea>
+    <div class="form-actions"><button type="submit">Save with this price</button></div>
+  </form>
+  {% endif %}
+  <p class="hint">This is guidance from past sales, not a valuation. <a href="/block/{{ place.building_id }}">See the block profile</a>.</p>
+</section>
+{% endif %}
+{% endblock %}

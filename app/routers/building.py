@@ -146,6 +146,8 @@ def block_profile(request: Request, building_id: int):
         "lease_errors": lease_errors,
         "lease_values": lease_values,
         "cpf_url": CPF_LEASE_URL,
+        "price_link": "/price-check?"
+        + urlencode({"place": building_id, **({"flat_type": top.flat_type} if top else {})}),
         "trend_link": "/trends?" + urlencode(trend_query),
         "near_link": "/?" + urlencode(near_query),
         "sales_link": "/search?" + urlencode({"town": b.town, "block": b.block, "street": b.street}),
